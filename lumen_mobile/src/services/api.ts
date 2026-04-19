@@ -27,14 +27,17 @@ export const removeDevToken = (): Promise<void> =>
   AsyncStorage().removeItem(DEV_TOKEN_KEY);
 
 // URL do backend
-// Em produção: usa EXPO_PUBLIC_API_URL (injetado pelo Vercel/EAS no build)
-// Em dev: usa localhost (ou 10.0.2.2 para emulador Android)
+// Prioridade: EXPO_PUBLIC_API_URL (dev e produção) > fallback por plataforma
+// Isso permite apontar para o Railway mesmo rodando com expo start (modo dev).
 const getBaseUrl = () => {
-  if (!__DEV__) {
-    return process.env.EXPO_PUBLIC_API_URL ?? 'https://api.lumenplus.app';
+  // Se a URL estiver explicitamente definida no .env, usa sempre — dev ou prod.
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
   }
-  // Android Emulator: 10.0.2.2 aponta para o localhost da máquina host
-  // iOS Simulator / Web: localhost funciona diretamente
+  if (!__DEV__) {
+    return 'https://api.lumenplus.app';
+  }
+  // Fallback local: Android Emulator usa 10.0.2.2 para acessar o host
   if (Platform.OS === 'android') return 'http://10.0.2.2:8000';
   return 'http://localhost:8000';
 };

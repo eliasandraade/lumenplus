@@ -10,7 +10,8 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
+import { VercelAnalytics } from '@/components/VercelAnalytics';
 
 // Sentry — inicializa antes de qualquer render
 Sentry.init({
@@ -93,6 +94,7 @@ export default function RootLayout() {
             <Stack.Screen name="retreats" options={{ headerShown: false }} />
             <Stack.Screen name="coordinator" options={{ headerShown: false }} />
           </Stack>
+          <VercelAnalytics />
         </SafeAreaProvider>
       </QueryClientProvider>
     </Sentry.ErrorBoundary>
