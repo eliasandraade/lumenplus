@@ -1,0 +1,1496 @@
+"""
+Lumen+ Database Models v2
+=========================
+"""
+
+import enum
+import uuid as _uuid_mod
+from datetime import date, datetime
+from typing import Any
+from uuid import UUID
+
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    JSON,
+    LargeBinary,
+    String,
+    Text,
+    UniqueConstraint,
+    Index,
+    func,
+)
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+# === ENUMS ===
+
+
+class OrgUnitType(enum.Enum):
+    CONSELHO_GERAL = "CONSELHO_GERAL"
+    CONSELHO_EXECUTIVO = "CONSELHO_EXECUTIVO"
+    SETOR = "SETOR"
+    MINISTERIO = "MINISTERIO"
+    GRUPO = "GRUPO"
+
+
+class GroupType(enum.Enum):
+    ACOLHIDA = "ACOLHIDA"
+    APROFUNDAMENTO = "APROFUNDAMENTO"
+    VOCACIONAL = "VOCACIONAL"
+    CASAIS = "CASAIS"
+    CURSO = "CURSO"
+    PROJETO = "PROJETO"
+
+
+class Visibility(enum.Enum):
+    PUBLIC = "PUBLIC"
+    RESTRICTED = "RESTRICTED"
+
+
+class MembershipStatus(enum.Enum):
+    ACTIVE = "ACTIVE"
+    REMOVED = "REMOVED"
+
+
+class InviteStatus(enum.Enum):
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+    EXPIRED = "EXPIRED"
+    CANCELLED = "CANCELLED"
+
+
+class OrgRoleCode(enum.Enum):
+    COORDINATOR = "COORDINATOR"
+    MEMBER = "MEMBER"
+
+
+# === USER ===
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    identities: Mapped[list["UserIdentity"]] = relationship(
+        "UserIdentity", back_populates="user", cascade="all, delete-orphan"
+    )
+    profile: Mapped["UserProfile | None"] = relationship(
+        "UserProfile",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        foreign_keys="UserProfile.user_id",
+    )
+    memberships: Mapped[list["OrgMembership"]] = relationship(
+        "OrgMembership",
+        back_populates="user",
+        foreign_keys="OrgMembership.user_id",
+        cascade="all, delete-orphan",
+    )
+    global_roles: Mapped[list["UserGlobalRole"]] = relationship(
+        "UserGlobalRole",
+        back_populates="user",
+        foreign_keys="UserGlobalRole.user_id",
+        cascade="all, delete-orphan",
+    )
+    sent_invites: Mapped[list["OrgInvite"]] = relationship(
+        "OrgInvite", back_populates="invited_by_user", foreign_keys="OrgInvite.invited_by_user_id"
+    )
+    received_invites: Mapped[list["OrgInvite"]] = relationship(
+        "OrgInvite", back_populates="invited_user", foreign_keys="OrgInvite.invited_user_id"
+    )
+
+
+class UserIdentity(Base):
+    __tablename__ = "user_identities"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    provider: Mapped[str] = mapped_column(Text, nullable=False)
+    provider_uid: Mapped[str] = mapped_column(Text, nullable=False)
+    email: Mapped[str | None] = mapped_column(Text, nullable=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_uid", name="uq_identity_provider_uid"),
+    )
+    user: Mapped["User"] = relationship("User", back_populates="identities")
+
+
+# === PROFILE COMPLETO ===
+
+
+class UserProfile(Base):
+    """
+    Perfil do usuário com todos os campos:
+    - Dados básicos + foto
+    - Estado de vida, Estado civil, Realidade vocacional (via catálogos)
+    - Ano de consagração (se Consagrado Filho da Luz)
+    - Acompanhamento vocacional (se sim → quem)
+    - Interesse em ministério (se sim → qual)
+    """
+
+    __tablename__ = "user_profiles"
+
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+
+    # DADOS BÁSICOS
+    full_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(Text, nullable=True)  # URL da foto
+
+    # DOCUMENTOS (criptografados)
+    cpf_hash: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True)
+    cpf_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    rg_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+
+    # CONTATO
+    phone_e164: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True)
+    phone_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+
+    # LOCALIZAÇÃO
+    city: Mapped[str | None] = mapped_column(Text, nullable=True)
+    state: Mapped[str | None] = mapped_column(String(2), nullable=True)
+
+    # CATÁLOGOS (via FK para profile_catalog_items)
+    # Estado de Vida: Leigo, Leigo Consagrado, Noviça, Seminarista, Religioso,
+    #                 Diácono Permanente, Diácono, Sacerdote Religioso, Sacerdote Diocesano, Bispo
+    life_state_item_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+
+    # Estado Civil: Solteiro, Noivo, Casado, Divorciado, Viúvo, União Estável
+    marital_status_item_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+
+    # Realidade Vocacional: Membro do Acolhida, Membro do Aprofundamento, Vocacional,
+    #                       Postulante de Primeiro Ano, Postulante de Segundo Ano,
+    #                       Discípulo Vocacional, Consagrado Filho da Luz
+    vocational_reality_item_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), nullable=True
+    )
+
+    # ANO DE CONSAGRAÇÃO (obrigatório se Realidade Vocacional = CONSAGRADO_FILHO_DA_LUZ)
+    consecration_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # ACOMPANHAMENTO VOCACIONAL
+    has_vocational_accompaniment: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Se sim, quem é o acompanhador?
+    vocational_accompanist_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    vocational_accompanist_name: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # Se não for usuário do sistema
+
+    # INTERESSE EM MINISTÉRIO
+    interested_in_ministry: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Se sim, qual?
+    interested_ministry_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("org_units.id", ondelete="SET NULL"), nullable=True
+    )
+    ministry_interest_notes: Mapped[str | None] = mapped_column(Text, nullable=True)  # Observações
+
+    # INFORMAÇÕES ADICIONAIS (retiros, eventos, comunidade)
+    instagram: Mapped[str | None] = mapped_column(Text, nullable=True)
+    dietary_restriction: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    dietary_restriction_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    health_insurance: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    health_insurance_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    accommodation_preference: Mapped[str | None] = mapped_column(
+        String(20), nullable=True
+    )  # CAMA, REDE, COLCHAO_INFLAVEL
+    is_from_mission: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    mission_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    despertar_encounter: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # MÚSICA / INSTRUMENTOS
+    plays_instrument: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    instrument_names: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON array
+    available_for_group: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    music_availability: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON array
+
+    # STATUS
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="INCOMPLETE")
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship("User", back_populates="profile", foreign_keys=[user_id])
+    emergency_contacts: Mapped[list["UserEmergencyContact"]] = relationship(
+        "UserEmergencyContact", back_populates="profile", cascade="all, delete-orphan"
+    )
+    vocational_accompanist: Mapped["User | None"] = relationship(
+        "User", foreign_keys=[vocational_accompanist_user_id]
+    )
+    interested_ministry: Mapped["OrgUnit | None"] = relationship(
+        "OrgUnit", foreign_keys=[interested_ministry_id]
+    )
+
+
+class UserEmergencyContact(Base):
+    __tablename__ = "user_emergency_contacts"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("user_profiles.user_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    contact_name: Mapped[str] = mapped_column(Text, nullable=False)
+    contact_phone: Mapped[str] = mapped_column(Text, nullable=False)
+    contact_relationship: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    profile: Mapped["UserProfile"] = relationship(
+        "UserProfile", back_populates="emergency_contacts"
+    )
+
+
+# === PROFILE CATALOGS ===
+
+
+class ProfileCatalog(Base):
+    """Catálogo de opções para o perfil (Estado de Vida, Estado Civil, etc.)"""
+
+    __tablename__ = "profile_catalogs"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    code: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+
+    items: Mapped[list["ProfileCatalogItem"]] = relationship(
+        "ProfileCatalogItem", back_populates="catalog", cascade="all, delete-orphan"
+    )
+
+
+class ProfileCatalogItem(Base):
+    """Item de um catálogo de perfil"""
+
+    __tablename__ = "profile_catalog_items"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    catalog_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("profile_catalogs.id", ondelete="CASCADE"), nullable=False
+    )
+    code: Mapped[str] = mapped_column(Text, nullable=False)
+    label: Mapped[str] = mapped_column(Text, nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+
+    __table_args__ = (UniqueConstraint("catalog_id", "code", name="uq_catalog_item_code"),)
+    catalog: Mapped["ProfileCatalog"] = relationship("ProfileCatalog", back_populates="items")
+
+
+# === GLOBAL ROLES ===
+
+
+class GlobalRole(Base):
+    __tablename__ = "global_roles"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    code: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class UserGlobalRole(Base):
+    __tablename__ = "user_global_roles"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    global_role_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("global_roles.id", ondelete="CASCADE"), nullable=False
+    )
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "global_role_id", name="uq_user_global_role"),
+        Index("idx_user_global_roles_user_id", "user_id"),
+    )
+    user: Mapped["User"] = relationship(
+        "User", back_populates="global_roles", foreign_keys=[user_id]
+    )
+    global_role: Mapped["GlobalRole"] = relationship("GlobalRole")
+
+
+# === ORGANIZATION ===
+
+
+class OrgUnit(Base):
+    __tablename__ = "org_units"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    type: Mapped[OrgUnitType] = mapped_column(
+        Enum(OrgUnitType, name="org_unit_type", create_constraint=False), nullable=False
+    )
+    group_type: Mapped[GroupType | None] = mapped_column(
+        Enum(GroupType, name="group_type", create_constraint=False), nullable=True
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    slug: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    parent_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("org_units.id", ondelete="CASCADE"), nullable=True
+    )
+    visibility: Mapped[Visibility] = mapped_column(
+        Enum(Visibility, name="visibility", create_constraint=False),
+        nullable=False,
+        default=Visibility.PUBLIC,
+        server_default="PUBLIC",
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    retreat_scope: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    created_by_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (Index("idx_org_units_parent_id", "parent_id"),)
+
+    parent: Mapped["OrgUnit | None"] = relationship(
+        "OrgUnit", remote_side=[id], back_populates="children"
+    )
+    children: Mapped[list["OrgUnit"]] = relationship(
+        "OrgUnit", back_populates="parent", cascade="all, delete-orphan"
+    )
+    memberships: Mapped[list["OrgMembership"]] = relationship(
+        "OrgMembership", back_populates="org_unit", cascade="all, delete-orphan"
+    )
+    invites: Mapped[list["OrgInvite"]] = relationship(
+        "OrgInvite", back_populates="org_unit", cascade="all, delete-orphan"
+    )
+
+
+class OrgMembership(Base):
+    __tablename__ = "org_memberships"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    org_unit_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("org_units.id", ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[OrgRoleCode] = mapped_column(
+        Enum(OrgRoleCode, name="org_role_code", create_constraint=False),
+        nullable=False,
+        default=OrgRoleCode.MEMBER,
+        server_default="MEMBER",
+    )
+    status: Mapped[MembershipStatus] = mapped_column(
+        Enum(MembershipStatus, name="membership_status", create_constraint=False),
+        nullable=False,
+        default=MembershipStatus.ACTIVE,
+        server_default="ACTIVE",
+    )
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    invite_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("org_invites.id", ondelete="SET NULL"), nullable=True
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "org_unit_id", name="uq_membership_user_org"),
+        Index("idx_org_memberships_user_id", "user_id"),
+        Index("idx_org_memberships_org_unit_id", "org_unit_id"),
+    )
+    user: Mapped["User"] = relationship(
+        "User", back_populates="memberships", foreign_keys=[user_id]
+    )
+    org_unit: Mapped["OrgUnit"] = relationship("OrgUnit", back_populates="memberships")
+
+
+class OrgInvite(Base):
+    __tablename__ = "org_invites"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    org_unit_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("org_units.id", ondelete="CASCADE"), nullable=False
+    )
+    invited_user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    invited_by_user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[OrgRoleCode] = mapped_column(
+        Enum(OrgRoleCode, name="org_role_code", create_constraint=False),
+        nullable=False,
+        default=OrgRoleCode.MEMBER,
+        server_default="MEMBER",
+    )
+    status: Mapped[InviteStatus] = mapped_column(
+        Enum(InviteStatus, name="invite_status", create_constraint=False),
+        nullable=False,
+        default=InviteStatus.PENDING,
+        server_default="PENDING",
+    )
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("idx_org_invites_invited_user_id", "invited_user_id"),
+        Index("idx_org_invites_status", "status"),
+    )
+
+    org_unit: Mapped["OrgUnit"] = relationship("OrgUnit", back_populates="invites")
+    invited_user: Mapped["User"] = relationship(
+        "User", back_populates="received_invites", foreign_keys=[invited_user_id]
+    )
+    invited_by_user: Mapped["User"] = relationship(
+        "User", back_populates="sent_invites", foreign_keys=[invited_by_user_id]
+    )
+
+
+# === VERIFICATION ===
+
+
+class PhoneVerification(Base):
+    __tablename__ = "phone_verifications"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    phone_e164: Mapped[str] = mapped_column(Text, nullable=False)
+    channel: Mapped[str] = mapped_column(Text, nullable=False)
+    code_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EmailVerification(Base):
+    __tablename__ = "email_verifications"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# === LEGAL ===
+
+
+class LegalDocument(Base):
+    __tablename__ = "legal_documents"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    type: Mapped[str] = mapped_column(Text, nullable=False)
+    version: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    published_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (UniqueConstraint("type", "version", name="uq_legal_doc_type_version"),)
+
+
+class UserConsent(Base):
+    __tablename__ = "user_consents"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    document_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("legal_documents.id", ondelete="CASCADE"), nullable=False
+    )
+    accepted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class UserPreferences(Base):
+    __tablename__ = "user_preferences"
+
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    analytics_opt_in: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    push_opt_in: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+
+
+# === AUDIT ===
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    actor_user_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    action: Mapped[str] = mapped_column(Text, nullable=False)
+    entity_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+    entity_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extra_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# === INBOX (AVISOS) ===
+
+
+class InboxMessageType(enum.Enum):
+    INFO = "info"
+    WARNING = "warning"
+    SUCCESS = "success"
+    URGENT = "urgent"
+
+
+class InboxMessage(Base):
+    """
+    Mensagem/Aviso enviado para usuários.
+    Criada por usuários com permissão CAN_SEND_INBOX.
+    """
+
+    __tablename__ = "inbox_messages"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    type: Mapped[InboxMessageType] = mapped_column(
+        Enum(InboxMessageType, name="inbox_message_type", create_constraint=False),
+        nullable=False,
+        default=InboxMessageType.INFO,
+        server_default="INFO",
+    )
+
+    # Anexos (lista de {type, url, title?} — armazenada como array JSON)
+    attachments: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
+
+    # Filtros usados para segmentação (guardamos para histórico — objeto JSON)
+    filters: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+
+    # Escopo organizacional alvo (preenchido quando enviado por coordenador)
+    target_org_unit_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("org_units.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # Quem enviou
+    created_by_user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    # Relationships
+    created_by: Mapped["User"] = relationship("User", foreign_keys=[created_by_user_id])
+    target_org_unit: Mapped["OrgUnit | None"] = relationship(
+        "OrgUnit", foreign_keys=[target_org_unit_id]
+    )
+    recipients: Mapped[list["InboxRecipient"]] = relationship(
+        "InboxRecipient", back_populates="message", cascade="all, delete-orphan"
+    )
+
+
+class InboxRecipient(Base):
+    """
+    Relação entre mensagem e destinatário.
+    Cada usuário tem seu próprio registro para controlar leitura.
+    """
+
+    __tablename__ = "inbox_recipients"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    message_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("inbox_messages.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+
+    read: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("message_id", "user_id", name="uq_inbox_recipient"),
+        Index("ix_inbox_recipient_user_read", "user_id", "read"),
+    )
+
+    # Relationships
+    message: Mapped["InboxMessage"] = relationship("InboxMessage", back_populates="recipients")
+    user: Mapped["User"] = relationship("User")
+
+
+# === PERMISSÕES ===
+
+
+class UserPermission(Base):
+    """
+    Permissões específicas para usuários.
+    Exemplo: CAN_SEND_INBOX permite enviar avisos.
+    """
+
+    __tablename__ = "user_permissions"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    permission_code: Mapped[str] = mapped_column(Text, nullable=False)
+
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    granted_by_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "permission_code", name="uq_user_permission"),
+        Index("ix_user_permission_code", "permission_code"),
+    )
+
+    # Relationships
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id])
+    granted_by: Mapped["User | None"] = relationship("User", foreign_keys=[granted_by_user_id])
+
+
+class SensitiveAccessRequest(Base):
+    """
+    Solicitação de acesso a dados sensíveis (CPF/RG) de outro usuário.
+    Criada por SECRETARY; aprovada/rejeitada por COUNCIL_GENERAL ou DEV.
+    """
+
+    __tablename__ = "sensitive_access_requests"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    requester_user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    target_user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    scope: Mapped[str] = mapped_column(Text, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="PENDING")
+    approved_by_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    requester: Mapped["User"] = relationship("User", foreign_keys=[requester_user_id])
+    target: Mapped["User"] = relationship("User", foreign_keys=[target_user_id])
+    approved_by: Mapped["User | None"] = relationship("User", foreign_keys=[approved_by_user_id])
+
+
+class SensitiveAccessAudit(Base):
+    """Registro de auditoria de cada acesso a dados sensíveis (CPF/RG)."""
+
+    __tablename__ = "sensitive_access_audit"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    request_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    viewer_user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    target_user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    action: Mapped[str] = mapped_column(Text, nullable=False)
+    ip: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    viewer: Mapped["User"] = relationship("User", foreign_keys=[viewer_user_id])
+    target: Mapped["User"] = relationship("User", foreign_keys=[target_user_id])
+
+
+# === RETIROS ===
+
+
+class RetreatType(enum.Enum):
+    WEEKEND = "WEEKEND"
+    DAY = "DAY"
+    FORMATION = "FORMATION"
+
+
+class RetreatModality(enum.Enum):
+    PRESENCIAL = "PRESENCIAL"
+    HIBRIDO = "HIBRIDO"
+
+
+class RetreatRole(enum.Enum):
+    PARTICIPANTE = "PARTICIPANTE"
+    EQUIPE_SERVICO = "EQUIPE_SERVICO"
+
+
+class FeeCategory(enum.Enum):
+    PARTICIPANTE = "PARTICIPANTE"
+    PARTICIPANTE_MISSAO = "PARTICIPANTE_MISSAO"
+    PARTICIPANTE_CASAS = "PARTICIPANTE_CASAS"
+    PARTICIPANTE_CV = "PARTICIPANTE_CV"
+    EQUIPE_SERVICO = "EQUIPE_SERVICO"
+    EQUIPE_SERVICO_MISSAO = "EQUIPE_SERVICO_MISSAO"
+    EQUIPE_SERVICO_CASAS = "EQUIPE_SERVICO_CASAS"
+    EQUIPE_SERVICO_CV = "EQUIPE_SERVICO_CV"
+    HIBRIDO = "HIBRIDO"  # Taxa única para quem escolhe modalidade híbrida
+
+
+class RetreatStatus(enum.Enum):
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+    CLOSED = "CLOSED"
+    CANCELLED = "CANCELLED"
+
+
+class RetreatVisibilityType(enum.Enum):
+    ALL = "ALL"
+    SPECIFIC = "SPECIFIC"
+
+
+class RetreatEligibilityRuleType(enum.Enum):
+    ORG_UNIT = "ORG_UNIT"
+    VOCATIONAL_REALITY = "VOCATIONAL_REALITY"
+
+
+class RegistrationStatus(enum.Enum):
+    PENDING_PAYMENT = "PENDING_PAYMENT"
+    PAYMENT_SUBMITTED = "PAYMENT_SUBMITTED"
+    CONFIRMED = "CONFIRMED"
+    CANCELLED = "CANCELLED"
+    WAITLIST = "WAITLIST"
+
+
+class ServiceTeamRole(enum.Enum):
+    COORDENADOR = "COORDENADOR"
+    MEMBRO = "MEMBRO"
+    APOIO = "APOIO"
+
+
+class Retreat(Base):
+    __tablename__ = "retreats"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retreat_type: Mapped[RetreatType] = mapped_column(
+        Enum(RetreatType, name="retreat_type", create_constraint=False), nullable=False
+    )
+    status: Mapped[RetreatStatus] = mapped_column(
+        Enum(RetreatStatus, name="retreat_status", create_constraint=False),
+        nullable=False,
+        default=RetreatStatus.DRAFT,
+        server_default="DRAFT",
+    )
+    start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    end_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    location: Mapped[str | None] = mapped_column(Text, nullable=True)
+    address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    max_participants: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    price_brl: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    visibility_type: Mapped[RetreatVisibilityType] = mapped_column(
+        Enum(RetreatVisibilityType, name="retreat_visibility_type", create_constraint=False),
+        nullable=False,
+        default=RetreatVisibilityType.ALL,
+        server_default="ALL",
+    )
+    created_by_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    eligibility_rules: Mapped[list["RetreatEligibilityRule"]] = relationship(
+        "RetreatEligibilityRule", back_populates="retreat", cascade="all, delete-orphan"
+    )
+    registrations: Mapped[list["RetreatRegistration"]] = relationship(
+        "RetreatRegistration", back_populates="retreat", cascade="all, delete-orphan"
+    )
+    houses: Mapped[list["RetreatHouse"]] = relationship(
+        "RetreatHouse", back_populates="retreat", cascade="all, delete-orphan"
+    )
+    fee_types: Mapped[list["RetreatFeeType"]] = relationship(
+        "RetreatFeeType", back_populates="retreat", cascade="all, delete-orphan"
+    )
+    service_teams: Mapped[list["RetreatServiceTeam"]] = relationship(
+        "RetreatServiceTeam",
+        back_populates="retreat",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    coordinators: Mapped[list["RetreatCoordinator"]] = relationship(
+        "RetreatCoordinator",
+        back_populates="retreat",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    created_by: Mapped["User | None"] = relationship("User", foreign_keys=[created_by_user_id])
+
+
+class RetreatEligibilityRule(Base):
+    __tablename__ = "retreat_eligibility_rules"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    retreat_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("retreats.id", ondelete="CASCADE"), nullable=False
+    )
+    rule_type: Mapped[RetreatEligibilityRuleType] = mapped_column(
+        Enum(
+            RetreatEligibilityRuleType,
+            name="retreat_eligibility_rule_type",
+            create_constraint=False,
+        ),
+        nullable=False,
+    )
+    org_unit_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("org_units.id", ondelete="CASCADE"), nullable=True
+    )
+    vocational_reality_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # rule_group: "PARTICIPANT" (quem pode participar) | "SERVICE" (quem pode servir)
+    rule_group: Mapped[str] = mapped_column(Text, nullable=False, server_default="PARTICIPANT")
+
+    retreat: Mapped["Retreat"] = relationship("Retreat", back_populates="eligibility_rules")
+    org_unit: Mapped["OrgUnit | None"] = relationship("OrgUnit")
+
+
+class RetreatRegistration(Base):
+    __tablename__ = "retreat_registrations"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    retreat_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("retreats.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    status: Mapped[RegistrationStatus] = mapped_column(
+        Enum(RegistrationStatus, name="registration_status", create_constraint=False),
+        nullable=False,
+        default=RegistrationStatus.PENDING_PAYMENT,
+        server_default="PENDING_PAYMENT",
+    )
+    modality_preference: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # PRESENCIAL | HIBRIDO
+    retreat_role: Mapped[str] = mapped_column(Text, nullable=False, server_default="PARTICIPANTE")
+    fee_category: Mapped[str | None] = mapped_column(Text, nullable=True)
+    assigned_house_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("retreat_houses.id", ondelete="SET NULL"), nullable=True
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payment_proof_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payment_submitted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    payment_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    payment_confirmed_by_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    payment_rejected_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    payment_rejected_by_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    payment_rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_by_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (UniqueConstraint("retreat_id", "user_id", name="uq_retreat_registration"),)
+
+    retreat: Mapped["Retreat"] = relationship("Retreat", back_populates="registrations")
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id])
+    payment_confirmed_by: Mapped["User | None"] = relationship(
+        "User", foreign_keys=[payment_confirmed_by_user_id]
+    )
+    payment_rejected_by: Mapped["User | None"] = relationship(
+        "User", foreign_keys=[payment_rejected_by_user_id]
+    )
+    cancelled_by: Mapped["User | None"] = relationship("User", foreign_keys=[cancelled_by_user_id])
+    assigned_house: Mapped["RetreatHouse | None"] = relationship(
+        "RetreatHouse", foreign_keys=[assigned_house_id]
+    )
+    team_preferences: Mapped[list["RetreatTeamPreference"]] = relationship(
+        "RetreatTeamPreference",
+        back_populates="registration",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    team_assignment_entries: Mapped[list["RetreatServiceTeamMember"]] = relationship(
+        "RetreatServiceTeamMember",
+        back_populates="registration",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class RetreatHouse(Base):
+    __tablename__ = "retreat_houses"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    retreat_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("retreats.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    modality: Mapped[str] = mapped_column(Text, nullable=False)  # PRESENCIAL | HIBRIDO
+    max_participants: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    retreat: Mapped["Retreat"] = relationship("Retreat", back_populates="houses")
+
+
+class RetreatFeeType(Base):
+    __tablename__ = "retreat_fee_types"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    retreat_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("retreats.id", ondelete="CASCADE"), nullable=False
+    )
+    fee_category: Mapped[str] = mapped_column(Text, nullable=False)
+    amount_brl: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("retreat_id", "fee_category", name="uq_retreat_fee_category"),
+    )
+
+    retreat: Mapped["Retreat"] = relationship("Retreat", back_populates="fee_types")
+
+
+class RetreatServiceTeam(Base):
+    __tablename__ = "retreat_service_teams"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    retreat_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("retreats.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    retreat: Mapped["Retreat"] = relationship("Retreat", back_populates="service_teams")
+    members: Mapped[list["RetreatServiceTeamMember"]] = relationship(
+        "RetreatServiceTeamMember",
+        back_populates="team",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    preferences: Mapped[list["RetreatTeamPreference"]] = relationship(
+        "RetreatTeamPreference", back_populates="team", cascade="all, delete-orphan"
+    )
+
+
+class RetreatServiceTeamMember(Base):
+    __tablename__ = "retreat_service_team_members"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    team_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("retreat_service_teams.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    registration_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("retreat_registrations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    house_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("retreat_houses.id", ondelete="SET NULL"), nullable=True
+    )
+    role: Mapped[ServiceTeamRole] = mapped_column(
+        Enum(ServiceTeamRole, name="service_team_role", create_constraint=False),
+        nullable=False,
+        default=ServiceTeamRole.MEMBRO,
+        server_default="MEMBRO",
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("team_id", "registration_id", name="uq_team_member_registration"),
+    )
+
+    team: Mapped["RetreatServiceTeam"] = relationship(
+        "RetreatServiceTeam", back_populates="members"
+    )
+    registration: Mapped["RetreatRegistration"] = relationship(
+        "RetreatRegistration", back_populates="team_assignment_entries"
+    )
+    house: Mapped["RetreatHouse | None"] = relationship("RetreatHouse")
+
+
+class RetreatTeamPreference(Base):
+    __tablename__ = "retreat_team_preferences"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    registration_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("retreat_registrations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    team_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("retreat_service_teams.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    preference_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("registration_id", "team_id", name="uq_team_preference_reg_team"),
+        UniqueConstraint(
+            "registration_id", "preference_order", name="uq_team_preference_reg_order"
+        ),
+    )
+
+    registration: Mapped["RetreatRegistration"] = relationship(
+        "RetreatRegistration", back_populates="team_preferences"
+    )
+    team: Mapped["RetreatServiceTeam"] = relationship(
+        "RetreatServiceTeam", back_populates="preferences"
+    )
+
+
+class RetreatCoordinator(Base):
+    """
+    Coordenador de um retiro específico.
+    Garante acesso à gestão do retiro sem precisar de cargo global.
+    """
+
+    __tablename__ = "retreat_coordinators"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    retreat_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("retreats.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    granted_by_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("retreat_id", "user_id", name="uq_retreat_coordinator"),)
+
+    retreat: Mapped["Retreat"] = relationship("Retreat", back_populates="coordinators")
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id])
+    granted_by: Mapped["User | None"] = relationship("User", foreign_keys=[granted_by_user_id])
+
+
+# === LIFE PLAN MODULE ===
+
+
+class LifeCycleStatus(enum.Enum):
+    DRAFT = "DRAFT"
+    ACTIVE = "ACTIVE"
+    ARCHIVED = "ARCHIVED"
+
+
+class LifePlanCycle(Base):
+    """
+    Ciclo do Projeto de Vida.
+    Apenas 1 ciclo ACTIVE por usuário (enforçado via partial unique index).
+    Dados sensíveis — não expor em logs ou dashboards admin.
+    """
+
+    __tablename__ = "life_plan_cycles"
+    __table_args__ = (
+        Index("idx_life_plan_cycles_user_id", "user_id"),
+        Index("idx_life_plan_cycles_status", "status"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="DRAFT")
+    realidade_vocacional: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    wizard_progress: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    started_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    ended_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    diagnoses: Mapped[list["LifePlanDiagnosis"]] = relationship(
+        "LifePlanDiagnosis", back_populates="cycle", cascade="all, delete-orphan"
+    )
+    core: Mapped["LifePlanCore | None"] = relationship(
+        "LifePlanCore", back_populates="cycle", uselist=False, cascade="all, delete-orphan"
+    )
+    goals: Mapped[list["LifePlanGoal"]] = relationship(
+        "LifePlanGoal",
+        back_populates="cycle",
+        cascade="all, delete-orphan",
+        order_by="LifePlanGoal.display_order",
+    )
+    routine: Mapped["LifePlanSpiritualRoutine | None"] = relationship(
+        "LifePlanSpiritualRoutine",
+        back_populates="cycle",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    monthly_reviews: Mapped[list["LifePlanMonthlyReview"]] = relationship(
+        "LifePlanMonthlyReview",
+        back_populates="cycle",
+        cascade="all, delete-orphan",
+        order_by="LifePlanMonthlyReview.review_date",
+    )
+
+
+class LifePlanDiagnosis(Base):
+    """Reflexão por dimensão de vida (Humana, Espiritual, Comunitária, Intelectual, Apostólica)."""
+
+    __tablename__ = "life_plan_diagnoses"
+    __table_args__ = (
+        UniqueConstraint("cycle_id", "dimension", name="uq_diagnosis_cycle_dimension"),
+        Index("idx_life_plan_diagnoses_cycle_id", "cycle_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    cycle_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("life_plan_cycles.id", ondelete="CASCADE"), nullable=False
+    )
+    dimension: Mapped[str] = mapped_column(Text, nullable=False)
+    abandonar: Mapped[str | None] = mapped_column(Text, nullable=True)
+    melhorar: Mapped[str | None] = mapped_column(Text, nullable=True)
+    deus_pede: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    cycle: Mapped["LifePlanCycle"] = relationship("LifePlanCycle", back_populates="diagnoses")
+
+
+class LifePlanCore(Base):
+    """Núcleo do plano: defeito dominante, virtudes, diretor espiritual. 1:1 com ciclo."""
+
+    __tablename__ = "life_plan_cores"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    cycle_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("life_plan_cycles.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    dominant_defect: Mapped[str | None] = mapped_column(Text, nullable=True)
+    virtudes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    spiritual_director_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    other_devotions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    cycle: Mapped["LifePlanCycle"] = relationship("LifePlanCycle", back_populates="core")
+
+
+class LifePlanGoal(Base):
+    """Objetivo do plano. 1 primário (vinculado ao defeito), até 3 secundários."""
+
+    __tablename__ = "life_plan_goals"
+    __table_args__ = (Index("idx_life_plan_goals_cycle_id", "cycle_id"),)
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    cycle_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("life_plan_cycles.id", ondelete="CASCADE"), nullable=False
+    )
+    is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    title: Mapped[str] = mapped_column(String(80), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    cycle: Mapped["LifePlanCycle"] = relationship("LifePlanCycle", back_populates="goals")
+    actions: Mapped[list["LifePlanAction"]] = relationship(
+        "LifePlanAction", back_populates="goal", cascade="all, delete-orphan"
+    )
+
+
+class LifePlanAction(Base):
+    """Meio concreto para atingir um objetivo: ação + frequência + contexto."""
+
+    __tablename__ = "life_plan_actions"
+    __table_args__ = (Index("idx_life_plan_actions_goal_id", "goal_id"),)
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    goal_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("life_plan_goals.id", ondelete="CASCADE"), nullable=False
+    )
+    action: Mapped[str] = mapped_column(Text, nullable=False)
+    frequency: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    context: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    goal: Mapped["LifePlanGoal"] = relationship("LifePlanGoal", back_populates="actions")
+
+
+class LifePlanSpiritualRoutine(Base):
+    """Rotina espiritual do ciclo. 1:1 com ciclo."""
+
+    __tablename__ = "life_plan_spiritual_routines"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    cycle_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("life_plan_cycles.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    prayer_type: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    prayer_duration: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    mass_frequency: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    confession_frequency: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    exam_of_conscience: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    exam_time: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    spiritual_reading: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    spiritual_direction_frequency: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    other_practices: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    cycle: Mapped["LifePlanCycle"] = relationship("LifePlanCycle", back_populates="routine")
+
+
+class LifePlanMonthlyReview(Base):
+    """Revisão mensal do plano. Imutável após criação."""
+
+    __tablename__ = "life_plan_monthly_reviews"
+    __table_args__ = (Index("idx_life_plan_monthly_reviews_cycle_id", "cycle_id"),)
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    cycle_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("life_plan_cycles.id", ondelete="CASCADE"), nullable=False
+    )
+    review_date: Mapped[date] = mapped_column(Date, nullable=False)
+    progress_reflection: Mapped[str | None] = mapped_column(Text, nullable=True)
+    difficulties: Mapped[str | None] = mapped_column(Text, nullable=True)
+    constancy_reflection: Mapped[str | None] = mapped_column(Text, nullable=True)
+    decision: Mapped[str] = mapped_column(Text, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    cycle: Mapped["LifePlanCycle"] = relationship("LifePlanCycle", back_populates="monthly_reviews")

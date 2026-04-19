@@ -1,0 +1,76 @@
+#################################
+# GLOBAL
+#################################
+.env
+.env.*
+!.env.example
+!**/.env.example
+*.log
+.DS_Store
+Thumbs.db
+
+#################################
+# IDE
+#################################
+.idea/
+.vscode/
+*.iml
+
+#################################
+# PYTHON (BACKEND)
+#################################
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtualenv
+.venv/
+venv/
+
+# Local databases
+*.sqlite3
+*.db
+
+#################################
+# DOCKER
+#################################
+docker-data/
+*.tar
+
+#################################
+# NODE / FRONTEND / MOBILE
+#################################
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.next/
+dist/
+build/
+
+#################################
+# EXPO / REACT NATIVE
+#################################
+.expo/
+web-build/
+
+#################################
+# STRAPI
+#################################
+strapi/.cache/
+strapi/build/
+strapi/node_modules/
+
+#################################
+# MISC
+#################################
+.cache/
+
+.claude/
+
+# Python egg-info
+*.egg-info/
