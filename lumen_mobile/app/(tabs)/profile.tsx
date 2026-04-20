@@ -44,7 +44,7 @@ const DESPERTAR_ENCOUNTERS = [
   'Kairós','Seraph','Kenosis','Parresia','Fides','Domus Dei','Magnificat',
   'Gaudium','Atrium','Ignis','Raboni','Pietá','Charis','Emanuel',
   'Totus Tuus','Fraternitas','Lazarus','Filho da Luz','Anawin',
-  'Dilext Nos','Franciscus',
+  'Dilext Nos','Franciscus','Kadosh',
 ];
 
 const ACCOMMODATION_OPTIONS = [
