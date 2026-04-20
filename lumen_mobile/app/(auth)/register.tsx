@@ -36,6 +36,12 @@ const DESPERTAR_ENCOUNTERS = [
   'Dilext Nos','Franciscus','Kadosh',
 ];
 
+const INSTRUMENTS = [
+  'Voz / Canto', 'Violão', 'Guitarra', 'Teclado', 'Piano',
+  'Bateria', 'Percussão', 'Flauta', 'Saxofone', 'Trompete',
+  'Contrabaixo', 'Violino', 'Outro',
+];
+
 const ACCOMMODATION_OPTIONS = [
   { value: 'CAMA', label: 'Cama' },
   { value: 'REDE', label: 'Rede' },
@@ -102,6 +108,16 @@ export default function RegisterScreen() {
   const [emergencyName, setEmergencyName] = useState('');
   const [emergencyRelationship, setEmergencyRelationship] = useState('');
   const [emergencyPhone, setEmergencyPhone] = useState('');
+
+  // Passo 3 — Vocacional (extras)
+  const [hasVocacionalAccomp, setHasVocacionalAccomp] = useState(false);
+  const [accompName, setAccompName] = useState('');
+  const [interestedMinistry, setInterestedMinistry] = useState(false);
+  const [ministryNotes, setMinistryNotes] = useState('');
+
+  // Passo 4 — Músico
+  const [playsInstrument, setPlaysInstrument] = useState(false);
+  const [instrumentNames, setInstrumentNames] = useState<string[]>([]);
 
   // Modais específicos do Passo 4
   const [accommodationModalVisible, setAccommodationModalVisible] = useState(false);
@@ -253,6 +269,12 @@ export default function RegisterScreen() {
           is_from_mission: isFromMission,
           mission_name: isFromMission ? missionName.trim() || null : null,
           despertar_encounter: despertarEncounter || null,
+          has_vocational_accompaniment: hasVocacionalAccomp,
+          vocational_accompanist_name: hasVocacionalAccomp ? accompName.trim() || null : null,
+          interested_in_ministry: interestedMinistry,
+          ministry_interest_notes: interestedMinistry ? ministryNotes.trim() || null : null,
+          plays_instrument: playsInstrument,
+          instrument_names: playsInstrument && instrumentNames.length > 0 ? instrumentNames : null,
         });
 
         // 4. Salva contato de emergência se preenchido
@@ -446,6 +468,36 @@ export default function RegisterScreen() {
                 </>
               )}
 
+              {/* Acompanhamento Vocacional */}
+              <View style={styles.toggleRow}>
+                <Text style={styles.toggleLabel}>Possui acompanhamento vocacional?</Text>
+                <Switch value={hasVocacionalAccomp}
+                  onValueChange={v => { setHasVocacionalAccomp(v); if (!v) setAccompName(''); }}
+                  trackColor={{ false: '#d1d5db', true: `${colors.primary}80` }}
+                  thumbColor={hasVocacionalAccomp ? colors.primary : '#9ca3af'} />
+              </View>
+              {hasVocacionalAccomp && (
+                <TextInput style={styles.input}
+                  placeholder="Nome do acompanhante" value={accompName}
+                  placeholderTextColor={colors.gray}
+                  onChangeText={setAccompName} autoCapitalize="words" />
+              )}
+
+              {/* Interesse em Ministério */}
+              <View style={styles.toggleRow}>
+                <Text style={styles.toggleLabel}>Tem interesse em servir em algum ministério?</Text>
+                <Switch value={interestedMinistry}
+                  onValueChange={v => { setInterestedMinistry(v); if (!v) setMinistryNotes(''); }}
+                  trackColor={{ false: '#d1d5db', true: `${colors.primary}80` }}
+                  thumbColor={interestedMinistry ? colors.primary : '#9ca3af'} />
+              </View>
+              {interestedMinistry && (
+                <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                  placeholder="Qual ministério tem interesse? Conte um pouco..." value={ministryNotes}
+                  placeholderTextColor={colors.gray}
+                  onChangeText={setMinistryNotes} multiline numberOfLines={3} />
+              )}
+
               <Text style={styles.skipNote}>* Campos opcionais. Você pode preencher depois no perfil.</Text>
 
               <TouchableOpacity style={styles.primaryButton} onPress={handleNext}>
@@ -510,6 +562,31 @@ export default function RegisterScreen() {
                 <TextInput style={styles.input}
                   placeholder="Qual missão?" value={missionName} placeholderTextColor={colors.gray}
                   onChangeText={setMissionName} />
+              )}
+
+              {/* Toca instrumento ou canta */}
+              <View style={styles.toggleRow}>
+                <Text style={styles.toggleLabel}>Toca algum instrumento ou canta?</Text>
+                <Switch value={playsInstrument}
+                  onValueChange={v => { setPlaysInstrument(v); if (!v) setInstrumentNames([]); }}
+                  trackColor={{ false: '#d1d5db', true: `${colors.primary}80` }}
+                  thumbColor={playsInstrument ? colors.primary : '#9ca3af'} />
+              </View>
+              {playsInstrument && (
+                <View style={styles.chipsContainer}>
+                  {INSTRUMENTS.map(inst => {
+                    const selected = instrumentNames.includes(inst);
+                    return (
+                      <TouchableOpacity key={inst}
+                        style={[styles.chip, selected && styles.chipSelected]}
+                        onPress={() => setInstrumentNames(prev =>
+                          selected ? prev.filter(i => i !== inst) : [...prev, inst]
+                        )}>
+                        <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{inst}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               )}
 
               {/* Encontro Despertar */}
@@ -700,6 +777,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 12, marginBottom: 12,
   },
   toggleLabel: { fontSize: 15, color: '#333', flex: 1, marginRight: 8 },
+  chipsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  chip: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)',
+  },
+  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: 13, color: colors.white, fontWeight: '500' },
+  chipTextSelected: { color: colors.white, fontWeight: '700' },
   sectionLabel: {
     fontSize: 13, fontWeight: '600', color: colors.white,
     marginBottom: 8, marginTop: 4, marginLeft: 4, opacity: 0.9,
