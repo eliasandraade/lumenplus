@@ -13,7 +13,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,6 +38,7 @@ export default function VidaScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activating, setActivating] = useState(false);
   const [showActivateConfirm, setShowActivateConfirm] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchCycle = async () => {
     try {
@@ -63,12 +63,13 @@ export default function VidaScreen() {
   }, []);
 
   const handleNewCycle = async () => {
+    setErrorMessage(null);
     try {
       const newCycle = await lifePlanApi.createCycle({});
       router.push(`/vida/wizard?cycleId=${newCycle.id}` as Href);
     } catch (err: any) {
-      const msg = err?.response?.data?.detail?.message || 'Erro ao criar ciclo';
-      Alert.alert('Erro', msg);
+      const msg = err?.response?.data?.detail?.message || 'Erro ao criar ciclo. Tente novamente.';
+      setErrorMessage(msg);
     }
   };
 
@@ -84,9 +85,10 @@ export default function VidaScreen() {
     try {
       const updated = await lifePlanApi.activateCycle(cycle.id);
       setCycle(updated);
+      setErrorMessage(null);
     } catch (err: any) {
-      const msg = err?.response?.data?.detail?.message || 'Erro ao ativar ciclo';
-      Alert.alert('Erro', msg);
+      const msg = err?.response?.data?.detail?.message || 'Erro ao ativar ciclo. Tente novamente.';
+      setErrorMessage(msg);
     } finally {
       setActivating(false);
     }
@@ -145,6 +147,17 @@ export default function VidaScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
     >
+      {/* Inline error message */}
+      {errorMessage && (
+        <View style={styles.errorBox}>
+          <Ionicons name="alert-circle" size={16} color="#ef4444" />
+          <Text style={styles.errorBoxText}>{errorMessage}</Text>
+          <TouchableOpacity onPress={() => setErrorMessage(null)}>
+            <Ionicons name="close" size={16} color="#ef4444" />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Status Header */}
       <View style={styles.statusHeader}>
         <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
@@ -601,4 +614,18 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   historyLinkText: { color: colors.primary, fontSize: 14, fontWeight: '500' },
+
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  errorBoxText: { flex: 1, fontSize: 13, color: '#ef4444', lineHeight: 18 },
 });

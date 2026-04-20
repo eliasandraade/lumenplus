@@ -14,7 +14,6 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   Switch,
 } from 'react-native';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
@@ -280,8 +279,8 @@ export default function WizardScreen() {
         });
       }
     } catch (err: any) {
-      const msg = err?.response?.data?.detail?.message || 'Erro ao salvar';
-      Alert.alert('Erro', msg);
+      const msg = err?.response?.data?.detail?.message || 'Erro ao salvar. Tente novamente.';
+      setValidationError(msg);
       return false;
     } finally {
       setSaving(false);
