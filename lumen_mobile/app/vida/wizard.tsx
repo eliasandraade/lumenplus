@@ -49,6 +49,13 @@ type DiagnosisData = {
   deus_pede: string;
 };
 
+type PrimaryAction = {
+  _id: string; // stable client-side key — never sent to the backend
+  action: string;
+  frequency: string;
+  context: string;
+};
+
 type WizardData = {
   vocacional: string;
   diagnoses: Record<DimensionKey, DiagnosisData>;
@@ -57,7 +64,7 @@ type WizardData = {
   other_devotions: string;
   primary_goal_title: string;
   primary_goal_description: string;
-  primary_actions: { action: string; frequency: string; context: string }[];
+  primary_actions: PrimaryAction[];
   prayer_types: string[]; // multi-select — salvo como string CSV no backend
   prayer_duration: string;
   mass_frequency: string;
@@ -71,6 +78,13 @@ type WizardData = {
 };
 
 const emptyDiagnosis = (): DiagnosisData => ({ abandonar: '', melhorar: '', deus_pede: '' });
+
+const newAction = (): PrimaryAction => ({
+  _id: Math.random().toString(36).slice(2, 10),
+  action: '',
+  frequency: '',
+  context: '',
+});
 
 const defaultData = (): WizardData => ({
   vocacional: '',
@@ -86,7 +100,7 @@ const defaultData = (): WizardData => ({
   other_devotions: '',
   primary_goal_title: '',
   primary_goal_description: '',
-  primary_actions: [{ action: '', frequency: '', context: '' }],
+  primary_actions: [newAction()],
   prayer_types: [],
   prayer_duration: '',
   mass_frequency: '',
@@ -174,6 +188,7 @@ export default function WizardScreen() {
         updated.primary_goal_description = primary.description || '';
         if (primary.actions.length > 0) {
           updated.primary_actions = primary.actions.map((a) => ({
+            _id: a.id,
             action: a.action,
             frequency: a.frequency || '',
             context: a.context || '',
@@ -235,10 +250,10 @@ export default function WizardScreen() {
         const existingPrimary = cycle.goals.find((g) => g.is_primary);
         const actions = data.primary_actions
           .filter((a) => a.action.trim())
-          .map((a) => ({
-            action: a.action,
-            frequency: a.frequency || null,
-            context: a.context || null,
+          .map(({ action, frequency, context }) => ({
+            action,
+            frequency: frequency || null,
+            context: context || null,
           }));
         if (!existingPrimary) {
           await lifePlanApi.createGoal(cycleId, {
@@ -349,7 +364,7 @@ export default function WizardScreen() {
   const addAction = () => {
     setData((prev) => ({
       ...prev,
-      primary_actions: [...prev.primary_actions, { action: '', frequency: '', context: '' }],
+      primary_actions: [...prev.primary_actions, newAction()],
     }));
   };
 
@@ -599,7 +614,7 @@ export default function WizardScreen() {
             </Text>
 
             {data.primary_actions.map((action, idx) => (
-              <View key={idx} style={styles.actionCard}>
+              <View key={action._id} style={styles.actionCard}>
                 <View style={styles.actionCardHeader}>
                   <Text style={styles.actionCardTitle}>Meio {idx + 1}</Text>
                   {idx > 0 && (

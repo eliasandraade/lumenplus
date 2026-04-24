@@ -246,19 +246,19 @@ export default function VidaScreen() {
             <Ionicons name="eye-outline" size={20} color={colors.primary} />
             <Text style={styles.cardTitle}>Núcleo do Plano</Text>
           </View>
-          {cycle.core.dominant_defect && (
+          {!!cycle.core.dominant_defect && (
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>Defeito dominante</Text>
               <Text style={styles.cardValue}>{cycle.core.dominant_defect}</Text>
             </View>
           )}
-          {cycle.core.virtudes && (
+          {!!cycle.core.virtudes && (
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>Virtudes a cultivar</Text>
               <Text style={styles.cardValue}>{cycle.core.virtudes}</Text>
             </View>
           )}
-          {cycle.core.spiritual_director_name && (
+          {!!cycle.core.spiritual_director_name && (
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>Diretor espiritual</Text>
               <Text style={styles.cardValue}>{cycle.core.spiritual_director_name}</Text>
@@ -275,7 +275,7 @@ export default function VidaScreen() {
             <Text style={styles.cardTitle}>Objetivo Principal</Text>
           </View>
           <Text style={styles.goalTitle}>{primaryGoal.title}</Text>
-          {primaryGoal.description && (
+          {!!primaryGoal.description && (
             <Text style={styles.goalDescription}>{primaryGoal.description}</Text>
           )}
           {primaryGoal.actions.length > 0 && (
@@ -302,7 +302,7 @@ export default function VidaScreen() {
           {secondaryGoals.map((goal, idx) => (
             <View key={goal.id} style={[styles.secondaryGoal, idx < secondaryGoals.length - 1 && styles.goalDivider]}>
               <Text style={styles.goalTitle}>{goal.title}</Text>
-              {goal.description && <Text style={styles.goalDescription}>{goal.description}</Text>}
+              {!!goal.description && <Text style={styles.goalDescription}>{goal.description}</Text>}
             </View>
           ))}
         </View>
@@ -344,19 +344,19 @@ export default function VidaScreen() {
             <Ionicons name="calendar-outline" size={20} color={colors.primary} />
             <Text style={styles.cardTitle}>Rotina Espiritual</Text>
           </View>
-          {cycle.routine.prayer_type && (
+          {!!cycle.routine.prayer_type && (
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>Tipos de oração</Text>
               <Text style={styles.cardValue}>{cycle.routine.prayer_type}</Text>
             </View>
           )}
-          {cycle.routine.mass_frequency && (
+          {!!cycle.routine.mass_frequency && (
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>Missa</Text>
               <Text style={styles.cardValue}>{cycle.routine.mass_frequency}</Text>
             </View>
           )}
-          {cycle.routine.confession_frequency && (
+          {!!cycle.routine.confession_frequency && (
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>Confissão</Text>
               <Text style={styles.cardValue}>{cycle.routine.confession_frequency}</Text>
