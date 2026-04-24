@@ -8,6 +8,7 @@ Schemas vivem em app.schemas.profile — este módulo apenas orquestra.
 
 import json
 import logging
+from datetime import date as _date
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -45,7 +46,9 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 
-def _is_profile_complete(full_name: Any, birth_date: Any, phone_e164: Any, city: Any, state: Any) -> bool:
+def _is_profile_complete(
+    full_name: Any, birth_date: Any, phone_e164: Any, city: Any, state: Any
+) -> bool:
     """Retorna True se todos os campos obrigatórios do perfil estão preenchidos."""
     return all([full_name, birth_date, phone_e164, city, state])
 
@@ -60,6 +63,17 @@ def _parse_json_list(value: str | None) -> list[str] | None:
     except (json.JSONDecodeError, ValueError):
         logger.warning("Falha ao desserializar campo JSON do perfil: %.50s", value)
         return None
+
+
+def _is_profile_update_due(last_confirmed: datetime | None) -> bool:
+    """True se o usuário está devendo a confirmação semestral (13/jun ou 13/dez)."""
+    today = _date.today()
+    for month, day in [(6, 13), (12, 13)]:
+        cutoff = _date(today.year, month, day)
+        if today >= cutoff:
+            if last_confirmed is None or last_confirmed.date() < cutoff:
+                return True
+    return False
 
 
 # =============================================================================
@@ -98,6 +112,39 @@ async def get_catalogs(db: DBSession) -> list[CatalogOut]:
             )
         )
     return result
+
+
+# =============================================================================
+# SETORES E MISSÕES
+# =============================================================================
+
+
+@router.get("/sectors", response_model=list[dict])
+async def get_sectors(db: DBSession) -> list[dict]:
+    """Retorna setores disponíveis para interesse em ministério."""
+    sectors = (
+        db.query(OrgUnit)
+        .filter(OrgUnit.type == "SETOR")  # type: ignore[arg-type]
+        .order_by(OrgUnit.name)
+        .all()
+    )
+    return [{"id": str(s.id), "name": s.name} for s in sectors]
+
+
+@router.get("/missions", response_model=list[dict])
+async def get_missions(db: DBSession) -> list[dict]:
+    """Retorna unidades filhas do setor 'Missões' para o campo de missão."""
+    missoes_setor = (
+        db.query(OrgUnit)
+        .filter(OrgUnit.name.ilike("%missões%"), OrgUnit.type == "SETOR")  # type: ignore[arg-type]
+        .first()
+    )
+    if not missoes_setor:
+        return []
+    children = (
+        db.query(OrgUnit).filter(OrgUnit.parent_id == missoes_setor.id).order_by(OrgUnit.name).all()
+    )
+    return [{"id": str(c.id), "name": c.name} for c in children]
 
 
 # =============================================================================
@@ -189,6 +236,17 @@ async def update_profile(
         raise
 
     return _build_profile_response(profile, db)
+
+
+@router.post("/me/confirm", status_code=200)
+async def confirm_profile(current_user: CurrentUser, db: DBSession) -> dict:
+    """Confirma que os dados do perfil estão atualizados (bloqueio semestral)."""
+    profile = db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(404, detail={"error": "not_found", "message": "Perfil não encontrado"})
+    profile.last_profile_confirmed_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"confirmed": True}
 
 
 # =============================================================================
@@ -298,17 +356,13 @@ def _apply_profile_fields(
     profile.has_vocational_accompaniment = body.has_vocational_accompaniment
     if body.has_vocational_accompaniment:
         profile.vocational_accompanist_user_id = body.vocational_accompanist_user_id
-        profile.vocational_accompanist_name = body.vocational_accompanist_name
     else:
         profile.vocational_accompanist_user_id = None
-        profile.vocational_accompanist_name = None
 
     profile.interested_in_ministry = body.interested_in_ministry
     if body.interested_in_ministry:
-        profile.interested_ministry_id = body.interested_ministry_id
         profile.ministry_interest_notes = body.ministry_interest_notes
     else:
-        profile.interested_ministry_id = None
         profile.ministry_interest_notes = None
 
     # Informações adicionais
@@ -319,10 +373,25 @@ def _apply_profile_fields(
     )
     profile.health_insurance = body.health_insurance
     profile.health_insurance_name = body.health_insurance_name if body.health_insurance else None
-    profile.accommodation_preference = body.accommodation_preference
     profile.is_from_mission = body.is_from_mission
     profile.mission_name = body.mission_name if body.is_from_mission else None
     profile.despertar_encounter = body.despertar_encounter
+
+    # Novos campos multi-select (Fase 1A/1B)
+    profile.country = body.country
+    profile.spouse_in_community = (
+        body.spouse_in_community if body.marital_status_item_id is not None else None
+    )
+    profile.realidade_atual = json.dumps(body.realidade_atual) if body.realidade_atual else None
+    profile.ministry_sector_ids = (
+        json.dumps([str(i) for i in body.ministry_sector_ids])
+        if body.interested_in_ministry and body.ministry_sector_ids
+        else None
+    )
+    profile.accommodation_options = (
+        json.dumps(body.accommodation_options) if body.accommodation_options else None
+    )
+    profile.mission_org_unit_id = body.mission_org_unit_id if body.is_from_mission else None
 
     # Música / Instrumentos
     profile.plays_instrument = body.plays_instrument
@@ -367,6 +436,9 @@ def _create_profile(
     rg_encrypted: bytes | None,
 ) -> UserProfile:
     """Instancia novo UserProfile a partir do request."""
+    is_complete = _is_profile_complete(
+        body.full_name, body.birth_date, body.phone_e164, body.city, body.state
+    )
     return UserProfile(
         user_id=user_id,
         full_name=body.full_name,
@@ -386,48 +458,50 @@ def _create_profile(
         vocational_accompanist_user_id=(
             body.vocational_accompanist_user_id if body.has_vocational_accompaniment else None
         ),
-        vocational_accompanist_name=(
-            body.vocational_accompanist_name if body.has_vocational_accompaniment else None
-        ),
         interested_in_ministry=body.interested_in_ministry,
-        interested_ministry_id=(
-            body.interested_ministry_id if body.interested_in_ministry else None
-        ),
         ministry_interest_notes=(
             body.ministry_interest_notes if body.interested_in_ministry else None
         ),
+        # Novos campos multi-select (Fase 1A/1B)
+        country=body.country,
+        spouse_in_community=(
+            body.spouse_in_community if body.marital_status_item_id is not None else None
+        ),
+        realidade_atual=json.dumps(body.realidade_atual) if body.realidade_atual else None,
+        ministry_sector_ids=(
+            json.dumps([str(i) for i in body.ministry_sector_ids])
+            if body.interested_in_ministry and body.ministry_sector_ids
+            else None
+        ),
+        accommodation_options=(
+            json.dumps(body.accommodation_options) if body.accommodation_options else None
+        ),
+        mission_org_unit_id=body.mission_org_unit_id if body.is_from_mission else None,
         photo_url=body.photo_url,
         instagram=body.instagram,
         dietary_restriction=body.dietary_restriction,
-        dietary_restriction_notes=body.dietary_restriction_notes
-        if body.dietary_restriction
-        else None,
+        dietary_restriction_notes=(
+            body.dietary_restriction_notes if body.dietary_restriction else None
+        ),
         health_insurance=body.health_insurance,
         health_insurance_name=body.health_insurance_name if body.health_insurance else None,
-        accommodation_preference=body.accommodation_preference,
         is_from_mission=body.is_from_mission,
         mission_name=body.mission_name if body.is_from_mission else None,
         despertar_encounter=body.despertar_encounter,
         plays_instrument=body.plays_instrument,
-        instrument_names=json.dumps(body.instrument_names)
-        if body.plays_instrument and body.instrument_names
-        else None,
+        instrument_names=(
+            json.dumps(body.instrument_names)
+            if body.plays_instrument and body.instrument_names
+            else None
+        ),
         available_for_group=body.available_for_group if body.plays_instrument else None,
         music_availability=(
             json.dumps(body.music_availability)
             if body.plays_instrument and body.available_for_group and body.music_availability
             else None
         ),
-        status="COMPLETE"
-        if _is_profile_complete(
-            body.full_name, body.birth_date, body.phone_e164, body.city, body.state
-        )
-        else "INCOMPLETE",
-        completed_at=datetime.now(timezone.utc)
-        if _is_profile_complete(
-            body.full_name, body.birth_date, body.phone_e164, body.city, body.state
-        )
-        else None,
+        status="COMPLETE" if is_complete else "INCOMPLETE",
+        completed_at=datetime.now(timezone.utc) if is_complete else None,
     )
 
 
@@ -477,16 +551,22 @@ def _build_profile_response(profile: UserProfile, db: DBSession) -> ProfileWithL
         consecration_year=profile.consecration_year,
         has_vocational_accompaniment=profile.has_vocational_accompaniment,
         vocational_accompanist_user_id=profile.vocational_accompanist_user_id,
-        vocational_accompanist_name=profile.vocational_accompanist_name,
         interested_in_ministry=profile.interested_in_ministry,
-        interested_ministry_id=profile.interested_ministry_id,
         ministry_interest_notes=profile.ministry_interest_notes,
+        # Novos campos multi-select (Fase 1A/1B)
+        country=profile.country,
+        spouse_in_community=profile.spouse_in_community,
+        realidade_atual=_parse_json_list(profile.realidade_atual),
+        ministry_sector_ids=_parse_json_list(profile.ministry_sector_ids),
+        accommodation_options=_parse_json_list(profile.accommodation_options),
+        mission_org_unit_id=profile.mission_org_unit_id,
+        last_profile_confirmed_at=profile.last_profile_confirmed_at,
+        profile_update_due=_is_profile_update_due(profile.last_profile_confirmed_at),
         instagram=profile.instagram,
         dietary_restriction=profile.dietary_restriction,
         dietary_restriction_notes=profile.dietary_restriction_notes,
         health_insurance=profile.health_insurance,
         health_insurance_name=profile.health_insurance_name,
-        accommodation_preference=profile.accommodation_preference,
         is_from_mission=profile.is_from_mission,
         mission_name=profile.mission_name,
         despertar_encounter=profile.despertar_encounter,
@@ -503,6 +583,7 @@ def _build_profile_response(profile: UserProfile, db: DBSession) -> ProfileWithL
         vocational_reality_label=vocational_reality_label,
         interested_ministry_name=ministry_name,
         vocational_accompanist_display_name=accompanist_display_name,
+        mission_org_unit_name=profile.mission_org_unit.name if profile.mission_org_unit else None,
     )
 
 

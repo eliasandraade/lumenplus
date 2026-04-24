@@ -231,6 +231,32 @@ class UserProfile(Base):
     )  # CAMA, REDE, COLCHAO_INFLAVEL
     is_from_mission: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     mission_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # PAÍS (para missionários)
+    country: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # CÔNJUGE NA COMUNIDADE (visível se estado civil = CASADO ou UNIAO_ESTAVEL)
+    spouse_in_community: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
+    # REALIDADE ATUAL (multi-select, JSON array de códigos)
+    realidade_atual: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # MINISTÉRIO — multi-select (JSON array de UUIDs de OrgUnit, substitui interested_ministry_id)
+    ministry_sector_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # ACOMODAÇÃO — multi-select (JSON array, substitui accommodation_preference)
+    accommodation_options: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # MISSÃO — referência estruturada ao OrgUnit da missão
+    mission_org_unit_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("org_units.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # CONFIRMAÇÃO SEMESTRAL
+    last_profile_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     despertar_encounter: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # MÚSICA / INSTRUMENTOS
@@ -257,6 +283,9 @@ class UserProfile(Base):
     )
     interested_ministry: Mapped["OrgUnit | None"] = relationship(
         "OrgUnit", foreign_keys=[interested_ministry_id]
+    )
+    mission_org_unit: Mapped["OrgUnit | None"] = relationship(
+        "OrgUnit", foreign_keys=[mission_org_unit_id]
     )
 
 

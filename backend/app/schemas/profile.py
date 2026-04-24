@@ -40,12 +40,18 @@ class ProfileUpdateRequest(BaseSchema):
     # Acompanhamento Vocacional
     has_vocational_accompaniment: Optional[bool] = None
     vocational_accompanist_user_id: Optional[UUID] = None
-    vocational_accompanist_name: Optional[str] = Field(None, max_length=200)
 
     # Interesse em Ministério
     interested_in_ministry: Optional[bool] = None
-    interested_ministry_id: Optional[UUID] = None
     ministry_interest_notes: Optional[str] = Field(None, max_length=500)
+
+    # Novos campos multi-select (Fase 1A/1B)
+    country: Optional[str] = Field(None, max_length=100)
+    spouse_in_community: Optional[bool] = None
+    realidade_atual: Optional[list[str]] = None  # códigos do catalog REALIDADE_ATUAL
+    ministry_sector_ids: Optional[list[str]] = None  # UUIDs como strings
+    accommodation_options: Optional[list[str]] = None  # ex: ["CAMA", "REDE"]
+    mission_org_unit_id: Optional[UUID] = None
 
     # Informações adicionais
     instagram: Optional[str] = Field(None, max_length=100)
@@ -53,9 +59,6 @@ class ProfileUpdateRequest(BaseSchema):
     dietary_restriction_notes: Optional[str] = Field(None, max_length=500)
     health_insurance: Optional[bool] = None
     health_insurance_name: Optional[str] = Field(None, max_length=200)
-    accommodation_preference: Optional[str] = Field(
-        None, max_length=20
-    )  # CAMA | REDE | COLCHAO_INFLAVEL
     is_from_mission: Optional[bool] = None
     mission_name: Optional[str] = Field(None, max_length=200)
     despertar_encounter: Optional[str] = Field(None, max_length=100)
@@ -122,10 +125,18 @@ class ProfileOut(BaseSchema):
     consecration_year: Optional[int] = None
     has_vocational_accompaniment: Optional[bool] = None
     vocational_accompanist_user_id: Optional[UUID] = None
-    vocational_accompanist_name: Optional[str] = None
     interested_in_ministry: Optional[bool] = None
-    interested_ministry_id: Optional[UUID] = None
     ministry_interest_notes: Optional[str] = None
+
+    # Novos campos multi-select (Fase 1A/1B)
+    country: Optional[str] = None
+    spouse_in_community: Optional[bool] = None
+    realidade_atual: Optional[list[str]] = None
+    ministry_sector_ids: Optional[list[str]] = None
+    accommodation_options: Optional[list[str]] = None
+    mission_org_unit_id: Optional[UUID] = None
+    last_profile_confirmed_at: Optional[datetime] = None
+    profile_update_due: bool = False  # calculado na rota, não no banco
 
     # Informações adicionais
     instagram: Optional[str] = None
@@ -133,7 +144,6 @@ class ProfileOut(BaseSchema):
     dietary_restriction_notes: Optional[str] = None
     health_insurance: Optional[bool] = None
     health_insurance_name: Optional[str] = None
-    accommodation_preference: Optional[str] = None
     is_from_mission: Optional[bool] = None
     mission_name: Optional[str] = None
     despertar_encounter: Optional[str] = None
@@ -161,6 +171,7 @@ class ProfileWithLabelsOut(ProfileOut):
     vocational_reality_label: Optional[str] = None
     interested_ministry_name: Optional[str] = None
     vocational_accompanist_display_name: Optional[str] = None
+    mission_org_unit_name: Optional[str] = None
 
 
 # =============================================================================
