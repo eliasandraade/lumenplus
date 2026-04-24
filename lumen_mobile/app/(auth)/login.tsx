@@ -41,6 +41,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -65,7 +66,7 @@ export default function LoginScreen() {
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           const msg = err?.detail?.message ?? 'Usuário não encontrado. Crie uma conta primeiro.';
-          Alert.alert('Erro ao entrar', msg);
+          setAuthError(msg);
           return;
         }
         const data = await res.json();
@@ -78,12 +79,12 @@ export default function LoginScreen() {
       router.replace('/(tabs)/home');
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? '';
-      let message = 'Email ou senha inválidos';
-      if (code === 'auth/user-not-found') message = 'Usuário não encontrado';
-      if (code === 'auth/wrong-password') message = 'Senha incorreta';
-      if (code === 'auth/too-many-requests') message = 'Muitas tentativas. Aguarde e tente novamente';
-      if (code === 'auth/invalid-credential') message = 'Email ou senha inválidos';
-      Alert.alert('Erro ao entrar', message);
+      let message = 'Email ou senha inválidos.';
+      if (code === 'auth/user-not-found') message = 'Usuário não encontrado.';
+      if (code === 'auth/wrong-password') message = 'Senha incorreta.';
+      if (code === 'auth/too-many-requests') message = 'Muitas tentativas. Aguarde e tente novamente.';
+      if (code === 'auth/invalid-credential') message = 'Email ou senha inválidos.';
+      setAuthError(message);
     } finally {
       setIsLoading(false);
     }
@@ -145,6 +146,7 @@ export default function LoginScreen() {
               onChangeText={(text) => {
                 setEmail(text);
                 setErrors({ ...errors, email: '' });
+                setAuthError('');
               }}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -162,12 +164,17 @@ export default function LoginScreen() {
               onChangeText={(text) => {
                 setPassword(text);
                 setErrors({ ...errors, password: '' });
+                setAuthError('');
               }}
               secureTextEntry
               placeholderTextColor={colors.gray}
             />
             {errors.password ? (
               <Text style={styles.errorText}>{errors.password}</Text>
+            ) : null}
+
+            {authError ? (
+              <Text style={styles.authErrorText}>{authError}</Text>
             ) : null}
 
             <TouchableOpacity
@@ -265,6 +272,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 10,
     marginLeft: 16,
+  },
+  authErrorText: {
+    color: '#fecaca',
+    fontSize: 14,
+    marginBottom: 12,
+    marginLeft: 4,
+    textAlign: 'center',
   },
   forgotPassword: {
     alignSelf: 'flex-end',
