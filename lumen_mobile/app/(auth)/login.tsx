@@ -16,7 +16,6 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Alert,
   StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -42,6 +41,8 @@ export default function LoginScreen() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [resetMessage, setResetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isSendingReset, setIsSendingReset] = useState(false);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -91,8 +92,12 @@ export default function LoginScreen() {
   };
 
   const handleForgotPassword = async () => {
+    // Para customizar o e-mail enviado pelo Firebase (idioma, template, link):
+    // Firebase Console → Authentication → Templates → Password reset
+    // Assunto sugerido: "Redefinição de senha — Lumen+"
+    // Corpo: saudação acolhedora em português, botão com cor #1A859B, assinatura "Equipe Lumen+"
     if (IS_DEV_AUTH) {
-      Alert.alert('Modo DEV', 'Recuperação de senha não disponível em modo de desenvolvimento.');
+      setResetMessage({ type: 'error', text: 'Recuperação de senha não disponível em modo de desenvolvimento.' });
       return;
     }
     if (!email.includes('@')) {
@@ -100,13 +105,17 @@ export default function LoginScreen() {
       return;
     }
     try {
+      setIsSendingReset(true);
+      setResetMessage(null);
       await sendPasswordResetEmail(auth, email.trim().toLowerCase());
-      Alert.alert(
-        'Email enviado',
-        `Enviamos um link de redefinição de senha para ${email.trim().toLowerCase()}.`
-      );
+      setResetMessage({
+        type: 'success',
+        text: `Enviamos um e-mail para ${email.trim().toLowerCase()}. Verifique sua caixa de entrada.`,
+      });
     } catch {
-      Alert.alert('Erro', 'Não foi possível enviar o email. Verifique o endereço e tente novamente.');
+      setResetMessage({ type: 'error', text: 'Não foi possível enviar o e-mail. Verifique o endereço e tente novamente.' });
+    } finally {
+      setIsSendingReset(false);
     }
   };
 
@@ -178,11 +187,27 @@ export default function LoginScreen() {
             ) : null}
 
             <TouchableOpacity
-              style={styles.forgotPassword}
+              style={[styles.forgotPassword, isSendingReset && { opacity: 0.5 }]}
               onPress={handleForgotPassword}
+              disabled={isSendingReset}
             >
-              <Text style={styles.forgotPasswordText}>Esqueci a senha</Text>
+              {isSendingReset ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Text style={styles.forgotPasswordText}>Esqueci a senha</Text>
+              )}
             </TouchableOpacity>
+
+            {resetMessage ? (
+              <Text
+                style={[
+                  styles.resetMessageText,
+                  resetMessage.type === 'success' ? styles.resetSuccess : styles.resetError,
+                ]}
+              >
+                {resetMessage.text}
+              </Text>
+            ) : null}
 
             <TouchableOpacity
               style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
@@ -288,6 +313,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.white,
     textDecorationLine: 'underline',
+  },
+  resetMessageText: {
+    fontSize: 13,
+    marginBottom: 12,
+    marginLeft: 4,
+    lineHeight: 18,
+  },
+  resetSuccess: {
+    color: '#bbf7d0',
+  },
+  resetError: {
+    color: '#fecaca',
   },
   primaryButton: {
     backgroundColor: colors.orange,
