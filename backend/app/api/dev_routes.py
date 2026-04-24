@@ -9,7 +9,7 @@ from app.api.deps import CurrentUser, DBSession
 from app.audit.service import create_audit_log
 from typing import Any
 
-from app.db.models import OrgRoleCode, OrgUnit, OrgUnitType
+from app.db.models import OrgUnit, OrgUnitType
 
 router = APIRouter(prefix="/dev", tags=["Development"])
 

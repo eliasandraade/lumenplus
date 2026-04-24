@@ -1,6 +1,6 @@
 """Organization membership endpoints."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
