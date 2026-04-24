@@ -76,6 +76,16 @@ export interface Profile {
   music_availability: string[] | null;
   // Contatos de emergência
   emergency_contacts: EmergencyContact[];
+  // Novos campos — backend v028
+  country: string | null;
+  spouse_in_community: boolean | null;
+  realidade_atual: string[] | null;       // códigos do catalog REALIDADE_ATUAL
+  ministry_sector_ids: string[] | null;   // UUIDs dos setores de interesse
+  accommodation_options: string[] | null; // ex: ["CAMA", "REDE"]
+  mission_org_unit_id: string | null;
+  last_profile_confirmed_at: string | null;
+  profile_update_due: boolean;
+  mission_org_unit_name: string | null;
   // Status
   status: ProfileStatus;
   completed_at: string | null;
@@ -119,6 +129,13 @@ export interface ProfileUpdateRequest {
   is_from_mission?: boolean | null;
   mission_name?: string | null;
   despertar_encounter?: string | null;
+  // Novos campos — backend v028
+  country?: string | null;
+  spouse_in_community?: boolean | null;
+  realidade_atual?: string[] | null;
+  ministry_sector_ids?: string[] | null;
+  accommodation_options?: string[] | null;
+  mission_org_unit_id?: string | null;
   // Música / Instrumentos
   plays_instrument?: boolean | null;
   instrument_names?: string[] | null;

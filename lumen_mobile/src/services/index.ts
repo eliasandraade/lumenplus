@@ -77,6 +77,15 @@ export const profileService = {
 
   addEmergencyContact: (data: EmergencyContactRequest) =>
     api.post<EmergencyContact>('/profile/emergency-contact', data),
+
+  /** Lista setores disponíveis para interesse em ministério. */
+  getSectors: () => api.get<{ id: string; name: string }[]>('/profile/sectors'),
+
+  /** Lista missões disponíveis (filhas do setor Missões). */
+  getMissions: () => api.get<{ id: string; name: string }[]>('/profile/missions'),
+
+  /** Confirma atualização semestral dos dados (carimba last_profile_confirmed_at). */
+  confirmProfile: () => api.post<{ confirmed: boolean }>('/profile/me/confirm', {}),
 };
 
 // =============================================================================

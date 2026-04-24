@@ -37,14 +37,17 @@ const BR_STATES = [
 ];
 
 const DESPERTAR_ENCOUNTERS = [
-  'Água Viva','Juventude Livre','Fonte de Viver','Mir','Raios de Amor',
-  'Chama Viva','Logos','Kyrios','Maria de Deus','Éfeta','Sanctus',
-  'Gênesis','Ágape','Elyon','Khesed','Trinitas','Ixyus','Luz do Mundo',
-  'Ruah','Mater Dei','Agnus Dei','Kaire','Adonai','Charitas','Ieshuah',
-  'Kairós','Seraph','Kenosis','Parresia','Fides','Domus Dei','Magnificat',
-  'Gaudium','Atrium','Ignis','Raboni','Pietá','Charis','Emanuel',
-  'Totus Tuus','Fraternitas','Lazarus','Filho da Luz','Anawin',
-  'Dilext Nos','Franciscus','Kadosh',
+  '1 – Água Viva','2 – Juventude Livre','3 – Fonte de Viver','4 – Mir',
+  '5 – Raios de Amor','6 – Chama Viva','7 – Logos','8 – Kyrios',
+  '9 – Maria de Deus','10 – Éfeta','11 – Sanctus','12 – Gênesis',
+  '13 – Ágape','14 – Elyon','15 – Khesed','16 – Trinitas','17 – Ixyus',
+  '18 – Luz do Mundo','19 – Ruah','20 – Mater Dei','21 – Agnus Dei',
+  '22 – Kaire','23 – Adonai','24 – Charitas','25 – Ieshuah','26 – Kairós',
+  '27 – Seraph','28 – Kenosis','29 – Parresia','30 – Fides',
+  '31 – Domus Dei','32 – Magnificat','33 – Gaudium','34 – Atrium',
+  '35 – Ignis','36 – Raboni','37 – Pietá','38 – Charis','39 – Emanuel',
+  '40 – Totus Tuus','41 – Fraternitas','42 – Lazarus','43 – Filho da Luz',
+  '44 – Anawin','45 – Dilext Nos','46 – Franciscus','47 – Kadosh',
 ];
 
 const ACCOMMODATION_OPTIONS = [
@@ -96,9 +99,6 @@ const formatDate = (v: string): string => {
   return `${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4)}`;
 };
 
-const accommodationLabel = (val: string | null | undefined) =>
-  ACCOMMODATION_OPTIONS.find(o => o.value === val)?.label ?? val ?? '';
-
 // =============================================================================
 // TELA PRINCIPAL
 // =============================================================================
@@ -128,7 +128,7 @@ export default function ProfileScreen() {
     isFromMission: false, missionName: '',
   });
   const [editExtra, setEditExtra] = useState({
-    accommodation: '', dietaryRestriction: false, dietaryNotes: '',
+    accommodationOptions: [] as string[], dietaryRestriction: false, dietaryNotes: '',
     healthInsurance: false, healthInsuranceName: '',
   });
   const [editMusic, setEditMusic] = useState({
@@ -145,7 +145,6 @@ export default function ProfileScreen() {
   const [catalogOptions, setCatalogOptions] = useState<CatalogItem[]>([]);
   const [catalogTitle, setCatalogTitle] = useState('');
   const [catalogOnSelect, setCatalogOnSelect] = useState<(item: CatalogItem) => void>(() => () => {});
-  const [accommodationModalVisible, setAccommodationModalVisible] = useState(false);
   const [despertarModalVisible, setDespertarModalVisible] = useState(false);
 
   useEffect(() => {
@@ -208,7 +207,7 @@ export default function ProfileScreen() {
       missionName: profile.mission_name ?? '',
     });
     setEditExtra({
-      accommodation: profile.accommodation_preference ?? '',
+      accommodationOptions: profile.accommodation_options ?? [],
       dietaryRestriction: profile.dietary_restriction ?? false,
       dietaryNotes: profile.dietary_restriction_notes ?? '',
       healthInsurance: profile.health_insurance ?? false,
@@ -249,7 +248,6 @@ export default function ProfileScreen() {
     if (parts.length !== 3 || (parts[2] ?? '').length !== 4) e.birthDate = 'Data inválida (DD/MM/AAAA)';
     if (!editPersonal.uf) e.uf = 'Selecione o estado';
     if (editPersonal.city.trim().length < 2) e.city = 'Cidade obrigatória';
-    if (editCommunity.hasAccomp && !editCommunity.accompName.trim()) e.accompName = 'Informe o nome do acompanhador';
     if (editCommunity.interestedMinistry && !editCommunity.ministryNotes.trim()) e.ministryNotes = 'Descreva o interesse';
     setEditErrors(e);
     return Object.keys(e).length === 0;
@@ -273,7 +271,6 @@ export default function ProfileScreen() {
         marital_status_item_id: editCommunity.marital?.id ?? null,
         vocational_reality_item_id: editCommunity.vocational?.id ?? null,
         has_vocational_accompaniment: editCommunity.hasAccomp,
-        vocational_accompanist_name: editCommunity.hasAccomp ? editCommunity.accompName.trim() : null,
         interested_in_ministry: editCommunity.interestedMinistry,
         ministry_interest_notes: editCommunity.interestedMinistry ? editCommunity.ministryNotes.trim() : null,
         instagram: editPersonal.instagram.trim() || null,
@@ -281,7 +278,7 @@ export default function ProfileScreen() {
         dietary_restriction_notes: editExtra.dietaryRestriction ? editExtra.dietaryNotes.trim() || null : null,
         health_insurance: editExtra.healthInsurance,
         health_insurance_name: editExtra.healthInsurance ? editExtra.healthInsuranceName.trim() || null : null,
-        accommodation_preference: editExtra.accommodation || null,
+        accommodation_options: editExtra.accommodationOptions.length > 0 ? editExtra.accommodationOptions : null,
         is_from_mission: editCommunity.isFromMission,
         mission_name: editCommunity.isFromMission ? editCommunity.missionName.trim() || null : null,
         despertar_encounter: editCommunity.despertar || null,
@@ -396,8 +393,10 @@ export default function ProfileScreen() {
         {/* ── Retiros e Eventos ── */}
         <SectionTitle>Retiros e Eventos</SectionTitle>
         <View style={styles.card}>
-          <InfoRow icon="bed-outline" label="Preferência de Acomodação"
-            value={accommodationLabel(profile?.accommodation_preference) || undefined} />
+          <InfoRow icon="bed-outline" label="Disponibilidade de Acomodação"
+            value={profile?.accommodation_options?.length
+              ? profile.accommodation_options.map(v => ACCOMMODATION_OPTIONS.find(o => o.value === v)?.label ?? v).join(', ')
+              : undefined} />
           <InfoRow icon="restaurant-outline" label="Restrição Alimentar"
             value={profile?.dietary_restriction == null ? undefined
               : profile.dietary_restriction ? (profile.dietary_restriction_notes ?? 'Sim') : 'Não'} />
@@ -411,12 +410,7 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <InfoRow icon="hand-left-outline" label="Possui acompanhamento"
             value={profile?.has_vocational_accompaniment == null ? undefined
-              : profile.has_vocational_accompaniment ? 'Sim' : 'Não'} />
-          {profile?.has_vocational_accompaniment
-            ? <InfoRow icon="person-circle-outline" label="Acompanhador"
-                value={profile.vocational_accompanist_display_name ?? profile.vocational_accompanist_name} last />
-            : <View style={{ height: 2 }} />
-          }
+              : profile.has_vocational_accompaniment ? 'Sim' : 'Não'} last />
         </View>
 
         {/* ── Interesse em Ministério ── */}
@@ -587,20 +581,10 @@ export default function ProfileScreen() {
             <View style={styles.toggleRow}>
               <Text style={styles.toggleLabel}>Possui acompanhamento vocacional?</Text>
               <Switch value={editCommunity.hasAccomp}
-                onValueChange={v => { setEditCommunity(p => ({ ...p, hasAccomp: v })); if (!v) setEditErrors(p => ({ ...p, accompName: '' })); }}
+                onValueChange={v => setEditCommunity(p => ({ ...p, hasAccomp: v }))}
                 trackColor={{ false: '#d1d5db', true: `${PRIMARY}80` }}
                 thumbColor={editCommunity.hasAccomp ? PRIMARY : '#9ca3af'} />
             </View>
-            {editCommunity.hasAccomp && (
-              <>
-                <Text style={styles.editLabel}>Nome do acompanhador *</Text>
-                <TextInput style={[styles.editInput, editErrors.accompName ? styles.editInputError : null]}
-                  value={editCommunity.accompName}
-                  onChangeText={t => { setEditCommunity(p => ({ ...p, accompName: t })); setEditErrors(p => ({ ...p, accompName: '' })); }}
-                  placeholder="Nome completo do acompanhador" autoCapitalize="words" />
-                {editErrors.accompName ? <Text style={styles.editError}>{editErrors.accompName}</Text> : null}
-              </>
-            )}
 
             {/* ─ Interesse em Ministério ─ */}
             <Text style={[styles.editSection, { marginTop: 8 }]}>Interesse em Ministério</Text>
@@ -719,13 +703,28 @@ export default function ProfileScreen() {
             {/* ─ Retiros e Eventos ─ */}
             <Text style={[styles.editSection, { marginTop: 8 }]}>Retiros e Eventos</Text>
 
-            <Text style={styles.editLabel}>Preferência de Acomodação</Text>
-            <TouchableOpacity style={styles.editSelector} onPress={() => setAccommodationModalVisible(true)}>
-              <Text style={editExtra.accommodation ? styles.editSelectorValue : styles.editSelectorPlaceholder}>
-                {ACCOMMODATION_OPTIONS.find(o => o.value === editExtra.accommodation)?.label || 'Selecionar'}
-              </Text>
-              <Ionicons name="chevron-down" size={18} color={GRAY} />
-            </TouchableOpacity>
+            <Text style={styles.editLabel}>Disponibilidade de Acomodação</Text>
+            <View style={styles.chipsContainer}>
+              {ACCOMMODATION_OPTIONS.map((opt) => {
+                const sel = editExtra.accommodationOptions.includes(opt.value);
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[styles.chip, sel && styles.chipSelected]}
+                    onPress={() =>
+                      setEditExtra((p) => ({
+                        ...p,
+                        accommodationOptions: sel
+                          ? p.accommodationOptions.filter((v) => v !== opt.value)
+                          : [...p.accommodationOptions, opt.value],
+                      }))
+                    }
+                  >
+                    <Text style={[styles.chipText, sel && styles.chipTextSelected]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
             <View style={styles.toggleRow}>
               <Text style={styles.toggleLabel}>Restrição alimentar?</Text>
@@ -838,28 +837,6 @@ export default function ProfileScreen() {
                 );
               }}
             />
-          </View>
-        </View>
-      </Modal>
-
-      {/* ══ Sub-modal: Acomodação ══ */}
-      <Modal visible={accommodationModalVisible} animationType="slide" transparent onRequestClose={() => setAccommodationModalVisible(false)}>
-        <View style={styles.subOverlay}>
-          <View style={styles.subSheet}>
-            <View style={styles.subHeader}>
-              <Text style={styles.subTitle}>Preferência de Acomodação</Text>
-              <TouchableOpacity onPress={() => setAccommodationModalVisible(false)}>
-                <Ionicons name="close" size={24} color={GRAY} />
-              </TouchableOpacity>
-            </View>
-            {ACCOMMODATION_OPTIONS.map(opt => (
-              <TouchableOpacity key={opt.value}
-                style={[styles.subItem, editExtra.accommodation === opt.value ? styles.subItemSelected : null]}
-                onPress={() => { setEditExtra(p => ({ ...p, accommodation: opt.value })); setAccommodationModalVisible(false); }}>
-                <Text style={[styles.subItemText, editExtra.accommodation === opt.value ? styles.subItemTextSelected : null]}>{opt.label}</Text>
-                {editExtra.accommodation === opt.value && <Ionicons name="checkmark" size={20} color={PRIMARY} />}
-              </TouchableOpacity>
-            ))}
           </View>
         </View>
       </Modal>
@@ -1013,9 +990,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
     borderWidth: 1.5, borderColor: '#d1d5db', backgroundColor: WHITE,
   },
-  chipSelected: { borderColor: PRIMARY, backgroundColor: `${PRIMARY}15` },
+  chipSelected: { borderColor: PRIMARY, backgroundColor: PRIMARY },
   chipText: { fontSize: 14, color: GRAY, fontWeight: '500' },
-  chipTextSelected: { color: PRIMARY, fontWeight: '700' },
+  chipTextSelected: { color: WHITE, fontWeight: '700' },
 
   // Grade de disponibilidade
   availGrid: {

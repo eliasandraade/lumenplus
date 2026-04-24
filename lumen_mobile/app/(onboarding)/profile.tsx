@@ -2,15 +2,18 @@
  * Profile Screen (Onboarding)
  * ===========================
  * Formulário completo de preenchimento do perfil.
- * 
+ *
  * Inclui:
  * - Foto de perfil
  * - Dados pessoais
- * - Localização
+ * - Localização (BrasilAPI: estado + cidade)
  * - Estado de Vida, Civil e Realidade Vocacional
  * - Ano de consagração (se Consagrado Filho da Luz)
- * - Acompanhamento Vocacional (sim/não + quem)
- * - Interesse em Ministério (sim/não + qual)
+ * - Realidade Atual (multi-select chips)
+ * - Cônjuge na comunidade (condicional ao estado civil)
+ * - Missão (switch + Picker de missões + país)
+ * - Interesse em Ministério (switch + chips de setores)
+ * - Disponibilidade de Acomodação (multi-select chips)
  */
 
 import { useEffect, useState } from 'react';
@@ -33,7 +36,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import api from '@/services/api';
-import { orgService, MinistryItem } from '@/services';
+import { profileService } from '@/services';
+import brasilApi, { type Estado, type Municipio } from '@/services/brasilApi';
 
 const colors = {
   primary: '#1a365d',
@@ -60,9 +64,6 @@ interface CatalogResponse {
   items: CatalogItem[];
 }
 
-// MinistryItem importado de @/services (alinhado com GET /org/ministries)
-type Ministry = MinistryItem;
-
 interface ExistingProfile {
   full_name?: string;
   birth_date?: string;
@@ -75,11 +76,17 @@ interface ExistingProfile {
   marital_status_item_id?: string;
   vocational_reality_item_id?: string;
   consecration_year?: number;
-  has_vocational_accompaniment?: boolean;
-  vocational_accompanist_name?: string;
   interested_in_ministry?: boolean;
   interested_ministry_id?: string;
   ministry_interest_notes?: string;
+  realidade_atual?: string[];
+  spouse_in_community?: boolean | null;
+  accommodation_options?: string[];
+  is_from_mission?: boolean | null;
+  mission_name?: string;
+  country?: string;
+  mission_org_unit_id?: string | null;
+  ministry_sector_ids?: string[];
 }
 
 export default function ProfileScreen() {
@@ -94,7 +101,24 @@ export default function ProfileScreen() {
   const [lifeStates, setLifeStates] = useState<CatalogItem[]>([]);
   const [maritalStatuses, setMaritalStatuses] = useState<CatalogItem[]>([]);
   const [vocationalRealities, setVocationalRealities] = useState<CatalogItem[]>([]);
-  const [ministries, setMinistries] = useState<Ministry[]>([]);
+
+  // BrasilAPI
+  const [estados, setEstados] = useState<Estado[]>([]);
+  const [municipios, setMunicipios] = useState<Municipio[]>([]);
+  const [loadingMunicipios, setLoadingMunicipios] = useState(false);
+
+  // Novos campos
+  const [realidadeAtual, setRealidadeAtual] = useState<string[]>([]);
+  const [realidadeAtualOptions, setRealidadeAtualOptions] = useState<CatalogItem[]>([]);
+  const [spouseInCommunity, setSpouseInCommunity] = useState<boolean | null>(null);
+  const [accommodationOptions, setAccommodationOptions] = useState<string[]>([]);
+  const [isFromMission, setIsFromMission] = useState(false);
+  const [missionName, setMissionName] = useState('');
+  const [country, setCountry] = useState('');
+  const [missionOrgUnitId, setMissionOrgUnitId] = useState<string | null>(null);
+  const [missions, setMissions] = useState<{ id: string; name: string }[]>([]);
+  const [sectors, setSectors] = useState<{ id: string; name: string }[]>([]);
+  const [selectedSectorIds, setSelectedSectorIds] = useState<string[]>([]);
 
   // Form state
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -105,18 +129,15 @@ export default function ProfileScreen() {
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
-  
+
   // Catálogos selecionados
   const [lifeState, setLifeState] = useState('');
   const [maritalStatus, setMaritalStatus] = useState('');
   const [vocationalReality, setVocationalReality] = useState('');
-  
+
   // Campos condicionais
   const [consecrationYear, setConsecrationYear] = useState('');
-  const [hasAccompaniment, setHasAccompaniment] = useState(false);
-  const [accompanistName, setAccompanistName] = useState('');
   const [interestedInMinistry, setInterestedInMinistry] = useState(false);
-  const [selectedMinistry, setSelectedMinistry] = useState('');
   const [ministryNotes, setMinistryNotes] = useState('');
 
   // Verifica se é Consagrado Filho da Luz (vocationalReality guarda o UUID do item)
@@ -124,22 +145,36 @@ export default function ProfileScreen() {
     vocationalRealities.find((i) => i.id === vocationalReality)?.code ===
     'CONSAGRADO_FILHO_DA_LUZ';
 
-  const states = [
-    'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
-    'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
-  ];
-
   useEffect(() => {
     loadData();
   }, []);
 
+  const loadMunicipios = async (uf: string) => {
+    if (!uf) { setMunicipios([]); return; }
+    setLoadingMunicipios(true);
+    try {
+      const data = await brasilApi.getMunicipios(uf);
+      setMunicipios(data);
+    } catch {
+      setMunicipios([]);
+    } finally {
+      setLoadingMunicipios(false);
+    }
+  };
+
   const loadData = async () => {
     try {
-      // Carrega catálogos e perfil existente em paralelo
-      const [catalogs, existingProfile] = await Promise.all([
+      const [estadosBrasil, catalogs, profile, sectorsData, missionsData] = await Promise.all([
+        brasilApi.getEstados(),
         api.get<CatalogResponse[]>('/profile/catalogs'),
         api.get<ExistingProfile>('/profile').catch(() => null),
+        profileService.getSectors().catch(() => [] as { id: string; name: string }[]),
+        profileService.getMissions().catch(() => [] as { id: string; name: string }[]),
       ]);
+
+      setEstados(estadosBrasil);
+      setSectors(sectorsData);
+      setMissions(missionsData);
 
       const find = (code: string): CatalogItem[] =>
         catalogs.find((c) => c.code === code)?.items ?? [];
@@ -147,51 +182,51 @@ export default function ProfileScreen() {
       setLifeStates(find('LIFE_STATE'));
       setMaritalStatuses(find('MARITAL_STATUS'));
       setVocationalRealities(find('VOCATIONAL_REALITY'));
+      setRealidadeAtualOptions(find('REALIDADE_ATUAL'));
 
       // Pré-popula campos com dados já existentes no backend
-      if (existingProfile) {
-        if (existingProfile.full_name) setFullName(existingProfile.full_name);
-        if (existingProfile.birth_date) {
+      if (profile) {
+        if (profile.full_name) setFullName(profile.full_name);
+        if (profile.birth_date) {
           // Converte YYYY-MM-DD para DD/MM/YYYY
-          const parts = existingProfile.birth_date.split('-');
+          const parts = profile.birth_date.split('-');
           if (parts.length === 3) setBirthDate(`${parts[2]}/${parts[1]}/${parts[0]}`);
         }
-        if (existingProfile.cpf) setCpf(formatCPF(existingProfile.cpf));
-        if (existingProfile.rg) setRg(existingProfile.rg);
-        if (existingProfile.phone_e164) {
+        if (profile.cpf) setCpf(formatCPF(profile.cpf));
+        if (profile.rg) setRg(profile.rg);
+        if (profile.phone_e164) {
           // Converte E164 (+5511999999999) para formato BR
-          const digits = existingProfile.phone_e164.replace(/\D/g, '').slice(2); // remove +55
+          const digits = profile.phone_e164.replace(/\D/g, '').slice(2); // remove +55
           setPhone(formatPhone(digits));
         }
-        if (existingProfile.city) setCity(existingProfile.city);
-        if (existingProfile.state) setState(existingProfile.state);
-        if (existingProfile.life_state_item_id) setLifeState(existingProfile.life_state_item_id);
-        if (existingProfile.marital_status_item_id) setMaritalStatus(existingProfile.marital_status_item_id);
-        if (existingProfile.vocational_reality_item_id) setVocationalReality(existingProfile.vocational_reality_item_id);
-        if (existingProfile.consecration_year) setConsecrationYear(String(existingProfile.consecration_year));
-        if (existingProfile.has_vocational_accompaniment != null) setHasAccompaniment(existingProfile.has_vocational_accompaniment);
-        if (existingProfile.vocational_accompanist_name) setAccompanistName(existingProfile.vocational_accompanist_name);
-        if (existingProfile.interested_in_ministry != null) setInterestedInMinistry(existingProfile.interested_in_ministry);
-        if (existingProfile.interested_ministry_id) setSelectedMinistry(existingProfile.interested_ministry_id);
-        if (existingProfile.ministry_interest_notes) setMinistryNotes(existingProfile.ministry_interest_notes);
+        if (profile.city) setCity(profile.city);
+        if (profile.state) {
+          setState(profile.state);
+          // Se tiver estado salvo, pré-carregar municípios
+          loadMunicipios(profile.state);
+        }
+        if (profile.life_state_item_id) setLifeState(profile.life_state_item_id);
+        if (profile.marital_status_item_id) setMaritalStatus(profile.marital_status_item_id);
+        if (profile.vocational_reality_item_id) setVocationalReality(profile.vocational_reality_item_id);
+        if (profile.consecration_year) setConsecrationYear(String(profile.consecration_year));
+        if (profile.interested_in_ministry != null) setInterestedInMinistry(profile.interested_in_ministry);
+        if (profile.ministry_interest_notes) setMinistryNotes(profile.ministry_interest_notes);
+        // Novos campos
+        if (profile.realidade_atual) setRealidadeAtual(profile.realidade_atual);
+        if (profile.spouse_in_community != null) setSpouseInCommunity(profile.spouse_in_community);
+        if (profile.accommodation_options) setAccommodationOptions(profile.accommodation_options);
+        if (profile.is_from_mission != null) setIsFromMission(!!profile.is_from_mission);
+        if (profile.mission_name) setMissionName(profile.mission_name);
+        if (profile.country) setCountry(profile.country);
+        if (profile.mission_org_unit_id) setMissionOrgUnitId(profile.mission_org_unit_id);
+        if (profile.ministry_sector_ids) setSelectedSectorIds(profile.ministry_sector_ids);
       }
 
       // Parâmetros de rota têm prioridade sobre dados do backend
-      // (são os dados que o usuário acabou de digitar no cadastro)
       if (params.fullName) setFullName(params.fullName);
       if (params.phone) {
-        // phone vem em formato E164 (+5511999999999)
         const digits = params.phone.replace(/\D/g, '').slice(2); // remove 55
         if (digits) setPhone(formatPhone(digits));
-      }
-
-      // Carrega ministérios disponíveis via GET /org/ministries
-      try {
-        const { ministries } = await orgService.getMinistries();
-        setMinistries(ministries);
-      } catch {
-        // Ministérios são opcionais — falha silenciosa não bloqueia o cadastro
-        setMinistries([]);
       }
     } catch (err) {
       Alert.alert('Erro', 'Não foi possível carregar os dados');
@@ -296,11 +331,11 @@ export default function ProfileScreen() {
     if (phone.replace(/\D/g, '').length < 10) {
       newErrors.phone = 'Telefone inválido';
     }
-    if (!city.trim()) {
-      newErrors.city = 'Cidade obrigatória';
-    }
     if (!state) {
       newErrors.state = 'Estado obrigatório';
+    }
+    if (!city.trim()) {
+      newErrors.city = 'Cidade obrigatória';
     }
     if (!lifeState) {
       newErrors.lifeState = 'Selecione o estado de vida';
@@ -316,11 +351,8 @@ export default function ProfileScreen() {
     if (isConsagrado && !consecrationYear) {
       newErrors.consecrationYear = 'Ano de consagração obrigatório';
     }
-    if (hasAccompaniment && !accompanistName.trim()) {
-      newErrors.accompanistName = 'Informe quem é seu acompanhador';
-    }
-    if (interestedInMinistry && !selectedMinistry && !ministryNotes.trim()) {
-      newErrors.ministry = 'Selecione um ministério ou descreva seu interesse';
+    if (interestedInMinistry && selectedSectorIds.length === 0 && !ministryNotes.trim()) {
+      newErrors.ministry = 'Selecione ao menos um setor ou descreva seu interesse';
     }
 
     setErrors(newErrors);
@@ -352,11 +384,17 @@ export default function ProfileScreen() {
         marital_status_item_id: maritalStatus,
         vocational_reality_item_id: vocationalReality,
         consecration_year: isConsagrado ? parseInt(consecrationYear) : null,
-        has_vocational_accompaniment: hasAccompaniment,
-        vocational_accompanist_name: hasAccompaniment ? accompanistName.trim() : null,
         interested_in_ministry: interestedInMinistry,
-        interested_ministry_id: interestedInMinistry && selectedMinistry ? selectedMinistry : null,
         ministry_interest_notes: interestedInMinistry ? ministryNotes.trim() : null,
+        // Novos campos
+        country: isFromMission ? country.trim() || null : null,
+        spouse_in_community: spouseInCommunity,
+        realidade_atual: realidadeAtual.length > 0 ? realidadeAtual : null,
+        ministry_sector_ids: interestedInMinistry && selectedSectorIds.length > 0 ? selectedSectorIds : null,
+        accommodation_options: accommodationOptions.length > 0 ? accommodationOptions : null,
+        mission_org_unit_id: isFromMission ? missionOrgUnitId : null,
+        is_from_mission: isFromMission,
+        mission_name: isFromMission && !missionOrgUnitId ? missionName.trim() || null : null,
       };
 
       // Salva perfil
@@ -421,7 +459,7 @@ export default function ProfileScreen() {
         {/* ============================================ */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📷 Foto de Perfil</Text>
-          
+
           <TouchableOpacity style={styles.photoContainer} onPress={showPhotoOptions}>
             {photoUri ? (
               <Image source={{ uri: photoUri }} style={styles.photo} />
@@ -524,26 +562,44 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📍 Localização</Text>
 
-          <Text style={styles.label}>Cidade *</Text>
-          <TextInput
-            style={[styles.input, errors.city && styles.inputError]}
-            placeholder="Sua cidade"
-            value={city}
-            onChangeText={setCity}
-            placeholderTextColor={colors.gray}
-          />
-          {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
-
+          {/* Estado */}
           <Text style={styles.label}>Estado *</Text>
           <View style={[styles.picker, errors.state && styles.pickerError]}>
-            <Picker selectedValue={state} onValueChange={setState}>
+            <Picker
+              selectedValue={state}
+              onValueChange={(uf) => {
+                setState(uf);
+                setCity('');
+                loadMunicipios(uf);
+              }}
+            >
               <Picker.Item label="Selecione..." value="" />
-              {states.map((uf) => (
-                <Picker.Item key={uf} label={uf} value={uf} />
+              {estados.map((e) => (
+                <Picker.Item key={e.sigla} label={`${e.sigla} – ${e.nome}`} value={e.sigla} />
               ))}
             </Picker>
           </View>
           {errors.state && <Text style={styles.errorText}>{errors.state}</Text>}
+
+          {/* Cidade */}
+          <Text style={styles.label}>Cidade *</Text>
+          {loadingMunicipios ? (
+            <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 8 }} />
+          ) : (
+            <View style={[styles.picker, errors.city && styles.pickerError]}>
+              <Picker
+                selectedValue={city}
+                onValueChange={setCity}
+                enabled={municipios.length > 0}
+              >
+                <Picker.Item label={state ? 'Selecione a cidade...' : 'Selecione o estado primeiro'} value="" />
+                {municipios.map((m) => (
+                  <Picker.Item key={m.nome} label={m.nome} value={m.nome} />
+                ))}
+              </Picker>
+            </View>
+          )}
+          {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
         </View>
 
         {/* ============================================ */}
@@ -573,6 +629,21 @@ export default function ProfileScreen() {
             </Picker>
           </View>
           {errors.maritalStatus && <Text style={styles.errorText}>{errors.maritalStatus}</Text>}
+
+          {/* Cônjuge na comunidade? */}
+          {['CASADO', 'UNIAO_ESTAVEL'].includes(
+            maritalStatuses.find(i => i.id === maritalStatus)?.code ?? ''
+          ) && (
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>Seu cônjuge faz parte da comunidade de vida?</Text>
+              <Switch
+                value={spouseInCommunity ?? false}
+                onValueChange={setSpouseInCommunity}
+                trackColor={{ false: colors.border, true: colors.primaryLight }}
+                thumbColor={spouseInCommunity ? colors.primary : colors.lightGray}
+              />
+            </View>
+          )}
 
           <Text style={styles.label}>Realidade Vocacional *</Text>
           <View style={[styles.picker, errors.vocationalReality && styles.pickerError]}>
@@ -604,32 +675,99 @@ export default function ProfileScreen() {
         </View>
 
         {/* ============================================ */}
-        {/* ACOMPANHAMENTO VOCACIONAL */}
+        {/* REALIDADE ATUAL */}
+        {/* ============================================ */}
+        {realidadeAtualOptions.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🌟 Realidade Atual</Text>
+            <Text style={styles.label}>Selecione todas que se aplicam:</Text>
+            <View style={styles.chipsRow}>
+              {realidadeAtualOptions.map((opt) => {
+                const selected = realidadeAtual.includes(opt.code);
+                return (
+                  <TouchableOpacity
+                    key={opt.code}
+                    style={[styles.chip, selected && styles.chipSelected]}
+                    onPress={() =>
+                      setRealidadeAtual((prev) =>
+                        selected ? prev.filter((c) => c !== opt.code) : [...prev, opt.code]
+                      )
+                    }
+                  >
+                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* ============================================ */}
+        {/* MISSÃO */}
         {/* ============================================ */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🙏 Acompanhamento Vocacional</Text>
+          <Text style={styles.sectionTitle}>✈️ Missão</Text>
 
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Você faz acompanhamento vocacional?</Text>
+            <Text style={styles.switchLabel}>
+              Você faz parte de alguma missão da Obra Lumen fora de Fortaleza?
+            </Text>
             <Switch
-              value={hasAccompaniment}
-              onValueChange={setHasAccompaniment}
+              value={isFromMission}
+              onValueChange={(v) => {
+                setIsFromMission(v);
+                if (!v) {
+                  setMissionOrgUnitId(null);
+                  setMissionName('');
+                  setCountry('');
+                }
+              }}
               trackColor={{ false: colors.border, true: colors.primaryLight }}
-              thumbColor={hasAccompaniment ? colors.primary : colors.lightGray}
+              thumbColor={isFromMission ? colors.primary : colors.lightGray}
             />
           </View>
 
-          {hasAccompaniment && (
+          {isFromMission && (
             <>
-              <Text style={styles.label}>Quem é seu acompanhador? *</Text>
+              <Text style={styles.label}>Missão</Text>
+              {missions.length > 0 ? (
+                <View style={styles.picker}>
+                  <Picker
+                    selectedValue={missionOrgUnitId ?? ''}
+                    onValueChange={(v) => {
+                      setMissionOrgUnitId(v === 'OUTROS' ? null : v || null);
+                      setMissionName(v === 'OUTROS' ? missionName : '');
+                    }}
+                  >
+                    <Picker.Item label="Selecione..." value="" />
+                    {missions.map((m) => (
+                      <Picker.Item key={m.id} label={m.name} value={m.id} />
+                    ))}
+                    <Picker.Item label="Outros" value="OUTROS" />
+                  </Picker>
+                </View>
+              ) : null}
+
+              {(!missionOrgUnitId || missionOrgUnitId === null) && (
+                <TextInput
+                  style={styles.input}
+                  placeholder="Nome da missão"
+                  value={missionName}
+                  onChangeText={setMissionName}
+                  placeholderTextColor={colors.gray}
+                />
+              )}
+
+              <Text style={styles.label}>País</Text>
               <TextInput
-                style={[styles.input, errors.accompanistName && styles.inputError]}
-                placeholder="Nome do acompanhador"
-                value={accompanistName}
-                onChangeText={setAccompanistName}
+                style={styles.input}
+                placeholder="Ex: Portugal, Estados Unidos..."
+                value={country}
+                onChangeText={setCountry}
                 placeholderTextColor={colors.gray}
               />
-              {errors.accompanistName && <Text style={styles.errorText}>{errors.accompanistName}</Text>}
             </>
           )}
         </View>
@@ -650,22 +788,34 @@ export default function ProfileScreen() {
             />
           </View>
 
+          {interestedInMinistry && sectors.length > 0 && (
+            <>
+              <Text style={styles.label}>Em quais setores você tem interesse?</Text>
+              <View style={styles.chipsRow}>
+                {sectors.map((sector) => {
+                  const selected = selectedSectorIds.includes(sector.id);
+                  return (
+                    <TouchableOpacity
+                      key={sector.id}
+                      style={[styles.chip, selected && styles.chipSelected]}
+                      onPress={() =>
+                        setSelectedSectorIds((prev) =>
+                          selected ? prev.filter((id) => id !== sector.id) : [...prev, sector.id]
+                        )
+                      }
+                    >
+                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                        {sector.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
           {interestedInMinistry && (
             <>
-              {ministries.length > 0 && (
-                <>
-                  <Text style={styles.label}>Qual ministério?</Text>
-                  <View style={styles.picker}>
-                    <Picker selectedValue={selectedMinistry} onValueChange={setSelectedMinistry}>
-                      <Picker.Item label="Selecione..." value="" />
-                      {ministries.map((m) => (
-                        <Picker.Item key={m.id} label={m.name} value={m.id} />
-                      ))}
-                    </Picker>
-                  </View>
-                </>
-              )}
-
               <Text style={styles.label}>Descreva seu interesse (opcional)</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
@@ -679,6 +829,38 @@ export default function ProfileScreen() {
               {errors.ministry && <Text style={styles.errorText}>{errors.ministry}</Text>}
             </>
           )}
+        </View>
+
+        {/* ============================================ */}
+        {/* DISPONIBILIDADE DE ACOMODAÇÃO */}
+        {/* ============================================ */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🛏️ Disponibilidade de Acomodação</Text>
+          <Text style={styles.label}>Selecione todas as formas que você se dispõe a ser acomodado:</Text>
+          <View style={styles.chipsRow}>
+            {[
+              { value: 'CAMA', label: 'Cama' },
+              { value: 'REDE', label: 'Rede' },
+              { value: 'COLCHAO_INFLAVEL', label: 'Colchão Inflável' },
+            ].map((opt) => {
+              const selected = accommodationOptions.includes(opt.value);
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.chip, selected && styles.chipSelected]}
+                  onPress={() =>
+                    setAccommodationOptions((prev) =>
+                      selected ? prev.filter((v) => v !== opt.value) : [...prev, opt.value]
+                    )
+                  }
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         {/* ============================================ */}
@@ -880,5 +1062,33 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginLeft: 4,
     fontStyle: 'italic',
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  chipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  chipText: {
+    fontSize: 13,
+    color: colors.gray,
+    fontWeight: '500',
+  },
+  chipTextSelected: {
+    color: colors.white,
+    fontWeight: '700',
   },
 });
