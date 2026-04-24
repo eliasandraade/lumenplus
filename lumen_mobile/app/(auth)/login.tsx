@@ -56,6 +56,7 @@ export default function LoginScreen() {
     if (!validate()) return;
     try {
       setIsLoading(true);
+      setResetMessage(null);
 
       if (IS_DEV_AUTH) {
         // Modo DEV: autentica diretamente no backend (sem Firebase)
