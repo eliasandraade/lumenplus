@@ -1,16 +1,71 @@
-# lumen_mobile
+# Lumen+ Mobile
 
-A new Flutter project.
+Frontend do Lumen+ — aplicativo React Native / Expo exportado como SPA web, hospedado no Vercel.
 
-## Getting Started
+## Stack
 
-This project is a starting point for a Flutter application.
+- **React Native 0.76** + **Expo SDK 52**
+- **Expo Router 4** (file-based routing)
+- **TypeScript 5.3**
+- **Zustand 4** (estado global)
+- **TanStack React Query 5** (dados do servidor)
+- **Firebase SDK 10** (autenticação)
+- **Sentry React Native** (monitoramento de erros)
+- **Vercel Analytics** (métricas de uso)
 
-A few resources to get you started if this is your first Flutter project:
+## Estrutura de rotas
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```
+app/
+├── _layout.tsx            # Stack raiz
+├── index.tsx              # Splash/redirect
+├── (auth)/                # Login · Cadastro · Verificações
+├── (onboarding)/          # Termos · Perfil · Documentos
+├── (tabs)/                # Home · Serviço · Comunidade · Convites · Perfil
+├── vida/                  # Projeto de Vida (wizard 8 passos, revisão mensal)
+├── admin/                 # Painel administrativo
+├── biblia/                # Bíblia (leitor por livro/capítulo)
+├── catecismo/             # Catecismo da Igreja Católica
+├── retreats/              # Retiros
+└── coordinator/           # Painel do coordenador
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Como rodar localmente
+
+```bash
+cd lumen_mobile
+npm install
+npx expo start          # Expo Go / simulador
+npx expo start --web    # Navegador
+```
+
+## Build para web (produção)
+
+```bash
+npx expo export --platform web
+# Saída em dist/
+```
+
+## Deploy
+
+O deploy é feito automaticamente via Vercel CLI ou push para o branch principal:
+
+```bash
+vercel --prod --yes
+```
+
+URL de produção: `https://lumenmobile.vercel.app`
+
+## Variáveis de ambiente
+
+Criar `.env.local` na raiz do `lumen_mobile/`:
+
+```env
+EXPO_PUBLIC_API_URL=https://backend-production-6efc.up.railway.app
+EXPO_PUBLIC_FIREBASE_API_KEY=...
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=lumenplus-3fec7
+EXPO_PUBLIC_SENTRY_DSN=...          # opcional
+EXPO_PUBLIC_ENVIRONMENT=production
+EXPO_PUBLIC_APP_VERSION=1.0.0
+```

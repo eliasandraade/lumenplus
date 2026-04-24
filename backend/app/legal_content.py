@@ -243,3 +243,9 @@ PRIVACY_V1_3 = (
     )
     .replace("privacidade@obralumen.org.br", "oeliasandraade@gmail.com")
 )
+
+# v1.3 — atualiza email de contato: juridico@obralumen.org.br → comunicacao@lumenserfeliz.org
+TERMS_V1_3 = TERMS_V1_2.replace("Versão 1.2", "Versão 1.3").replace(
+    "juridico@obralumen.org.br",
+    "comunicacao@lumenserfeliz.org",
+)

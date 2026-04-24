@@ -30,6 +30,7 @@ O Lumen+ é uma plataforma mobile-first desenvolvida para apoiar a gestão de co
 - **Sistema de convites** para ingresso em ministérios e grupos
 - **Inbox interno** para comunicação entre coordenadores e membros
 - **Módulo de retiros** com inscrições, casas, taxas e equipes de serviço
+- **Projeto de Vida** — plano espiritual personalizado (wizard 8 passos, revisão mensal, histórico de ciclos)
 - **Formação espiritual** com Bíblia e Catecismo da Igreja Católica
 - **Painel administrativo** com auditoria, governança e acesso seguro a documentos
 
@@ -89,6 +90,19 @@ Conselho Geral
 - Equipes de serviço por função e retiro
 - Painel de gestão com visão geral de inscrições e vagas
 
+### Projeto de Vida
+Plano espiritual personalizado guiado por um wizard de 8 etapas:
+1. **Realidade Vocacional** — estado de vida atual (Leigo, Seminarista, Sacerdote, etc.)
+2. **Diagnóstico** — reflexão em 5 dimensões: Humana, Espiritual, Comunitária, Intelectual e Apostólica (3 perguntas por dimensão)
+3. **Síntese** — defeito dominante, virtudes a cultivar e outras devoções
+4. **Objetivo Principal** — título e descrição do foco do ciclo
+5. **Meios Concretos** — ações específicas com frequência e contexto
+6. **Rotina Espiritual** — tipos de oração (multi-seleção), frequência da Missa e da Confissão, exame de consciência
+7. **Diretor Espiritual** — nome e frequência de encontros
+8. **Confirmar** — revisão completa antes de salvar como rascunho
+
+Após a criação, o usuário ativa o plano; ciclos ativos permitem **revisões mensais** com registro de progresso, dificuldades, constância e decisão (manter, ajustar objetivo, encerrar ciclo). O **histórico** preserva todos os ciclos arquivados.
+
 ### Formação Espiritual
 - **Bíblia (Sagradas Escrituras)**: Versículo do Dia determinístico e leitor por livro/capítulo/versículo
 - **Catecismo da Igreja Católica**: 2.537 parágrafos (§1–§2557), leitura paginada (30 §/página), busca por palavra e navegação por número de parágrafo
@@ -125,7 +139,7 @@ Conselho Geral
                        ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                       FastAPI Backend                         │
-│  Auth · Profile · Org · Inbox · Retiros · Legal · Admin       │
+│  Auth · Profile · Org · Inbox · Vida · Retiros · Legal · Admin │
 │  Middlewares: CORS · RateLimit · RequestID · ExceptionHandler │
 └──────────────┬────────────────────────────┬──────────────────┘
                │                            │
@@ -202,7 +216,7 @@ lumenplus-main/
 │   │   ├── services/               # Regras de negócio
 │   │   ├── main.py                 # Inicialização da aplicação
 │   │   └── settings.py             # Configurações (variáveis de ambiente)
-│   ├── alembic/versions/           # 21 migrações de banco
+│   ├── alembic/versions/           # 26 migrações de banco
 │   ├── tests/                      # Testes automatizados
 │   ├── pyproject.toml
 │   └── requirements.txt
@@ -212,13 +226,14 @@ lumenplus-main/
 │   │   ├── (auth)/                 # Login, cadastro, verificações
 │   │   ├── (onboarding)/           # Termos, perfil inicial, documentos
 │   │   ├── (tabs)/                 # Tabs principais: home, comunidade, convites, perfil, orações
+│   │   ├── vida/                   # Módulo Projeto de Vida
 │   │   ├── admin/                  # Painel administrativo
 │   │   ├── biblia/                 # Módulo Bíblia
 │   │   ├── catecismo/              # Módulo Catecismo
 │   │   ├── retreats/               # Módulo Retiros
 │   │   └── coordinator/            # Ferramentas de coordenador
 │   ├── src/
-│   │   ├── services/               # Clientes de API (api.ts, bible.ts, catecismo.ts)
+│   │   ├── services/               # Clientes de API (api.ts, bible.ts, catecismo.ts, lifePlan.ts)
 │   │   ├── stores/                 # Estado global Zustand
 │   │   ├── types/index.ts          # Tipos TypeScript (alinhados com backend)
 │   │   └── utils/                  # Utilitários (error.ts)
@@ -499,7 +514,7 @@ alembic revision --autogenerate -m "descricao_da_mudanca"
 alembic downgrade -1
 ```
 
-Histórico de migrações em `backend/alembic/versions/` (21 migrações, `001` → `021`).
+Histórico de migrações em `backend/alembic/versions/` (26 migrações, `001` → `026`).
 
 ---
 

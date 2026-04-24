@@ -13,7 +13,6 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,16 +43,19 @@ export default function RevisaoScreen() {
   const [updatedGoalTitle, setUpdatedGoalTitle] = useState('');
   const [updatedGoalDescription, setUpdatedGoalDescription] = useState('');
   const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const requiresGoalUpdate = decision === 'ADJUST_GOAL' || decision === 'CHANGE_PRIMARY_GOAL';
 
   const handleSubmit = async () => {
+    setErrorMessage(null);
     if (!cycleId) {
-      Alert.alert('Erro', 'Ciclo não identificado');
+      setErrorMessage('Ciclo não identificado. Volte e tente novamente.');
       return;
     }
     if (!decision) {
-      Alert.alert('Atenção', 'Selecione uma decisão para continuar');
+      setErrorMessage('Selecione uma decisão antes de continuar.');
       return;
     }
 
@@ -71,19 +73,13 @@ export default function RevisaoScreen() {
       });
 
       if (decision === 'NEW_CYCLE') {
-        Alert.alert(
-          'Ciclo encerrado',
-          'Seu ciclo foi arquivado. Você pode iniciar um novo Projeto de Vida quando quiser.',
-          [{ text: 'OK', onPress: () => router.replace('/vida' as Href) }]
-        );
+        setSuccessMessage('Ciclo encerrado. Você pode iniciar um novo Projeto de Vida quando quiser.');
       } else {
-        Alert.alert('Revisão registrada', 'Sua revisão mensal foi salva com sucesso.', [
-          { text: 'OK', onPress: () => router.back() },
-        ]);
+        setSuccessMessage('Revisão mensal registrada com sucesso!');
       }
     } catch (err: any) {
-      const msg = err?.response?.data?.detail?.message || 'Erro ao salvar revisão';
-      Alert.alert('Erro', msg);
+      const msg = err?.response?.data?.detail?.message || 'Erro ao salvar revisão. Tente novamente.';
+      setErrorMessage(msg);
     } finally {
       setSaving(false);
     }
@@ -219,7 +215,37 @@ export default function RevisaoScreen() {
         onChangeText={setNotes}
       />
 
+      {/* Inline error */}
+      {errorMessage && (
+        <View style={styles.errorBox}>
+          <Ionicons name="alert-circle" size={16} color={colors.error} />
+          <Text style={styles.errorBoxText}>{errorMessage}</Text>
+          <TouchableOpacity onPress={() => setErrorMessage(null)}>
+            <Ionicons name="close" size={16} color={colors.error} />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Inline success */}
+      {successMessage && (
+        <View style={styles.successBox}>
+          <Ionicons name="checkmark-circle" size={16} color="#059669" />
+          <Text style={styles.successBoxText}>{successMessage}</Text>
+          <TouchableOpacity
+            style={styles.successBackButton}
+            onPress={() =>
+              decision === 'NEW_CYCLE'
+                ? router.replace('/vida' as Href)
+                : router.back()
+            }
+          >
+            <Text style={styles.successBackText}>OK</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Submit */}
+      {!successMessage && (
       <TouchableOpacity
         style={[styles.submitButton, (!decision || saving) && styles.submitDisabled]}
         onPress={handleSubmit}
@@ -234,6 +260,7 @@ export default function RevisaoScreen() {
           </>
         )}
       </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }
@@ -341,4 +368,40 @@ const styles = StyleSheet.create({
   },
   submitDisabled: { opacity: 0.5 },
   submitText: { color: colors.white, fontSize: 16, fontWeight: '600' },
+
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorBoxText: { flex: 1, fontSize: 13, color: colors.error, lineHeight: 18 },
+
+  successBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginTop: 16,
+  },
+  successBoxText: { flex: 1, fontSize: 13, color: '#166534', lineHeight: 18 },
+  successBackButton: {
+    backgroundColor: '#059669',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  successBackText: { color: colors.white, fontSize: 13, fontWeight: '600' },
 });

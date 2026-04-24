@@ -16,7 +16,6 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Alert,
   StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -41,6 +40,9 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [resetMessage, setResetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isSendingReset, setIsSendingReset] = useState(false);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -54,6 +56,7 @@ export default function LoginScreen() {
     if (!validate()) return;
     try {
       setIsLoading(true);
+      setResetMessage(null);
 
       if (IS_DEV_AUTH) {
         // Modo DEV: autentica diretamente no backend (sem Firebase)
@@ -65,7 +68,7 @@ export default function LoginScreen() {
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           const msg = err?.detail?.message ?? 'Usuário não encontrado. Crie uma conta primeiro.';
-          Alert.alert('Erro ao entrar', msg);
+          setAuthError(msg);
           return;
         }
         const data = await res.json();
@@ -78,20 +81,24 @@ export default function LoginScreen() {
       router.replace('/(tabs)/home');
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? '';
-      let message = 'Email ou senha inválidos';
-      if (code === 'auth/user-not-found') message = 'Usuário não encontrado';
-      if (code === 'auth/wrong-password') message = 'Senha incorreta';
-      if (code === 'auth/too-many-requests') message = 'Muitas tentativas. Aguarde e tente novamente';
-      if (code === 'auth/invalid-credential') message = 'Email ou senha inválidos';
-      Alert.alert('Erro ao entrar', message);
+      let message = 'Email ou senha inválidos.';
+      if (code === 'auth/user-not-found') message = 'Usuário não encontrado.';
+      if (code === 'auth/wrong-password') message = 'Senha incorreta.';
+      if (code === 'auth/too-many-requests') message = 'Muitas tentativas. Aguarde e tente novamente.';
+      if (code === 'auth/invalid-credential') message = 'Email ou senha inválidos.';
+      setAuthError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleForgotPassword = async () => {
+    // Para customizar o e-mail enviado pelo Firebase (idioma, template, link):
+    // Firebase Console → Authentication → Templates → Password reset
+    // Assunto sugerido: "Redefinição de senha — Lumen+"
+    // Corpo: saudação acolhedora em português, botão com cor #1A859B, assinatura "Equipe Lumen+"
     if (IS_DEV_AUTH) {
-      Alert.alert('Modo DEV', 'Recuperação de senha não disponível em modo de desenvolvimento.');
+      setResetMessage({ type: 'error', text: 'Recuperação de senha não disponível em modo de desenvolvimento.' });
       return;
     }
     if (!email.includes('@')) {
@@ -99,13 +106,17 @@ export default function LoginScreen() {
       return;
     }
     try {
+      setIsSendingReset(true);
+      setResetMessage(null);
       await sendPasswordResetEmail(auth, email.trim().toLowerCase());
-      Alert.alert(
-        'Email enviado',
-        `Enviamos um link de redefinição de senha para ${email.trim().toLowerCase()}.`
-      );
+      setResetMessage({
+        type: 'success',
+        text: `Enviamos um e-mail para ${email.trim().toLowerCase()}. Verifique sua caixa de entrada.`,
+      });
     } catch {
-      Alert.alert('Erro', 'Não foi possível enviar o email. Verifique o endereço e tente novamente.');
+      setResetMessage({ type: 'error', text: 'Não foi possível enviar o e-mail. Verifique o endereço e tente novamente.' });
+    } finally {
+      setIsSendingReset(false);
     }
   };
 
@@ -145,6 +156,7 @@ export default function LoginScreen() {
               onChangeText={(text) => {
                 setEmail(text);
                 setErrors({ ...errors, email: '' });
+                setAuthError('');
               }}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -162,6 +174,7 @@ export default function LoginScreen() {
               onChangeText={(text) => {
                 setPassword(text);
                 setErrors({ ...errors, password: '' });
+                setAuthError('');
               }}
               secureTextEntry
               placeholderTextColor={colors.gray}
@@ -170,12 +183,32 @@ export default function LoginScreen() {
               <Text style={styles.errorText}>{errors.password}</Text>
             ) : null}
 
+            {authError ? (
+              <Text style={styles.authErrorText}>{authError}</Text>
+            ) : null}
+
             <TouchableOpacity
-              style={styles.forgotPassword}
+              style={[styles.forgotPassword, isSendingReset && { opacity: 0.5 }]}
               onPress={handleForgotPassword}
+              disabled={isSendingReset}
             >
-              <Text style={styles.forgotPasswordText}>Esqueci a senha</Text>
+              {isSendingReset ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Text style={styles.forgotPasswordText}>Esqueci a senha</Text>
+              )}
             </TouchableOpacity>
+
+            {resetMessage ? (
+              <Text
+                style={[
+                  styles.resetMessageText,
+                  resetMessage.type === 'success' ? styles.resetSuccess : styles.resetError,
+                ]}
+              >
+                {resetMessage.text}
+              </Text>
+            ) : null}
 
             <TouchableOpacity
               style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
@@ -266,6 +299,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginLeft: 16,
   },
+  authErrorText: {
+    color: '#fecaca',
+    fontSize: 14,
+    marginBottom: 12,
+    marginLeft: 4,
+    textAlign: 'center',
+  },
   forgotPassword: {
     alignSelf: 'flex-end',
     marginBottom: 20,
@@ -274,6 +314,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.white,
     textDecorationLine: 'underline',
+  },
+  resetMessageText: {
+    fontSize: 13,
+    marginBottom: 12,
+    marginLeft: 4,
+    lineHeight: 18,
+  },
+  resetSuccess: {
+    color: '#bbf7d0',
+  },
+  resetError: {
+    color: '#fecaca',
   },
   primaryButton: {
     backgroundColor: colors.orange,
