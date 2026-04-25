@@ -115,12 +115,13 @@ export default function ProfileScreen() {
   const [lifeStates, setLifeStates] = useState<CatalogItem[]>([]);
   const [maritalStatuses, setMaritalStatuses] = useState<CatalogItem[]>([]);
   const [vocationalRealities, setVocationalRealities] = useState<CatalogItem[]>([]);
+  const [realidadeAtualOptions, setRealidadeAtualOptions] = useState<CatalogItem[]>([]);
 
   // Modal principal de edição
   const [editVisible, setEditVisible] = useState(false);
 
   // Campos agrupados por seção
-  const [editPersonal, setEditPersonal] = useState({ name: '', phone: '', birthDate: '', uf: '', city: '', instagram: '' });
+  const [editPersonal, setEditPersonal] = useState({ name: '', phone: '', birthDate: '', uf: '', city: '', instagram: '', moraFora: false, paisFora: '' });
   const [editCommunity, setEditCommunity] = useState({
     lifeState: null as CatalogItem | null, marital: null as CatalogItem | null,
     vocational: null as CatalogItem | null, despertar: '', hasAccomp: false,
@@ -138,6 +139,11 @@ export default function ProfileScreen() {
   const [editEmergency, setEditEmergency] = useState({ name: '', relationship: '', phone: '' });
 
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+
+  // Campos extras do modal
+  const [editRealidadeAtual, setEditRealidadeAtual] = useState<string[]>([]);
+  const [editSpouseInCommunity, setEditSpouseInCommunity] = useState<boolean | null>(null);
+  const [editConsecrationYear, setEditConsecrationYear] = useState('');
 
   // Sub-modais
   const [ufModalVisible, setUfModalVisible] = useState(false);
@@ -172,6 +178,7 @@ export default function ProfileScreen() {
       setLifeStates(find('LIFE_STATE'));
       setMaritalStatuses(find('MARITAL_STATUS'));
       setVocationalRealities(find('VOCATIONAL_REALITY'));
+      setRealidadeAtualOptions(find('REALIDADE_ATUAL'));
     } catch { /* silencioso */ }
   };
 
@@ -186,6 +193,7 @@ export default function ProfileScreen() {
   // ---------------------------------------------------------------------------
   const openEditModal = () => {
     if (!profile) return;
+    const abroad = !!profile.country && !profile.state;
     setEditPersonal({
       name: profile.full_name ?? '',
       phone: e164ToDisplay(profile.phone_e164),
@@ -193,6 +201,8 @@ export default function ProfileScreen() {
       uf: profile.state ?? '',
       city: profile.city ?? '',
       instagram: profile.instagram ?? '',
+      moraFora: abroad,
+      paisFora: abroad ? (profile.country ?? '') : '',
     });
     setEditCommunity({
       lifeState: lifeStates.find(i => i.id === profile.life_state_item_id) ?? null,
@@ -225,6 +235,9 @@ export default function ProfileScreen() {
       relationship: ec?.relationship ?? '',
       phone: ec ? e164ToDisplay(ec.phone_e164) : '',
     });
+    setEditRealidadeAtual(profile.realidade_atual ?? []);
+    setEditSpouseInCommunity(profile.spouse_in_community ?? null);
+    setEditConsecrationYear(profile.consecration_year ? String(profile.consecration_year) : '');
     setEditErrors({});
     setSaveError('');
     setEditVisible(true);
@@ -246,7 +259,8 @@ export default function ProfileScreen() {
     if (editPersonal.phone.replace(/\D/g, '').length < 10) e.phone = 'Telefone inválido';
     const parts = editPersonal.birthDate.split('/');
     if (parts.length !== 3 || (parts[2] ?? '').length !== 4) e.birthDate = 'Data inválida (DD/MM/AAAA)';
-    if (!editPersonal.uf) e.uf = 'Selecione o estado';
+    if (!editPersonal.moraFora && !editPersonal.uf) e.uf = 'Selecione o estado';
+    if (editPersonal.moraFora && !editPersonal.paisFora.trim()) e.paisFora = 'Informe o país';
     if (editPersonal.city.trim().length < 2) e.city = 'Cidade obrigatória';
     if (editCommunity.interestedMinistry && !editCommunity.ministryNotes.trim()) e.ministryNotes = 'Descreva o interesse';
     setEditErrors(e);
@@ -260,19 +274,24 @@ export default function ProfileScreen() {
     try {
       const [dd, mm, yyyy] = editPersonal.birthDate.split('/');
       const phoneDigits = editPersonal.phone.replace(/\D/g, '');
+      const isConsagrado = editCommunity.vocational?.code === 'CONSAGRADO_FILHO_DA_LUZ';
       await profileService.updateProfile({
         full_name: editPersonal.name.trim(),
         birth_date: `${yyyy}-${mm}-${dd}`,
         phone_e164: `+55${phoneDigits}`,
         city: editPersonal.city.trim(),
-        state: editPersonal.uf,
+        state: editPersonal.moraFora ? null : editPersonal.uf || null,
+        country: editPersonal.moraFora ? editPersonal.paisFora.trim() || null : null,
         photo_url: profile?.photo_url ?? null,
         life_state_item_id: editCommunity.lifeState?.id ?? null,
         marital_status_item_id: editCommunity.marital?.id ?? null,
         vocational_reality_item_id: editCommunity.vocational?.id ?? null,
+        consecration_year: isConsagrado && editConsecrationYear ? parseInt(editConsecrationYear) : null,
+        spouse_in_community: editSpouseInCommunity,
         has_vocational_accompaniment: editCommunity.hasAccomp,
         interested_in_ministry: editCommunity.interestedMinistry,
         ministry_interest_notes: editCommunity.interestedMinistry ? editCommunity.ministryNotes.trim() : null,
+        realidade_atual: editRealidadeAtual.length > 0 ? editRealidadeAtual : null,
         instagram: editPersonal.instagram.trim() || null,
         dietary_restriction: editExtra.dietaryRestriction,
         dietary_restriction_notes: editExtra.dietaryRestriction ? editExtra.dietaryNotes.trim() || null : null,
@@ -375,7 +394,8 @@ export default function ProfileScreen() {
           <InfoRow icon="calendar-outline" label="Nascimento" value={isoToDisplay(profile?.birth_date) || undefined} />
           <InfoRow icon="call-outline" label="Telefone" value={e164ToDisplay(profile?.phone_e164) || undefined} />
           <InfoRow icon="logo-instagram" label="Instagram" value={profile?.instagram} />
-          <InfoRow icon="map-outline" label="Estado" value={profile?.state} />
+          <InfoRow icon="map-outline" label="Estado / País"
+            value={profile?.state ?? (profile?.country ? `${profile.country} (exterior)` : undefined)} />
           <InfoRow icon="location-outline" label="Cidade" value={profile?.city} last />
         </View>
 
@@ -384,7 +404,17 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <InfoRow icon="heart-outline" label="Estado de Vida" value={profile?.life_state_label} />
           <InfoRow icon="people-outline" label="Estado Civil" value={profile?.marital_status_label} />
+          {profile?.spouse_in_community != null ? (
+            <InfoRow icon="people-circle-outline" label="Cônjuge na Comunidade"
+              value={profile.spouse_in_community ? 'Sim' : 'Não'} />
+          ) : null}
           <InfoRow icon="star-outline" label="Realidade Vocacional" value={profile?.vocational_reality_label} />
+          {profile?.consecration_year ? (
+            <InfoRow icon="ribbon-outline" label="Ano de Consagração" value={String(profile.consecration_year)} />
+          ) : null}
+          {profile?.realidade_atual?.length ? (
+            <InfoRow icon="list-outline" label="Realidade Atual" value={profile.realidade_atual.join(', ')} />
+          ) : null}
           <InfoRow icon="flame-outline" label="Encontro Despertar" value={profile?.despertar_encounter} />
           <InfoRow icon="globe-outline" label="É de alguma Missão"
             value={profile?.is_from_mission == null ? undefined : profile.is_from_mission ? (profile.mission_name ?? 'Sim') : 'Não'} last />
@@ -501,15 +531,43 @@ export default function ProfileScreen() {
               placeholder="DD/MM/AAAA" keyboardType="numeric" />
             {editErrors.birthDate ? <Text style={styles.editError}>{editErrors.birthDate}</Text> : null}
 
-            <Text style={styles.editLabel}>Estado (UF) *</Text>
-            <TouchableOpacity style={[styles.editSelector, editErrors.uf ? styles.editInputError : null]}
-              onPress={() => setUfModalVisible(true)}>
-              <Text style={editPersonal.uf ? styles.editSelectorValue : styles.editSelectorPlaceholder}>
-                {editPersonal.uf || 'Selecione o estado'}
-              </Text>
-              <Ionicons name="chevron-down" size={18} color={GRAY} />
-            </TouchableOpacity>
-            {editErrors.uf ? <Text style={styles.editError}>{editErrors.uf}</Text> : null}
+            <View style={styles.toggleRow}>
+              <Text style={styles.toggleLabel}>Moro fora do Brasil</Text>
+              <Switch
+                value={editPersonal.moraFora}
+                onValueChange={(v) => setEditPersonal(p => ({
+                  ...p, moraFora: v, uf: v ? '' : p.uf, paisFora: v ? p.paisFora : '',
+                }))}
+                trackColor={{ false: '#d1d5db', true: `${PRIMARY}80` }}
+                thumbColor={editPersonal.moraFora ? PRIMARY : '#9ca3af'}
+              />
+            </View>
+
+            {editPersonal.moraFora ? (
+              <>
+                <Text style={styles.editLabel}>País *</Text>
+                <TextInput
+                  style={[styles.editInput, editErrors.paisFora ? styles.editInputError : null]}
+                  value={editPersonal.paisFora}
+                  onChangeText={t => { setEditPersonal(p => ({ ...p, paisFora: t })); setEditErrors(p => ({ ...p, paisFora: '' })); }}
+                  placeholder="Ex: Portugal, Estados Unidos..."
+                  autoCapitalize="words"
+                />
+                {editErrors.paisFora ? <Text style={styles.editError}>{editErrors.paisFora}</Text> : null}
+              </>
+            ) : (
+              <>
+                <Text style={styles.editLabel}>Estado (UF) *</Text>
+                <TouchableOpacity style={[styles.editSelector, editErrors.uf ? styles.editInputError : null]}
+                  onPress={() => setUfModalVisible(true)}>
+                  <Text style={editPersonal.uf ? styles.editSelectorValue : styles.editSelectorPlaceholder}>
+                    {editPersonal.uf || 'Selecione o estado'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={18} color={GRAY} />
+                </TouchableOpacity>
+                {editErrors.uf ? <Text style={styles.editError}>{editErrors.uf}</Text> : null}
+              </>
+            )}
 
             <Text style={styles.editLabel}>Cidade *</Text>
             <TextInput style={[styles.editInput, editErrors.city ? styles.editInputError : null]}
@@ -543,6 +601,18 @@ export default function ProfileScreen() {
               <Ionicons name="chevron-down" size={18} color={GRAY} />
             </TouchableOpacity>
 
+            {['CASADO', 'UNIAO_ESTAVEL'].includes(editCommunity.marital?.code ?? '') && (
+              <View style={styles.toggleRow}>
+                <Text style={styles.toggleLabel}>Cônjuge faz parte da comunidade?</Text>
+                <Switch
+                  value={editSpouseInCommunity ?? false}
+                  onValueChange={setEditSpouseInCommunity}
+                  trackColor={{ false: '#d1d5db', true: `${PRIMARY}80` }}
+                  thumbColor={editSpouseInCommunity ? PRIMARY : '#9ca3af'}
+                />
+              </View>
+            )}
+
             <Text style={styles.editLabel}>Realidade Vocacional</Text>
             <TouchableOpacity style={styles.editSelector}
               onPress={() => openCatalogModal('Realidade Vocacional', vocationalRealities, item => { setEditCommunity(p => ({ ...p, vocational: item })); setCatalogModalVisible(false); })}>
@@ -551,6 +621,42 @@ export default function ProfileScreen() {
               </Text>
               <Ionicons name="chevron-down" size={18} color={GRAY} />
             </TouchableOpacity>
+
+            {editCommunity.vocational?.code === 'CONSAGRADO_FILHO_DA_LUZ' && (
+              <>
+                <Text style={styles.editLabel}>Ano de Consagração</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editConsecrationYear}
+                  onChangeText={setEditConsecrationYear}
+                  placeholder="Ex: 2020"
+                  keyboardType="numeric"
+                  maxLength={4}
+                />
+              </>
+            )}
+
+            {realidadeAtualOptions.length > 0 && (
+              <>
+                <Text style={styles.editLabel}>Realidade Atual</Text>
+                <View style={styles.chipsContainer}>
+                  {realidadeAtualOptions.map((opt) => {
+                    const selected = editRealidadeAtual.includes(opt.code);
+                    return (
+                      <TouchableOpacity
+                        key={opt.code}
+                        style={[styles.chip, selected && styles.chipSelected]}
+                        onPress={() => setEditRealidadeAtual(prev =>
+                          selected ? prev.filter(c => c !== opt.code) : [...prev, opt.code]
+                        )}
+                      >
+                        <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{opt.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </>
+            )}
 
             <Text style={styles.editLabel}>Encontro Despertar</Text>
             <TouchableOpacity style={styles.editSelector} onPress={() => setDespertarModalVisible(true)}>
