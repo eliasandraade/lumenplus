@@ -44,6 +44,7 @@ const TYPE_LABELS: Record<string, string> = {
   SETOR: 'Setor',
   MINISTERIO: 'Ministério',
   GRUPO: 'Grupo',
+  MISSAO: 'Missão',
 };
 
 const TYPE_ICONS: Record<string, string> = {
@@ -52,15 +53,17 @@ const TYPE_ICONS: Record<string, string> = {
   SETOR: 'layers',
   MINISTERIO: 'home',
   GRUPO: 'person-add',
+  MISSAO: 'earth',
 };
 
 // Hierarquia: qual tipo de filho cada pai pode ter
 const CHILD_TYPE: Record<string, string | null> = {
   CONSELHO_GERAL: 'CONSELHO_EXECUTIVO',
   CONSELHO_EXECUTIVO: 'SETOR',
-  SETOR: 'MINISTERIO_OU_GRUPO',
+  SETOR: 'MINISTERIO_GRUPO_OU_MISSAO',
   MINISTERIO: 'GRUPO',
   GRUPO: null,
+  MISSAO: null,
 };
 
 const GROUP_TYPES = [
@@ -70,6 +73,11 @@ const GROUP_TYPES = [
   { value: 'CASAIS', label: 'Casais' },
   { value: 'CURSO', label: 'Curso' },
   { value: 'PROJETO', label: 'Projeto' },
+];
+
+const MISSION_TYPES = [
+  { value: 'VIDA', label: 'Vida' },
+  { value: 'ALIANCA', label: 'Aliança' },
 ];
 
 interface OrgUnitNode {
@@ -226,9 +234,9 @@ export default function EntitiesScreen() {
     for (const m of myCoordMemberships) {
       if (m.org_unit_type === 'CONSELHO_GERAL') return true;
       if (m.org_unit_type === 'CONSELHO_EXECUTIVO' &&
-          ['SETOR', 'MINISTERIO', 'GRUPO'].includes(unit.type)) return true;
+          ['SETOR', 'MINISTERIO', 'GRUPO', 'MISSAO'].includes(unit.type)) return true;
       if (m.org_unit_type === 'SETOR' &&
-          ['MINISTERIO', 'GRUPO'].includes(unit.type) &&
+          ['MINISTERIO', 'GRUPO', 'MISSAO'].includes(unit.type) &&
           isDescendantOf(unit, m.org_unit_id, tree)) return true;
     }
     return false;
@@ -425,25 +433,35 @@ function CreateUnitModal({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [groupType, setGroupType] = useState('');
-  const [isGrupo, setIsGrupo] = useState(false);
+  const [selectedSubType, setSelectedSubType] = useState<'MINISTERIO' | 'GRUPO' | 'MISSAO'>('MINISTERIO');
+  const [missionTypes, setMissionTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Determina o tipo do filho baseado no parent
-  const childType = state.isRoot ? 'CONSELHO_GERAL' : (
-    state.parentType === 'SETOR' && isGrupo ? 'GRUPO' :
-    state.parentType === 'SETOR' ? 'MINISTERIO' :
-    state.parentType ? (CHILD_TYPE[state.parentType] === 'MINISTERIO_OU_GRUPO' ? (isGrupo ? 'GRUPO' : 'MINISTERIO') : CHILD_TYPE[state.parentType]) : null
-  );
+  // Determina o tipo do filho baseado no parent e na seleção do usuário
+  const isSetor = state.parentType === 'SETOR';
+  const childType = state.isRoot
+    ? 'CONSELHO_GERAL'
+    : isSetor
+    ? selectedSubType
+    : (CHILD_TYPE[state.parentType ?? ''] ?? null);
 
   useEffect(() => {
     if (state.visible) {
       setName('');
       setDescription('');
       setGroupType('');
-      setIsGrupo(false);
+      setSelectedSubType('MINISTERIO');
+      setMissionTypes([]);
+      setFormError(null);
     }
   }, [state.visible]);
+
+  const toggleMissionType = (value: string) => {
+    setMissionTypes((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  };
 
   const handleSubmit = async () => {
     setFormError(null);
@@ -451,8 +469,12 @@ function CreateUnitModal({
       setFormError('Informe o nome da entidade.');
       return;
     }
-    if ((childType === 'GRUPO') && !groupType) {
+    if (childType === 'GRUPO' && !groupType) {
       setFormError('Selecione o tipo de grupo.');
+      return;
+    }
+    if (childType === 'MISSAO' && missionTypes.length === 0) {
+      setFormError('Selecione pelo menos um tipo de missão.');
       return;
     }
 
@@ -463,6 +485,7 @@ function CreateUnitModal({
       } else if (state.parentId) {
         const payload: any = { name: name.trim(), description: description.trim() || undefined };
         if (childType === 'GRUPO') payload.group_type = groupType;
+        if (childType === 'MISSAO') payload.mission_types = missionTypes;
         await orgAdminService.createChildUnit(state.parentId, payload);
       }
       onSuccess();
@@ -473,8 +496,6 @@ function CreateUnitModal({
       setLoading(false);
     }
   };
-
-  const canChooseGrupo = state.parentType === 'SETOR';
 
   return (
     <Modal visible={state.visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -495,20 +516,32 @@ function CreateUnitModal({
             </Text>
           )}
 
-          {/* Toggle Ministério / Grupo (só quando parent = SETOR) */}
-          {canChooseGrupo && (
+          {/* Toggle Ministério / Grupo / Missão (só quando parent = SETOR) */}
+          {isSetor && (
             <View style={styles.toggleRow}>
               <TouchableOpacity
-                style={[styles.toggleBtn, !isGrupo && styles.toggleBtnActive]}
-                onPress={() => setIsGrupo(false)}
+                style={[styles.toggleBtn, selectedSubType === 'MINISTERIO' && styles.toggleBtnActive]}
+                onPress={() => setSelectedSubType('MINISTERIO')}
               >
-                <Text style={[styles.toggleBtnText, !isGrupo && styles.toggleBtnTextActive]}>Ministério</Text>
+                <Text style={[styles.toggleBtnText, selectedSubType === 'MINISTERIO' && styles.toggleBtnTextActive]}>
+                  Ministério
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.toggleBtn, isGrupo && styles.toggleBtnActive]}
-                onPress={() => setIsGrupo(true)}
+                style={[styles.toggleBtn, selectedSubType === 'GRUPO' && styles.toggleBtnActive]}
+                onPress={() => setSelectedSubType('GRUPO')}
               >
-                <Text style={[styles.toggleBtnText, isGrupo && styles.toggleBtnTextActive]}>Grupo</Text>
+                <Text style={[styles.toggleBtnText, selectedSubType === 'GRUPO' && styles.toggleBtnTextActive]}>
+                  Grupo
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleBtn, selectedSubType === 'MISSAO' && styles.toggleBtnActive]}
+                onPress={() => setSelectedSubType('MISSAO')}
+              >
+                <Text style={[styles.toggleBtnText, selectedSubType === 'MISSAO' && styles.toggleBtnTextActive]}>
+                  Missão
+                </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -551,6 +584,29 @@ function CreateUnitModal({
                     </Text>
                   </TouchableOpacity>
                 ))}
+              </View>
+            </>
+          )}
+
+          {/* Tipo de missão (multi-select) */}
+          {childType === 'MISSAO' && (
+            <>
+              <Text style={styles.fieldLabel}>Tipo de Missão * <Text style={{ color: colors.gray, fontWeight: '400' }}>(pode marcar os dois)</Text></Text>
+              <View style={styles.chipRow}>
+                {MISSION_TYPES.map((mt) => {
+                  const selected = missionTypes.includes(mt.value);
+                  return (
+                    <TouchableOpacity
+                      key={mt.value}
+                      style={[styles.chip, selected && styles.chipActive]}
+                      onPress={() => toggleMissionType(mt.value)}
+                    >
+                      <Text style={[styles.chipText, selected && styles.chipTextActive]}>
+                        {mt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </>
           )}

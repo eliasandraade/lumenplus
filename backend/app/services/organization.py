@@ -16,6 +16,7 @@ from app.db.models import (
     OrgUnit,
     OrgUnitType,
     GroupType,
+    MissionType,
     Visibility,
     OrgMembership,
     MembershipStatus,
@@ -28,7 +29,7 @@ from app.db.models import (
     AuditLog,
 )
 from app.core.settings import settings
-from app.schemas.organization import HIERARCHY_PERMISSIONS, GROUP_TYPES
+from app.schemas.organization import HIERARCHY_PERMISSIONS, GROUP_TYPES, MISSION_TYPES
 
 
 class OrgServiceError(Exception):
@@ -125,10 +126,10 @@ def can_edit_unit(db: Session, user_id: UUID, unit_id: UUID) -> bool:
         if coord_unit.type == OrgUnitType.CONSELHO_GERAL:
             return True
         if coord_unit.type == OrgUnitType.CONSELHO_EXECUTIVO:
-            if unit.type in [OrgUnitType.SETOR, OrgUnitType.MINISTERIO, OrgUnitType.GRUPO]:
+            if unit.type in [OrgUnitType.SETOR, OrgUnitType.MINISTERIO, OrgUnitType.GRUPO, OrgUnitType.MISSAO]:
                 return True
         if coord_unit.type == OrgUnitType.SETOR:
-            if unit.type in [OrgUnitType.MINISTERIO, OrgUnitType.GRUPO]:
+            if unit.type in [OrgUnitType.MINISTERIO, OrgUnitType.GRUPO, OrgUnitType.MISSAO]:
                 if _is_descendant_of(db, unit, coord_unit.id):
                     return True
     return False
@@ -241,6 +242,7 @@ def create_org_unit(
     description: str | None = None,
     visibility: Visibility = Visibility.PUBLIC,
     group_type: GroupType | None = None,
+    mission_types: list[str] | None = None,
     coordinator_user_ids: list[UUID] | None = None,
 ) -> OrgUnit:
     """
@@ -277,6 +279,20 @@ def create_org_unit(
             "group_type_not_allowed", "Tipo de grupo só pode ser definido para GRUPO"
         )
 
+    # Valida mission_types
+    if org_type == OrgUnitType.MISSAO:
+        if not mission_types:
+            raise OrgServiceError("mission_types_required", "Selecione pelo menos um tipo de missão (VIDA ou ALIANCA)")
+        invalid = [t for t in mission_types if t not in MISSION_TYPES]
+        if invalid:
+            raise OrgServiceError(
+                "invalid_mission_type", f"Tipo de missão inválido. Use: {MISSION_TYPES}"
+            )
+    elif mission_types:
+        raise OrgServiceError(
+            "mission_types_not_allowed", "mission_types só pode ser definido para MISSAO"
+        )
+
     # Gera slug único
     base_slug = slugify(name)
     slug = base_slug
@@ -289,6 +305,7 @@ def create_org_unit(
     org_unit = OrgUnit(
         type=org_type,
         group_type=group_type,
+        mission_types=mission_types or None,
         name=name,
         slug=slug,
         description=description,

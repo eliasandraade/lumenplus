@@ -23,6 +23,9 @@ GROUP_TYPES = [
     "PROJETO",
 ]
 
+# Tipos de missão permitidos
+MISSION_TYPES = ["VIDA", "ALIANCA"]
+
 # Permissões de hierarquia: quem pode criar o quê
 HIERARCHY_PERMISSIONS = {
     "CONSELHO_GERAL": {
@@ -34,14 +37,18 @@ HIERARCHY_PERMISSIONS = {
         "description": "Pode criar Setores",
     },
     "SETOR": {
-        "can_create": ["MINISTERIO", "GRUPO"],
-        "description": "Pode criar Ministérios e Grupos",
+        "can_create": ["MINISTERIO", "GRUPO", "MISSAO"],
+        "description": "Pode criar Ministérios, Grupos e Missões",
     },
     "MINISTERIO": {
         "can_create": ["GRUPO"],
         "description": "Pode criar Grupos",
     },
     "GRUPO": {
+        "can_create": [],
+        "description": "Não pode criar filhos",
+    },
+    "MISSAO": {
         "can_create": [],
         "description": "Não pode criar filhos",
     },
@@ -60,6 +67,7 @@ class CreateOrgUnitRequest(BaseModel):
     description: Optional[str] = Field(None, max_length=1000)
     visibility: Optional[str] = "PUBLIC"  # PUBLIC | RESTRICTED
     group_type: Optional[str] = None  # ACOLHIDA, APROFUNDAMENTO, VOCACIONAL, CASAIS, CURSO, PROJETO
+    mission_types: Optional[List[str]] = None  # ["VIDA", "ALIANCA"] — só para MISSAO
     coordinator_user_ids: List[UUID] = []
 
 
@@ -67,8 +75,9 @@ class OrgUnitOut(BaseModel):
     """Unidade organizacional."""
 
     id: UUID
-    type: str  # CONSELHO_GERAL, CONSELHO_EXECUTIVO, SETOR, MINISTERIO, GRUPO
+    type: str  # CONSELHO_GERAL, CONSELHO_EXECUTIVO, SETOR, MINISTERIO, GRUPO, MISSAO
     group_type: Optional[str] = None
+    mission_types: Optional[List[str]] = None
     name: str
     slug: str
     description: Optional[str] = None

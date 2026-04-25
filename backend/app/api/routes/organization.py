@@ -19,6 +19,7 @@ from app.db.models import (
     OrgUnit,
     OrgUnitType,
     GroupType,
+    MissionType,
     Visibility,
     OrgRoleCode,
 )
@@ -129,6 +130,7 @@ async def create_root_unit(
             id=unit.id,
             type=unit.type.value,
             group_type=None,
+            mission_types=None,
             name=unit.name,
             slug=unit.slug,
             description=unit.description,
@@ -245,7 +247,7 @@ async def create_child_unit(
     type_mapping = {
         "CONSELHO_GERAL": OrgUnitType.CONSELHO_EXECUTIVO,
         "CONSELHO_EXECUTIVO": OrgUnitType.SETOR,
-        "SETOR": OrgUnitType.MINISTERIO if not data.group_type else OrgUnitType.GRUPO,
+        "SETOR": OrgUnitType.MINISTERIO,  # padrão; sobrescrito abaixo se group_type ou mission_types
         "MINISTERIO": OrgUnitType.GRUPO,
     }
 
@@ -256,8 +258,11 @@ async def create_child_unit(
             detail={"error": "invalid_parent", "message": "Esta unidade não pode ter filhos"},
         )
 
+    # Se mission_types foi fornecido, é uma MISSAO
+    if data.mission_types:
+        child_type = OrgUnitType.MISSAO
     # Se group_type foi fornecido, é um GRUPO
-    if data.group_type:
+    elif data.group_type:
         child_type = OrgUnitType.GRUPO
 
     try:
@@ -273,6 +278,7 @@ async def create_child_unit(
             description=data.description,
             visibility=visibility,
             group_type=group_type,
+            mission_types=data.mission_types or None,
             coordinator_user_ids=data.coordinator_user_ids,
         )
 
@@ -280,6 +286,7 @@ async def create_child_unit(
             id=unit.id,
             type=unit.type.value,
             group_type=unit.group_type.value if unit.group_type else None,
+            mission_types=unit.mission_types,
             name=unit.name,
             slug=unit.slug,
             description=unit.description,
@@ -309,6 +316,7 @@ async def get_org_unit(
         id=unit.id,
         type=unit.type.value,
         group_type=unit.group_type.value if unit.group_type else None,
+        mission_types=unit.mission_types,
         name=unit.name,
         slug=unit.slug,
         description=unit.description,
@@ -693,6 +701,8 @@ async def update_org_unit_endpoint(
         id=unit.id,
         name=unit.name,
         type=unit.type.value,
+        group_type=unit.group_type.value if unit.group_type else None,
+        mission_types=unit.mission_types,
         description=unit.description,
         visibility=unit.visibility.value,
         is_active=unit.is_active,

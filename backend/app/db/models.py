@@ -41,6 +41,7 @@ class OrgUnitType(enum.Enum):
     SETOR = "SETOR"
     MINISTERIO = "MINISTERIO"
     GRUPO = "GRUPO"
+    MISSAO = "MISSAO"
 
 
 class GroupType(enum.Enum):
@@ -50,6 +51,11 @@ class GroupType(enum.Enum):
     CASAIS = "CASAIS"
     CURSO = "CURSO"
     PROJETO = "PROJETO"
+
+
+class MissionType(enum.Enum):
+    VIDA = "VIDA"
+    ALIANCA = "ALIANCA"
 
 
 class Visibility(enum.Enum):
@@ -421,6 +427,7 @@ class OrgUnit(Base):
     group_type: Mapped[GroupType | None] = mapped_column(
         Enum(GroupType, name="group_type", create_constraint=False), nullable=True
     )
+    mission_types: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)  # ["VIDA", "ALIANCA"]
     name: Mapped[str] = mapped_column(Text, nullable=False)
     slug: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
