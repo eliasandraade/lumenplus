@@ -44,7 +44,7 @@ export const ORACOES: Oracao[] = [
   { id: 'alma-de-cristo', titulo: 'Alma de Cristo', texto: ALMA_DE_CRISTO },
   { id: 'oracao-missionaria', titulo: 'Oração Missionária', texto: ORACAO_MISSIONARIA },
   { id: 'teresa-calcuta', titulo: 'Oração de Santa Teresa de Calcutá', texto: TERESA_CALCUTA },
-  { id: 'stabat-mater', titulo: 'Stabat Mater (trecho)', texto: STABAT_MATER },
+  { id: 'stabat-mater', titulo: 'Stabat Mater', texto: STABAT_MATER_COMPLETA },
   { id: 'magnificat', titulo: 'Magnificat', texto: MAGNIFICAT },
   { id: 'tomai-senhor', titulo: 'Tomai, Senhor, e recebei toda a minha liberdade', texto: TOMAI_SENHOR },
 ];
