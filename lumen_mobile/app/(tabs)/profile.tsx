@@ -19,6 +19,7 @@ import type { IoniconsName } from '@/types/icons';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { profileService } from '@/services';
+import brasilApi, { type Municipio } from '@/services/brasilApi';
 import type { CatalogItem, Profile } from '@/types';
 
 // =============================================================================
@@ -116,6 +117,12 @@ export default function ProfileScreen() {
   const [maritalStatuses, setMaritalStatuses] = useState<CatalogItem[]>([]);
   const [vocationalRealities, setVocationalRealities] = useState<CatalogItem[]>([]);
   const [realidadeAtualOptions, setRealidadeAtualOptions] = useState<CatalogItem[]>([]);
+  const [missions, setMissions] = useState<{ id: string; name: string }[]>([]);
+  const [sectors, setSectors] = useState<{ id: string; name: string }[]>([]);
+
+  // BrasilAPI — cidades
+  const [municipios, setMunicipios] = useState<Municipio[]>([]);
+  const [loadingMunicipios, setLoadingMunicipios] = useState(false);
 
   // Modal principal de edição
   const [editVisible, setEditVisible] = useState(false);
@@ -126,7 +133,7 @@ export default function ProfileScreen() {
     lifeState: null as CatalogItem | null, marital: null as CatalogItem | null,
     vocational: null as CatalogItem | null, despertar: '', hasAccomp: false,
     accompName: '', interestedMinistry: false, ministryNotes: '',
-    isFromMission: false, missionName: '',
+    isFromMission: false, missionName: '', missionOrgUnitId: null as string | null,
   });
   const [editExtra, setEditExtra] = useState({
     accommodationOptions: [] as string[], dietaryRestriction: false, dietaryNotes: '',
@@ -144,9 +151,12 @@ export default function ProfileScreen() {
   const [editRealidadeAtual, setEditRealidadeAtual] = useState<string[]>([]);
   const [editSpouseInCommunity, setEditSpouseInCommunity] = useState<boolean | null>(null);
   const [editConsecrationYear, setEditConsecrationYear] = useState('');
+  const [editSectorIds, setEditSectorIds] = useState<string[]>([]);
 
   // Sub-modais
   const [ufModalVisible, setUfModalVisible] = useState(false);
+  const [cityModalVisible, setCityModalVisible] = useState(false);
+  const [missionModalVisible, setMissionModalVisible] = useState(false);
   const [catalogModalVisible, setCatalogModalVisible] = useState(false);
   const [catalogOptions, setCatalogOptions] = useState<CatalogItem[]>([]);
   const [catalogTitle, setCatalogTitle] = useState('');
@@ -173,13 +183,32 @@ export default function ProfileScreen() {
 
   const loadCatalogs = async () => {
     try {
-      const catalogs = await profileService.getCatalogs();
+      const [catalogs, missionsData, sectorsData] = await Promise.all([
+        profileService.getCatalogs(),
+        profileService.getMissions().catch(() => [] as { id: string; name: string }[]),
+        profileService.getSectors().catch(() => [] as { id: string; name: string }[]),
+      ]);
       const find = (code: string) => catalogs.find(c => c.code === code)?.items ?? [];
       setLifeStates(find('LIFE_STATE'));
       setMaritalStatuses(find('MARITAL_STATUS'));
       setVocationalRealities(find('VOCATIONAL_REALITY'));
       setRealidadeAtualOptions(find('REALIDADE_ATUAL'));
+      setMissions(missionsData);
+      setSectors(sectorsData);
     } catch { /* silencioso */ }
+  };
+
+  const loadMunicipios = async (uf: string) => {
+    if (!uf) { setMunicipios([]); return; }
+    setLoadingMunicipios(true);
+    try {
+      const data = await brasilApi.getMunicipios(uf);
+      setMunicipios(data);
+    } catch {
+      setMunicipios([]);
+    } finally {
+      setLoadingMunicipios(false);
+    }
   };
 
   const onRefresh = useCallback(async () => {
@@ -215,7 +244,10 @@ export default function ProfileScreen() {
       ministryNotes: profile.ministry_interest_notes ?? '',
       isFromMission: profile.is_from_mission ?? false,
       missionName: profile.mission_name ?? '',
+      missionOrgUnitId: profile.mission_org_unit_id ?? null,
     });
+    setEditSectorIds(profile.ministry_sector_ids ?? []);
+    if (profile.state && !abroad) loadMunicipios(profile.state);
     setEditExtra({
       accommodationOptions: profile.accommodation_options ?? [],
       dietaryRestriction: profile.dietary_restriction ?? false,
@@ -262,7 +294,9 @@ export default function ProfileScreen() {
     if (!editPersonal.moraFora && !editPersonal.uf) e.uf = 'Selecione o estado';
     if (editPersonal.moraFora && !editPersonal.paisFora.trim()) e.paisFora = 'Informe o país';
     if (editPersonal.city.trim().length < 2) e.city = 'Cidade obrigatória';
-    if (editCommunity.interestedMinistry && !editCommunity.ministryNotes.trim()) e.ministryNotes = 'Descreva o interesse';
+    if (editCommunity.interestedMinistry && editSectorIds.length === 0 && !editCommunity.ministryNotes.trim()) {
+      e.ministryNotes = 'Selecione ao menos um setor ou descreva o interesse';
+    }
     setEditErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -290,7 +324,8 @@ export default function ProfileScreen() {
         spouse_in_community: editSpouseInCommunity,
         has_vocational_accompaniment: editCommunity.hasAccomp,
         interested_in_ministry: editCommunity.interestedMinistry,
-        ministry_interest_notes: editCommunity.interestedMinistry ? editCommunity.ministryNotes.trim() : null,
+        ministry_interest_notes: editCommunity.interestedMinistry ? editCommunity.ministryNotes.trim() || null : null,
+        ministry_sector_ids: editCommunity.interestedMinistry && editSectorIds.length > 0 ? editSectorIds : null,
         realidade_atual: editRealidadeAtual.length > 0 ? editRealidadeAtual : null,
         instagram: editPersonal.instagram.trim() || null,
         dietary_restriction: editExtra.dietaryRestriction,
@@ -299,7 +334,10 @@ export default function ProfileScreen() {
         health_insurance_name: editExtra.healthInsurance ? editExtra.healthInsuranceName.trim() || null : null,
         accommodation_options: editExtra.accommodationOptions.length > 0 ? editExtra.accommodationOptions : null,
         is_from_mission: editCommunity.isFromMission,
-        mission_name: editCommunity.isFromMission ? editCommunity.missionName.trim() || null : null,
+        mission_org_unit_id: editCommunity.isFromMission ? editCommunity.missionOrgUnitId : null,
+        mission_name: editCommunity.isFromMission && !editCommunity.missionOrgUnitId
+          ? editCommunity.missionName.trim() || null
+          : null,
         despertar_encounter: editCommunity.despertar || null,
         plays_instrument: editMusic.playsInstrument,
         instrument_names: editMusic.playsInstrument ? editMusic.instrumentNames : null,
@@ -570,9 +608,28 @@ export default function ProfileScreen() {
             )}
 
             <Text style={styles.editLabel}>Cidade *</Text>
-            <TextInput style={[styles.editInput, editErrors.city ? styles.editInputError : null]}
-              value={editPersonal.city} onChangeText={t => { setEditPersonal(p => ({ ...p, city: t })); setEditErrors(p => ({ ...p, city: '' })); }}
-              placeholder="Sua cidade" autoCapitalize="words" />
+            {editPersonal.moraFora ? (
+              <TextInput
+                style={[styles.editInput, editErrors.city ? styles.editInputError : null]}
+                value={editPersonal.city}
+                onChangeText={t => { setEditPersonal(p => ({ ...p, city: t })); setEditErrors(p => ({ ...p, city: '' })); }}
+                placeholder="Sua cidade"
+                autoCapitalize="words"
+              />
+            ) : loadingMunicipios ? (
+              <ActivityIndicator size="small" color={PRIMARY} style={{ marginVertical: 12 }} />
+            ) : (
+              <TouchableOpacity
+                style={[styles.editSelector, editErrors.city ? styles.editInputError : null]}
+                onPress={() => { if (municipios.length > 0) setCityModalVisible(true); }}
+                disabled={municipios.length === 0}
+              >
+                <Text style={editPersonal.city ? styles.editSelectorValue : styles.editSelectorPlaceholder}>
+                  {editPersonal.city || (editPersonal.uf ? 'Selecione a cidade' : 'Selecione o estado primeiro')}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={GRAY} />
+              </TouchableOpacity>
+            )}
             {editErrors.city ? <Text style={styles.editError}>{editErrors.city}</Text> : null}
 
             <Text style={styles.editLabel}>Instagram</Text>
@@ -669,15 +726,37 @@ export default function ProfileScreen() {
             <View style={styles.toggleRow}>
               <Text style={styles.toggleLabel}>É de alguma missão?</Text>
               <Switch value={editCommunity.isFromMission}
-                onValueChange={v => setEditCommunity(p => ({ ...p, isFromMission: v, missionName: v ? p.missionName : '' }))}
+                onValueChange={v => setEditCommunity(p => ({
+                  ...p, isFromMission: v,
+                  missionName: v ? p.missionName : '',
+                  missionOrgUnitId: v ? p.missionOrgUnitId : null,
+                }))}
                 trackColor={{ false: '#d1d5db', true: `${PRIMARY}80` }}
                 thumbColor={editCommunity.isFromMission ? PRIMARY : '#9ca3af'} />
             </View>
             {editCommunity.isFromMission && (
               <>
                 <Text style={styles.editLabel}>Qual missão?</Text>
-                <TextInput style={styles.editInput} value={editCommunity.missionName}
-                  onChangeText={t => setEditCommunity(p => ({ ...p, missionName: t }))} placeholder="Nome da missão" />
+                {missions.length > 0 && (
+                  <TouchableOpacity style={styles.editSelector} onPress={() => setMissionModalVisible(true)}>
+                    <Text style={(editCommunity.missionOrgUnitId || editCommunity.missionName) ? styles.editSelectorValue : styles.editSelectorPlaceholder}>
+                      {editCommunity.missionOrgUnitId
+                        ? (missions.find(m => m.id === editCommunity.missionOrgUnitId)?.name ?? 'Selecionada')
+                        : editCommunity.missionName
+                          ? `Outros: ${editCommunity.missionName}`
+                          : 'Selecionar missão...'}
+                    </Text>
+                    <Ionicons name="chevron-down" size={18} color={GRAY} />
+                  </TouchableOpacity>
+                )}
+                {!editCommunity.missionOrgUnitId && (
+                  <TextInput
+                    style={styles.editInput}
+                    value={editCommunity.missionName}
+                    onChangeText={t => setEditCommunity(p => ({ ...p, missionName: t }))}
+                    placeholder={missions.length > 0 ? 'Ou descreva se não listada...' : 'Nome da missão'}
+                  />
+                )}
               </>
             )}
 
@@ -698,18 +777,42 @@ export default function ProfileScreen() {
             <View style={styles.toggleRow}>
               <Text style={styles.toggleLabel}>Tem interesse em ministério?</Text>
               <Switch value={editCommunity.interestedMinistry}
-                onValueChange={v => { setEditCommunity(p => ({ ...p, interestedMinistry: v })); if (!v) setEditErrors(p => ({ ...p, ministryNotes: '' })); }}
+                onValueChange={v => {
+                  setEditCommunity(p => ({ ...p, interestedMinistry: v }));
+                  if (!v) { setEditErrors(p => ({ ...p, ministryNotes: '' })); setEditSectorIds([]); }
+                }}
                 trackColor={{ false: '#d1d5db', true: `${PRIMARY}80` }}
                 thumbColor={editCommunity.interestedMinistry ? PRIMARY : '#9ca3af'} />
             </View>
             {editCommunity.interestedMinistry && (
               <>
-                <Text style={styles.editLabel}>Descreva o interesse *</Text>
+                {sectors.length > 0 && (
+                  <>
+                    <Text style={styles.editLabel}>Em quais setores você tem interesse?</Text>
+                    <View style={styles.chipsContainer}>
+                      {sectors.map(sector => {
+                        const selected = editSectorIds.includes(sector.id);
+                        return (
+                          <TouchableOpacity
+                            key={sector.id}
+                            style={[styles.chip, selected && styles.chipSelected]}
+                            onPress={() => setEditSectorIds(prev =>
+                              selected ? prev.filter(id => id !== sector.id) : [...prev, sector.id]
+                            )}
+                          >
+                            <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{sector.name}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </>
+                )}
+                <Text style={styles.editLabel}>Observações (opcional)</Text>
                 <TextInput style={[styles.editInput, styles.editInputMultiline, editErrors.ministryNotes ? styles.editInputError : null]}
                   value={editCommunity.ministryNotes}
                   onChangeText={t => { setEditCommunity(p => ({ ...p, ministryNotes: t })); setEditErrors(p => ({ ...p, ministryNotes: '' })); }}
-                  placeholder="Em qual(is) ministério(s) tem interesse e por quê..."
-                  multiline numberOfLines={4} />
+                  placeholder="Conte-nos mais sobre seu interesse..."
+                  multiline numberOfLines={3} />
                 {editErrors.ministryNotes ? <Text style={styles.editError}>{editErrors.ministryNotes}</Text> : null}
               </>
             )}
@@ -895,6 +998,78 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
+      {/* ══ Sub-modal: Cidade ══ */}
+      <Modal visible={cityModalVisible} animationType="slide" transparent onRequestClose={() => setCityModalVisible(false)}>
+        <View style={styles.subOverlay}>
+          <View style={styles.subSheet}>
+            <View style={styles.subHeader}>
+              <Text style={styles.subTitle}>Cidade</Text>
+              <TouchableOpacity onPress={() => setCityModalVisible(false)}>
+                <Ionicons name="close" size={24} color={GRAY} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={municipios}
+              keyExtractor={item => item.nome}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.subItem, editPersonal.city === item.nome ? styles.subItemSelected : null]}
+                  onPress={() => {
+                    setEditPersonal(p => ({ ...p, city: item.nome }));
+                    setEditErrors(p => ({ ...p, city: '' }));
+                    setCityModalVisible(false);
+                  }}
+                >
+                  <Text style={[styles.subItemText, editPersonal.city === item.nome ? styles.subItemTextSelected : null]}>
+                    {item.nome}
+                  </Text>
+                  {editPersonal.city === item.nome && <Ionicons name="checkmark" size={20} color={PRIMARY} />}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* ══ Sub-modal: Missão ══ */}
+      <Modal visible={missionModalVisible} animationType="slide" transparent onRequestClose={() => setMissionModalVisible(false)}>
+        <View style={styles.subOverlay}>
+          <View style={styles.subSheet}>
+            <View style={styles.subHeader}>
+              <Text style={styles.subTitle}>Missão</Text>
+              <TouchableOpacity onPress={() => setMissionModalVisible(false)}>
+                <Ionicons name="close" size={24} color={GRAY} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={[...missions, { id: 'OUTROS', name: 'Outros (não listada)' }]}
+              keyExtractor={item => item.id}
+              renderItem={({ item }) => {
+                const isSelected = item.id === 'OUTROS'
+                  ? !editCommunity.missionOrgUnitId
+                  : editCommunity.missionOrgUnitId === item.id;
+                return (
+                  <TouchableOpacity
+                    style={[styles.subItem, isSelected ? styles.subItemSelected : null]}
+                    onPress={() => {
+                      if (item.id === 'OUTROS') {
+                        setEditCommunity(p => ({ ...p, missionOrgUnitId: null }));
+                      } else {
+                        setEditCommunity(p => ({ ...p, missionOrgUnitId: item.id, missionName: '' }));
+                      }
+                      setMissionModalVisible(false);
+                    }}
+                  >
+                    <Text style={[styles.subItemText, isSelected ? styles.subItemTextSelected : null]}>{item.name}</Text>
+                    {isSelected && <Ionicons name="checkmark" size={20} color={PRIMARY} />}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+
       {/* ══ Sub-modal: UF ══ */}
       <Modal visible={ufModalVisible} animationType="slide" transparent onRequestClose={() => setUfModalVisible(false)}>
         <View style={styles.subOverlay}>
@@ -908,7 +1083,12 @@ export default function ProfileScreen() {
             <FlatList data={BR_STATES} keyExtractor={item => item}
               renderItem={({ item }) => (
                 <TouchableOpacity style={[styles.subItem, editPersonal.uf === item ? styles.subItemSelected : null]}
-                  onPress={() => { setEditPersonal(p => ({ ...p, uf: item })); setEditErrors(p => ({ ...p, uf: '' })); setUfModalVisible(false); }}>
+                  onPress={() => {
+                    setEditPersonal(p => ({ ...p, uf: item, city: '' }));
+                    setEditErrors(p => ({ ...p, uf: '' }));
+                    setUfModalVisible(false);
+                    loadMunicipios(item);
+                  }}>
                   <Text style={[styles.subItemText, editPersonal.uf === item ? styles.subItemTextSelected : null]}>{item}</Text>
                   {editPersonal.uf === item && <Ionicons name="checkmark" size={20} color={PRIMARY} />}
                 </TouchableOpacity>

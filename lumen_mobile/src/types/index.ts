@@ -105,7 +105,7 @@ export interface ProfileUpdateRequest {
   birth_date: string;       // ISO: YYYY-MM-DD
   phone_e164: string;       // E.164: +5511999999999
   city: string;
-  state: string;            // UF (2 letras maiúsculas)
+  state: string | null;     // UF (2 letras maiúsculas) — null para quem mora fora do Brasil
   // Campos opcionais
   cpf?: string | null;
   rg?: string | null;
