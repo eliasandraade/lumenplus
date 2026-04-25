@@ -115,6 +115,8 @@ class InboxSentMessageResponse(BaseModel):
     target_org_unit_name: str | None = None
     # Remetente
     created_by_name: str | None = None
+    # Aprovação
+    approval_status: str = "AUTO_APPROVED"
 
     class Config:
         from_attributes = True
@@ -198,3 +200,59 @@ class UserPermissionsResponse(BaseModel):
     has_admin_access: bool
     is_global_admin: bool = False
     has_retreat_access: bool = False
+
+
+# === APROVAÇÃO E AUDITORIA ===
+
+
+class InboxApprovalItem(BaseModel):
+    """Aviso pendente de aprovação (visão do aprovador)."""
+
+    id: UUID
+    title: str
+    message: str
+    type: str
+    created_at: datetime
+    created_by_name: str | None = None
+    target_org_unit_name: str | None = None
+    approval_status: str
+
+    class Config:
+        from_attributes = True
+
+
+class InboxApprovalListResponse(BaseModel):
+    """Lista de avisos pendentes de aprovação."""
+
+    messages: list[InboxApprovalItem]
+    total: int
+
+
+class InboxAuditEntry(BaseModel):
+    """Entrada de auditoria de um aviso."""
+
+    id: UUID
+    action: str
+    actor_name: str | None = None
+    created_at: datetime
+    old_title: str | None = None
+    old_message: str | None = None
+    new_title: str | None = None
+    new_message: str | None = None
+    note: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class InboxAuditResponse(BaseModel):
+    """Auditoria completa de uma mensagem."""
+
+    message_id: UUID
+    entries: list[InboxAuditEntry]
+
+
+class InboxApproveRequest(BaseModel):
+    """Request para aprovar ou reprovar um aviso."""
+
+    note: str | None = Field(None, max_length=500, description="Observação opcional")

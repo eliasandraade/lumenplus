@@ -117,9 +117,7 @@ class CryptoService:
                 f"CPF deve ter 11 dígitos após normalização, recebeu {len(normalized)}"
             )
         assert self._hmac_pepper is not None
-        return hmac.new(
-            self._hmac_pepper, normalized.encode(), hashlib.sha256
-        ).hexdigest()
+        return hmac.new(self._hmac_pepper, normalized.encode(), hashlib.sha256).hexdigest()
 
     def encrypt(self, plaintext: str) -> bytes:
         """

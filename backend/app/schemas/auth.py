@@ -123,6 +123,7 @@ class UserMeResponse(BaseModel):
     memberships: List[MembershipOut] = []
     pending_invites: List[InviteOut] = []
     global_roles: List[str] = []
+    profile_update_due: bool = False
 
     class Config:
         from_attributes = True

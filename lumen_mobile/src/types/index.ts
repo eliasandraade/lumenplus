@@ -20,6 +20,7 @@ export interface User {
   memberships: Membership[];
   pending_invites: Invite[];
   global_roles: string[];
+  profile_update_due?: boolean;
 }
 
 export interface Identity {
@@ -336,6 +337,29 @@ export interface InboxSendResponse {
 export interface InboxPreviewResponse {
   recipient_count: number;
   filters_applied: Record<string, unknown> | null;
+}
+
+export interface PendingApproval {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  created_at: string;
+  created_by_name: string | null;
+  target_org_unit_name: string | null;
+  approval_status: string;
+}
+
+export interface AuditEntry {
+  id: string;
+  action: string;
+  actor_name: string | null;
+  created_at: string;
+  old_title: string | null;
+  old_message: string | null;
+  new_title: string | null;
+  new_message: string | null;
+  note: string | null;
 }
 
 // =============================================================================

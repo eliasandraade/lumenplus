@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.db.models import (
     InboxMessage,
+    InboxMessageAudit,
+    InboxApprovalStatus,
     InboxRecipient,
     InboxMessageType,
     User,
@@ -38,6 +40,32 @@ class InboxService:
 
     def __init__(self, db: Session):
         self.db = db
+
+    # === AUDITORIA ===
+
+    def _create_audit_entry(
+        self,
+        message_id: UUID,
+        action: str,
+        actor_user_id: UUID,
+        old_title: str | None = None,
+        old_message: str | None = None,
+        new_title: str | None = None,
+        new_message: str | None = None,
+        note: str | None = None,
+    ) -> None:
+        """Registra uma entrada de auditoria para uma mensagem."""
+        audit = InboxMessageAudit(
+            message_id=message_id,
+            action=action,
+            actor_user_id=actor_user_id,
+            old_title=old_title,
+            old_message=old_message,
+            new_title=new_title,
+            new_message=new_message,
+            note=note,
+        )
+        self.db.add(audit)
 
     # === PERMISSÕES ===
 
@@ -175,11 +203,19 @@ class InboxService:
         """
         now = datetime.now(timezone.utc)
 
+        # Filtro de status válidos para exibição ao usuário
+        _visible_statuses = [InboxApprovalStatus.APPROVED, InboxApprovalStatus.AUTO_APPROVED]
+
         # Query base
         base_query = (
             select(InboxRecipient, InboxMessage)
             .join(InboxMessage, InboxRecipient.message_id == InboxMessage.id)
-            .where(InboxRecipient.user_id == user_id, InboxMessage.expires_at > now)
+            .where(
+                InboxRecipient.user_id == user_id,
+                InboxMessage.expires_at > now,
+                InboxMessage.approval_status.in_(_visible_statuses),
+                InboxMessage.is_deleted.is_(False),
+            )
         )
 
         if not include_read:
@@ -193,7 +229,12 @@ class InboxService:
             select(func.count())
             .select_from(InboxRecipient)
             .join(InboxMessage, InboxRecipient.message_id == InboxMessage.id)
-            .where(InboxRecipient.user_id == user_id, InboxMessage.expires_at > now)
+            .where(
+                InboxRecipient.user_id == user_id,
+                InboxMessage.expires_at > now,
+                InboxMessage.approval_status.in_(_visible_statuses),
+                InboxMessage.is_deleted.is_(False),
+            )
         )
         total = self.db.execute(count_query).scalar() or 0
 
@@ -472,9 +513,12 @@ class InboxService:
         filters: InboxFilters | None = None,
         attachments: list[dict[str, Any]] | None = None,
         scope_org_unit_id: UUID | None = None,
+        requires_approval: bool = False,
     ) -> tuple[UUID, int]:
         """
         Envia uma mensagem para os destinatários.
+        Se requires_approval=True, a mensagem fica PENDING_APPROVAL e os recipients
+        não são criados até aprovação.
         Returns: (message_id, recipient_count)
         """
         # Converter tipo
@@ -482,6 +526,13 @@ class InboxService:
             msg_type = InboxMessageType(message_type)
         except ValueError:
             msg_type = InboxMessageType.INFO
+
+        # Determinar status de aprovação
+        approval_status = (
+            InboxApprovalStatus.PENDING_APPROVAL
+            if requires_approval
+            else InboxApprovalStatus.AUTO_APPROVED
+        )
 
         # Criar mensagem
         inbox_message = InboxMessage(
@@ -493,20 +544,31 @@ class InboxService:
             attachments=attachments,
             filters=filters.model_dump() if filters else None,
             target_org_unit_id=scope_org_unit_id,
+            approval_status=approval_status,
         )
         self.db.add(inbox_message)
         self.db.flush()  # Para obter o ID
 
-        # Buscar destinatários
+        # Calcular destinatários (sempre, para preview mesmo que pending)
         user_ids = self._get_recipient_user_ids(send_to_all, filters, scope_org_unit_id)
 
-        # Criar recipients
-        for user_id in user_ids:
-            recipient = InboxRecipient(
-                message_id=inbox_message.id,
-                user_id=user_id,
-            )
-            self.db.add(recipient)
+        if not requires_approval:
+            # Criar recipients imediatamente
+            for user_id in user_ids:
+                recipient = InboxRecipient(
+                    message_id=inbox_message.id,
+                    user_id=user_id,
+                )
+                self.db.add(recipient)
+
+        # Registrar auditoria de criação
+        self._create_audit_entry(
+            inbox_message.id,
+            "CREATED",
+            created_by_user_id,
+            new_title=title,
+            new_message=message,
+        )
 
         self.db.commit()
 
@@ -582,9 +644,145 @@ class InboxService:
                     "sent_to_all": sent_to_all,
                     "target_org_unit_name": target_org_unit_name,
                     "created_by_name": created_by_name,
+                    "approval_status": msg.approval_status.value,
                 }
             )
 
+        return result
+
+    # === APROVAÇÃO ===
+
+    def get_pending_approvals(self, approver_id: UUID) -> list[dict[str, Any]]:
+        """Retorna avisos pendentes de aprovação."""
+        messages = (
+            self.db.execute(
+                select(InboxMessage)
+                .options(
+                    joinedload(InboxMessage.created_by).joinedload(User.profile),
+                    joinedload(InboxMessage.target_org_unit),
+                )
+                .where(
+                    InboxMessage.approval_status == InboxApprovalStatus.PENDING_APPROVAL,
+                    InboxMessage.is_deleted.is_(False),
+                )
+                .order_by(InboxMessage.created_at.asc())
+            )
+            .scalars()
+            .unique()
+            .all()
+        )
+        result = []
+        for msg in messages:
+            sender = msg.created_by
+            created_by_name = (
+                sender.profile.full_name
+                if sender and sender.profile and sender.profile.full_name
+                else None
+            )
+            target_org_unit_name = (
+                msg.target_org_unit.name if msg.target_org_unit else None
+            )
+            result.append(
+                {
+                    "id": str(msg.id),
+                    "title": msg.title,
+                    "message": msg.message,
+                    "type": msg.type.value,
+                    "created_at": msg.created_at,
+                    "created_by_name": created_by_name,
+                    "target_org_unit_name": target_org_unit_name,
+                    "approval_status": msg.approval_status.value,
+                }
+            )
+        return result
+
+    def approve_message(
+        self, message_id: UUID, approver_id: UUID, note: str | None = None
+    ) -> int:
+        """
+        Aprova um aviso pendente e dispara os recipients.
+        Retorna a quantidade de destinatários criados.
+        Retorna -1 se a mensagem não existe, -2 se não está pendente.
+        """
+        msg = self.db.get(InboxMessage, message_id)
+        if not msg:
+            return -1
+        if msg.approval_status != InboxApprovalStatus.PENDING_APPROVAL:
+            return -2
+
+        now = datetime.now(timezone.utc)
+        msg.approval_status = InboxApprovalStatus.APPROVED
+        msg.approver_user_id = approver_id
+        msg.approved_at = now
+        msg.approval_note = note
+
+        # Recalcular destinatários a partir dos filtros armazenados
+        send_to_all = msg.filters is None and msg.target_org_unit_id is None
+        filters = InboxFilters(**msg.filters) if msg.filters else None
+        user_ids = self._get_recipient_user_ids(send_to_all, filters, msg.target_org_unit_id)
+
+        for user_id in user_ids:
+            recipient = InboxRecipient(
+                message_id=msg.id,
+                user_id=user_id,
+            )
+            self.db.add(recipient)
+
+        self._create_audit_entry(message_id, "APPROVED", approver_id, note=note)
+        self.db.commit()
+        return len(user_ids)
+
+    def reject_message(
+        self, message_id: UUID, rejector_id: UUID, note: str | None = None
+    ) -> bool:
+        """Reprova um aviso pendente."""
+        msg = self.db.get(InboxMessage, message_id)
+        if not msg or msg.approval_status != InboxApprovalStatus.PENDING_APPROVAL:
+            return False
+
+        msg.approval_status = InboxApprovalStatus.REJECTED
+        msg.approver_user_id = rejector_id
+        msg.approved_at = datetime.now(timezone.utc)
+        msg.approval_note = note
+
+        self._create_audit_entry(message_id, "REJECTED", rejector_id, note=note)
+        self.db.commit()
+        return True
+
+    def get_message_audit(self, message_id: UUID) -> list[dict[str, Any]]:
+        """Retorna a trilha de auditoria de uma mensagem."""
+        audits = (
+            self.db.execute(
+                select(InboxMessageAudit)
+                .options(joinedload(InboxMessageAudit.actor).joinedload(User.profile))
+                .where(InboxMessageAudit.message_id == message_id)
+                .order_by(InboxMessageAudit.created_at.asc())
+            )
+            .scalars()
+            .unique()
+            .all()
+        )
+        result = []
+        for a in audits:
+            actor = a.actor
+            actor_name = (
+                actor.profile.full_name
+                if actor and actor.profile and actor.profile.full_name
+                else None
+            )
+            result.append(
+                {
+                    "id": str(a.id),
+                    "action": a.action,
+                    "actor_name": actor_name,
+                    "created_at": a.created_at,
+                    "old_title": a.old_title,
+                    "old_message": a.old_message,
+                    "new_title": a.new_title,
+                    "new_message": a.new_message,
+                    "note": a.note,
+                }
+            )
         return result
 
     # === LIMPEZA ===

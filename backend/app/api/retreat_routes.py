@@ -389,7 +389,9 @@ async def get_retreat(retreat_id: UUID, current_user: CurrentUser, db: DBSession
 
 
 @router.get("/{retreat_id}/service-teams")
-async def list_retreat_service_teams(retreat_id: UUID, current_user: CurrentUser, db: DBSession) -> Any:
+async def list_retreat_service_teams(
+    retreat_id: UUID, current_user: CurrentUser, db: DBSession
+) -> Any:
     """Lista equipes de serviço disponíveis para o inscrito escolher suas preferências."""
     retreat = db.get(Retreat, retreat_id)
     if not retreat or retreat.status not in (RetreatStatus.PUBLISHED, RetreatStatus.CLOSED):

@@ -36,6 +36,10 @@ export default function OnboardingLayout() {
         name="complete-documents"
         options={{ title: 'Complete seu cadastro', headerBackVisible: false }}
       />
+      <Stack.Screen
+        name="profile-update"
+        options={{ title: 'Atualização de Perfil', headerBackVisible: false }}
+      />
     </Stack>
   );
 }

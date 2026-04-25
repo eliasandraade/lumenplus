@@ -666,6 +666,13 @@ class AuditLog(Base):
 # === INBOX (AVISOS) ===
 
 
+class InboxApprovalStatus(enum.Enum):
+    PENDING_APPROVAL = "PENDING_APPROVAL"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    AUTO_APPROVED = "AUTO_APPROVED"
+
+
 class InboxMessageType(enum.Enum):
     INFO = "info"
     WARNING = "warning"
@@ -714,6 +721,28 @@ class InboxMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
+    # Fluxo de aprovação
+    approval_status: Mapped[InboxApprovalStatus] = mapped_column(
+        Enum(InboxApprovalStatus, name="inbox_approval_status", create_constraint=False),
+        nullable=False,
+        default=InboxApprovalStatus.AUTO_APPROVED,
+        server_default="AUTO_APPROVED",
+    )
+    approver_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    approval_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Soft delete
+    is_deleted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false", default=False
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_by_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
     # Relationships
     created_by: Mapped["User"] = relationship("User", foreign_keys=[created_by_user_id])
     target_org_unit: Mapped["OrgUnit | None"] = relationship(
@@ -721,6 +750,10 @@ class InboxMessage(Base):
     )
     recipients: Mapped[list["InboxRecipient"]] = relationship(
         "InboxRecipient", back_populates="message", cascade="all, delete-orphan"
+    )
+    approver: Mapped["User | None"] = relationship("User", foreign_keys=[approver_user_id])
+    audits: Mapped[list["InboxMessageAudit"]] = relationship(
+        "InboxMessageAudit", cascade="all, delete-orphan"
     )
 
 
@@ -756,6 +789,48 @@ class InboxRecipient(Base):
     # Relationships
     message: Mapped["InboxMessage"] = relationship("InboxMessage", back_populates="recipients")
     user: Mapped["User"] = relationship("User")
+
+
+class InboxMessageAudit(Base):
+    """
+    Trilha de auditoria para mensagens do inbox.
+    Registra criação, modificação, exclusão, aprovação e reprovação.
+    """
+
+    __tablename__ = "inbox_message_audits"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    message_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("inbox_messages.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    action: Mapped[str] = mapped_column(Text, nullable=False)
+    # ex: CREATED, APPROVED, REJECTED, DELETED
+    actor_user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    old_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    old_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    new_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    new_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("ix_inbox_audit_message_id", "message_id"),
+        Index("ix_inbox_audit_actor_id", "actor_user_id"),
+    )
+
+    message: Mapped["InboxMessage"] = relationship("InboxMessage")
+    actor: Mapped["User"] = relationship("User", foreign_keys=[actor_user_id])
 
 
 # === PERMISSÕES ===

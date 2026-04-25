@@ -204,7 +204,9 @@ def get_cycle(cycle_id: UUID, user: CurrentUser, db: DBSession) -> Any:
 
 
 @router.post("/cycles/{cycle_id}/diagnoses", response_model=DiagnosisOut)
-def upsert_diagnosis(cycle_id: UUID, body: DiagnosisUpsert, user: CurrentUser, db: DBSession) -> Any:
+def upsert_diagnosis(
+    cycle_id: UUID, body: DiagnosisUpsert, user: CurrentUser, db: DBSession
+) -> Any:
     """Cria ou atualiza o diagnóstico de uma dimensão do ciclo."""
     # Verificar ownership sem carregar tudo
     cycle = db.execute(
@@ -443,7 +445,9 @@ def delete_action(action_id: UUID, user: CurrentUser, db: DBSession) -> None:
 
 
 @router.post("/cycles/{cycle_id}/routine", response_model=SpiritualRoutineOut)
-def upsert_routine(cycle_id: UUID, body: SpiritualRoutineUpsert, user: CurrentUser, db: DBSession) -> Any:
+def upsert_routine(
+    cycle_id: UUID, body: SpiritualRoutineUpsert, user: CurrentUser, db: DBSession
+) -> Any:
     """Cria ou atualiza a rotina espiritual do ciclo."""
     cycle = db.execute(
         select(LifePlanCycle).where(LifePlanCycle.id == cycle_id, LifePlanCycle.user_id == user.id)

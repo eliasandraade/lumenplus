@@ -8,7 +8,7 @@ mantendo compatibilidade com todos os módulos que fazem:
     from app.api.routes.auth import get_current_user
 """
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -248,6 +248,18 @@ async def get_me(
     # Global roles
     global_roles = [ugr.global_role.code for ugr in user.global_roles]
 
+    # Semestral profile update gate
+    _today = date.today()
+    _profile_update_due = False
+    if profile:
+        _last_confirmed = profile.last_profile_confirmed_at
+        for _month, _day in [(6, 13), (12, 13)]:
+            _cutoff = date(_today.year, _month, _day)
+            if _today >= _cutoff:
+                if _last_confirmed is None or _last_confirmed.date() < _cutoff:
+                    _profile_update_due = True
+                    break
+
     return UserMeResponse(
         user_id=user.id,
         is_active=user.is_active,
@@ -260,6 +272,7 @@ async def get_me(
         memberships=memberships,
         pending_invites=pending_invites,
         global_roles=global_roles,
+        profile_update_due=_profile_update_due,
     )
 
 

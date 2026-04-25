@@ -652,13 +652,16 @@ def update_member_role(
 
     # Se está rebaixando a si mesmo, verifica se há outros coordenadores
     if target_user_id == acting_user_id and new_role != OrgRoleCode.COORDINATOR:
-        coord_count = db.execute(
-            select(func.count(OrgMembership.id)).where(
-                OrgMembership.org_unit_id == org_unit_id,
-                OrgMembership.role == OrgRoleCode.COORDINATOR,
-                OrgMembership.status == MembershipStatus.ACTIVE,
-            )
-        ).scalar() or 0
+        coord_count = (
+            db.execute(
+                select(func.count(OrgMembership.id)).where(
+                    OrgMembership.org_unit_id == org_unit_id,
+                    OrgMembership.role == OrgRoleCode.COORDINATOR,
+                    OrgMembership.status == MembershipStatus.ACTIVE,
+                )
+            ).scalar()
+            or 0
+        )
 
         if coord_count <= 1:
             raise OrgServiceError(
@@ -728,13 +731,16 @@ def remove_member(
 
     # Se é coordenador sendo removido, verifica se há outros
     if membership.role == OrgRoleCode.COORDINATOR:
-        coord_count = db.execute(
-            select(func.count(OrgMembership.id)).where(
-                OrgMembership.org_unit_id == org_unit_id,
-                OrgMembership.role == OrgRoleCode.COORDINATOR,
-                OrgMembership.status == MembershipStatus.ACTIVE,
-            )
-        ).scalar() or 0
+        coord_count = (
+            db.execute(
+                select(func.count(OrgMembership.id)).where(
+                    OrgMembership.org_unit_id == org_unit_id,
+                    OrgMembership.role == OrgRoleCode.COORDINATOR,
+                    OrgMembership.status == MembershipStatus.ACTIVE,
+                )
+            ).scalar()
+            or 0
+        )
 
         if coord_count <= 1:
             raise OrgServiceError(

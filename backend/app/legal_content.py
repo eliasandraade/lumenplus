@@ -249,3 +249,23 @@ TERMS_V1_3 = TERMS_V1_2.replace("Versão 1.2", "Versão 1.3").replace(
     "juridico@obralumen.org.br",
     "comunicacao@lumenserfeliz.org",
 )
+
+# v1.4 — nova cláusula 7-A: autorização expressa para tratamento de dados históricos
+# de participação em retiros anteriores ao Lumen+ (e-mail, data de inscrição,
+# data do retiro, forma de pagamento, valor pago). Base legal: LGPD art. 7º, I.
+TERMS_V1_4 = TERMS_V1_3.replace("Versão 1.3", "Versão 1.4").replace(
+    "\n8. COMUNICAÇÕES",
+    "\n7-A. DADOS DE RETIROS ANTERIORES AO APLICATIVO\n"
+    "7-A.1. Ao aceitar estes Termos, você autoriza expressamente o tratamento dos seus dados "
+    "históricos de participação em retiros organizados pela Obra Lumen de Evangelização "
+    "anteriores à implantação do Lumen+.\n"
+    "7-A.2. Os dados tratados com base nesta autorização compreendem: endereço de e-mail "
+    "utilizado na inscrição, data de inscrição, data de realização do retiro, forma de "
+    "pagamento e valor pago.\n"
+    "7-A.3. Esses dados são utilizados exclusivamente para fins pastorais e de gestão interna "
+    "da Obra, como histórico de participação e planejamento de atividades.\n"
+    "7-A.4. A base legal é o Art. 7º, I da LGPD (consentimento). Você pode revogar esta "
+    "autorização a qualquer momento enviando solicitação para: comunicacao@lumenserfeliz.org. "
+    "A revogação não afeta tratamentos realizados antes da solicitação.\n"
+    "\n8. COMUNICAÇÕES",
+)

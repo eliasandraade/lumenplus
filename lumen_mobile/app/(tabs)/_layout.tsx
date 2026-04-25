@@ -33,6 +33,13 @@ export default function TabsLayout() {
         const profile = await profileService.getProfile();
         if (!profile.has_documents) {
           router.replace('/(onboarding)/complete-documents');
+          return;
+        }
+
+        // 3. Verifica atualização semestral obrigatória
+        if (me.profile_update_due) {
+          router.replace('/(onboarding)/profile-update');
+          return;
         }
       } catch {
         // Ignora erros de rede — não bloqueia a navegação

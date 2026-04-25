@@ -186,7 +186,8 @@ async def approve_membership(
         )
     if membership.status == MembershipStatus.ACTIVE:
         raise HTTPException(
-            status_code=400, detail={"error": "bad_request", "message": "Membership is already active"}
+            status_code=400,
+            detail={"error": "bad_request", "message": "Membership is already active"},
         )
 
     if not (

@@ -225,6 +225,26 @@ export const inboxService = {
     const qs = limit !== undefined ? `?limit=${limit}` : '';
     return api.get<{ messages: unknown[] }>(`/inbox/sent${qs}`);
   },
+
+  getPendingApprovals: () =>
+    api.get<{ messages: import('@/types').PendingApproval[]; total: number }>('/inbox/approval/pending'),
+
+  approveMessage: (messageId: string, note?: string) =>
+    api.post<{ success: boolean; recipient_count: number }>(
+      `/inbox/approval/${messageId}/approve`,
+      { note: note ?? null },
+    ),
+
+  rejectMessage: (messageId: string, note?: string) =>
+    api.post<{ success: boolean }>(
+      `/inbox/approval/${messageId}/reject`,
+      { note: note ?? null },
+    ),
+
+  getMessageAudit: (messageId: string) =>
+    api.get<{ message_id: string; entries: import('@/types').AuditEntry[] }>(
+      `/inbox/${messageId}/audit`,
+    ),
 };
 
 // =============================================================================

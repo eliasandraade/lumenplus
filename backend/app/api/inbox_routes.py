@@ -30,6 +30,11 @@ from app.schemas.inbox import (
     UserPermissionsResponse,
     SendScopesResponse,
     OrgScopeResponse,
+    InboxApprovalListResponse,
+    InboxApprovalItem,
+    InboxAuditResponse,
+    InboxAuditEntry,
+    InboxApproveRequest,
 )
 
 router = APIRouter(prefix="/inbox", tags=["inbox"])
@@ -305,6 +310,7 @@ def send_message(
         filters=request.filters,
         attachments=attachments,
         scope_org_unit_id=request.scope_org_unit_id,
+        requires_approval=not _has_full_send_access(db, current_user.id),
     )
 
     return InboxSendResponse(
@@ -325,3 +331,96 @@ def get_sent_messages(
     service = InboxService(db)
     messages = service.get_sent_messages(current_user.id, limit=limit)
     return InboxSentResponse(messages=[InboxSentMessageResponse(**m) for m in messages])
+
+
+# === ROTAS DE APROVAÇÃO ===
+
+
+@router.get("/approval/pending", response_model=InboxApprovalListResponse)
+def get_pending_approvals(
+    db: DBSession,
+    current_user: CurrentUser,
+) -> Any:
+    """Lista avisos pendentes de aprovação (apenas para aprovadores)."""
+    if not _has_full_send_access(db, current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "forbidden", "message": "Acesso restrito a aprovadores"},
+        )
+    service = InboxService(db)
+    messages = service.get_pending_approvals(current_user.id)
+    return InboxApprovalListResponse(
+        messages=[InboxApprovalItem(**m) for m in messages],
+        total=len(messages),
+    )
+
+
+@router.post("/approval/{message_id}/approve")
+def approve_message(
+    message_id: UUID,
+    request: InboxApproveRequest,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> Any:
+    """Aprova um aviso pendente e dispara o envio para os destinatários."""
+    if not _has_full_send_access(db, current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "forbidden", "message": "Acesso restrito a aprovadores"},
+        )
+    service = InboxService(db)
+    result = service.approve_message(message_id, current_user.id, request.note)
+    if result == -1:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found", "message": "Aviso não encontrado"},
+        )
+    if result == -2:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "conflict", "message": "Aviso não está pendente de aprovação"},
+        )
+    return {"success": True, "recipient_count": result}
+
+
+@router.post("/approval/{message_id}/reject")
+def reject_message(
+    message_id: UUID,
+    request: InboxApproveRequest,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> Any:
+    """Reprova um aviso pendente."""
+    if not _has_full_send_access(db, current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "forbidden", "message": "Acesso restrito a aprovadores"},
+        )
+    service = InboxService(db)
+    ok = service.reject_message(message_id, current_user.id, request.note)
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found", "message": "Aviso não encontrado ou não pendente"},
+        )
+    return {"success": True}
+
+
+@router.get("/{message_id}/audit", response_model=InboxAuditResponse)
+def get_message_audit(
+    message_id: UUID,
+    db: DBSession,
+    current_user: CurrentUser,
+) -> Any:
+    """Retorna a trilha de auditoria de um aviso (apenas administradores)."""
+    if not _has_full_send_access(db, current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "forbidden", "message": "Acesso restrito a administradores"},
+        )
+    service = InboxService(db)
+    entries = service.get_message_audit(message_id)
+    return InboxAuditResponse(
+        message_id=message_id,
+        entries=[InboxAuditEntry(**e) for e in entries],
+    )

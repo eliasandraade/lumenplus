@@ -684,7 +684,9 @@ async def cancel_retreat(retreat_id: UUID, current_user: CurrentUser, db: DBSess
 
 
 @router.post("/{retreat_id}/houses", status_code=201)
-async def add_house(retreat_id: UUID, body: HouseBody, current_user: CurrentUser, db: DBSession) -> Any:
+async def add_house(
+    retreat_id: UUID, body: HouseBody, current_user: CurrentUser, db: DBSession
+) -> Any:
     _require_retreat_manager(db, current_user.id, retreat_id)
     retreat = db.get(Retreat, retreat_id)
     if not retreat:
@@ -750,7 +752,9 @@ async def update_house(
 
 
 @router.delete("/{retreat_id}/houses/{house_id}", status_code=200)
-async def delete_house(retreat_id: UUID, house_id: UUID, current_user: CurrentUser, db: DBSession) -> Any:
+async def delete_house(
+    retreat_id: UUID, house_id: UUID, current_user: CurrentUser, db: DBSession
+) -> Any:
     _require_retreat_manager(db, current_user.id, retreat_id)
     house = db.get(RetreatHouse, house_id)
     if not house or house.retreat_id != retreat_id:
@@ -1479,7 +1483,9 @@ async def remove_coordinator(
 
 
 @router.get("/{retreat_id}/export")
-async def export_registrations_csv(retreat_id: UUID, current_user: CurrentUser, db: DBSession) -> Any:
+async def export_registrations_csv(
+    retreat_id: UUID, current_user: CurrentUser, db: DBSession
+) -> Any:
     _require_retreat_manager(db, current_user.id, retreat_id)
     retreat = db.get(Retreat, retreat_id)
     if not retreat:
