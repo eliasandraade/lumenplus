@@ -24,7 +24,7 @@ class ProfileUpdateRequest(BaseSchema):
     rg: Optional[str] = Field(None, min_length=1, max_length=20)
     phone_e164: str = Field(..., pattern=r"^\+[1-9]\d{10,14}$")
     city: str = Field(..., min_length=2, max_length=100)
-    state: str = Field(..., min_length=2, max_length=2)
+    state: Optional[str] = Field(None, max_length=2)  # None para usuários fora do Brasil
 
     # Foto (URL ou base64)
     photo_url: Optional[str] = None
@@ -76,8 +76,11 @@ class ProfileUpdateRequest(BaseSchema):
 
     @field_validator("state")
     @classmethod
-    def uppercase_state(cls, v: str) -> str:
-        return v.upper()
+    def uppercase_state(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip().upper()
+        return v if v else None
 
     @field_validator("phone_e164")
     @classmethod

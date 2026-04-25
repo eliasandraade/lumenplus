@@ -19,10 +19,10 @@ export interface Municipio {
 export const brasilApi = {
   /** Retorna os 27 estados + DF ordenados por nome. */
   getEstados: async (): Promise<Estado[]> => {
-    const res = await fetch(`${BASE_URL}/ibge/estados/v1?orderBy=nome`);
+    const res = await fetch(`${BASE_URL}/ibge/uf/v1`);
     if (!res.ok) throw new Error('Falha ao buscar estados');
     const data: Estado[] = await res.json();
-    return data;
+    return data.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   },
 
   /** Retorna municípios de uma UF (sigla, ex: "CE"). */
