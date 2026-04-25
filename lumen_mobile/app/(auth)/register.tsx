@@ -3,10 +3,12 @@
  * ===============
  * Cadastro em 4 passos:
  *  1. Dados da conta (nome, email, senha)
- *  2. Dados pessoais (telefone, nascimento, UF, cidade, CPF, RG)
- *  3. Dados vocacionais (estado de vida, estado civil, realidade vocacional)
- *  4. Informações extras (instagram, alimentação, saúde, acomodação, missão,
- *     encontro Despertar, contato de emergência) — todos opcionais
+ *  2. Dados pessoais (telefone, nascimento, UF/cidade via BrasilAPI, CPF, RG)
+ *  3. Dados vocacionais (estado de vida, estado civil, cônjuge na comunidade,
+ *     realidade vocacional, consagração, realidade atual, ministério/setores)
+ *  4. Informações extras (instagram, alimentação, saúde, acomodação multi-select,
+ *     missão (OrgUnit + país), instrumentos, Despertar numerado,
+ *     contato de emergência) — todos opcionais
  *
  * Após criação da conta Firebase, salva o perfil completo no backend.
  */
@@ -23,18 +25,21 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth, IS_DEV_AUTH } from '@/config/firebase';
 import { profileService } from '@/services';
 import api, { setDevToken } from '@/services/api';
+import brasilApi, { type Estado, type Municipio } from '@/services/brasilApi';
 import type { CatalogItem } from '@/types';
 
-const DESPERTAR_ENCOUNTERS = [
-  'Água Viva','Juventude Livre','Fonte de Viver','Mir','Raios de Amor',
-  'Chama Viva','Logos','Kyrios','Maria de Deus','Éfeta','Sanctus',
-  'Gênesis','Ágape','Elyon','Khesed','Trinitas','Ixyus','Luz do Mundo',
-  'Ruah','Mater Dei','Agnus Dei','Kaire','Adonai','Charitas','Ieshuah',
-  'Kairós','Seraph','Kenosis','Parresia','Fides','Domus Dei','Magnificat',
-  'Gaudium','Atrium','Ignis','Raboni','Pietá','Charis','Emanuel',
-  'Totus Tuus','Fraternitas','Lazarus','Filho da Luz','Anawin',
-  'Dilext Nos','Franciscus','Kadosh',
+// Encontros Despertar numerados (1 – Água Viva … 47 – Kadosh)
+const DESPERTAR_NAMES = [
+  'Água Viva', 'Juventude Livre', 'Fonte de Viver', 'Mir', 'Raios de Amor',
+  'Chama Viva', 'Logos', 'Kyrios', 'Maria de Deus', 'Éfeta', 'Sanctus',
+  'Gênesis', 'Ágape', 'Elyon', 'Khesed', 'Trinitas', 'Ixyus', 'Luz do Mundo',
+  'Ruah', 'Mater Dei', 'Agnus Dei', 'Kaire', 'Adonai', 'Charitas', 'Ieshuah',
+  'Kairós', 'Seraph', 'Kenosis', 'Parresia', 'Fides', 'Domus Dei', 'Magnificat',
+  'Gaudium', 'Atrium', 'Ignis', 'Raboni', 'Pietá', 'Charis', 'Emanuel',
+  'Totus Tuus', 'Fraternitas', 'Lazarus', 'Filho da Luz', 'Anawin',
+  'Dilext Nos', 'Franciscus', 'Kadosh',
 ];
+const DESPERTAR_ENCOUNTERS = DESPERTAR_NAMES.map((name, i) => `${i + 1} – ${name}`);
 
 const INSTRUMENTS = [
   'Voz / Canto', 'Violão', 'Guitarra', 'Teclado', 'Piano',
@@ -42,7 +47,7 @@ const INSTRUMENTS = [
   'Contrabaixo', 'Violino', 'Outro',
 ];
 
-const ACCOMMODATION_OPTIONS = [
+const ACCOMMODATION_OPTS = [
   { value: 'CAMA', label: 'Cama' },
   { value: 'REDE', label: 'Rede' },
   { value: 'COLCHAO_INFLAVEL', label: 'Colchão Inflável' },
@@ -57,12 +62,6 @@ const colors = {
   error: '#ef4444',
 };
 
-const BR_STATES = [
-  'AC','AL','AP','AM','BA','CE','DF','ES','GO',
-  'MA','MT','MS','MG','PA','PB','PR','PE','PI',
-  'RJ','RN','RS','RO','RR','SC','SP','SE','TO',
-];
-
 export default function RegisterScreen() {
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -73,7 +72,19 @@ export default function RegisterScreen() {
   const [lifeStates, setLifeStates] = useState<CatalogItem[]>([]);
   const [maritalStatuses, setMaritalStatuses] = useState<CatalogItem[]>([]);
   const [vocationalRealities, setVocationalRealities] = useState<CatalogItem[]>([]);
+  const [realidadeAtualOptions, setRealidadeAtualOptions] = useState<CatalogItem[]>([]);
   const [loadingCatalogs, setLoadingCatalogs] = useState(false);
+
+  // BrasilAPI — estado + cidade
+  const [estados, setEstados] = useState<Estado[]>([]);
+  const [municipios, setMunicipios] = useState<Municipio[]>([]);
+  const [loadingMunicipios, setLoadingMunicipios] = useState(false);
+  const [citySearch, setCitySearch] = useState('');
+
+  // Setores e missões (carregados com catálogos no passo 3)
+  const [sectors, setSectors] = useState<{ id: string; name: string }[]>([]);
+  const [selectedSectorIds, setSelectedSectorIds] = useState<string[]>([]);
+  const [missions, setMissions] = useState<{ id: string; name: string }[]>([]);
 
   // Passo 1 — Conta
   const [fullName, setFullName] = useState('');
@@ -93,43 +104,56 @@ export default function RegisterScreen() {
   const [selectedLifeState, setSelectedLifeState] = useState<CatalogItem | null>(null);
   const [selectedMarital, setSelectedMarital] = useState<CatalogItem | null>(null);
   const [selectedVocational, setSelectedVocational] = useState<CatalogItem | null>(null);
+  const [consecrationYear, setConsecrationYear] = useState('');
+  const [spouseInCommunity, setSpouseInCommunity] = useState<boolean | null>(null);
+  const [realidadeAtual, setRealidadeAtual] = useState<string[]>([]);
+  const [interestedInMinistry, setInterestedInMinistry] = useState(false);
+  const [ministryNotes, setMinistryNotes] = useState('');
 
-  // Passo 4 — Informações extras (todos opcionais)
+  // Passo 4 — Informações extras (opcionais)
   const [instagram, setInstagram] = useState('');
   const [dietaryRestriction, setDietaryRestriction] = useState(false);
   const [dietaryNotes, setDietaryNotes] = useState('');
   const [healthInsurance, setHealthInsurance] = useState(false);
   const [healthInsuranceName, setHealthInsuranceName] = useState('');
-  const [accommodationPref, setAccommodationPref] = useState('');
+  const [accommodationOptions, setAccommodationOptions] = useState<string[]>([]);
   const [isFromMission, setIsFromMission] = useState(false);
+  const [missionOrgUnitId, setMissionOrgUnitId] = useState<string | null>(null);
   const [missionName, setMissionName] = useState('');
+  const [country, setCountry] = useState('');
   const [despertarEncounter, setDespertarEncounter] = useState('');
   // Contato de emergência
   const [emergencyName, setEmergencyName] = useState('');
   const [emergencyRelationship, setEmergencyRelationship] = useState('');
   const [emergencyPhone, setEmergencyPhone] = useState('');
 
-  // Passo 3 — Vocacional (extras)
-  const [hasVocacionalAccomp, setHasVocacionalAccomp] = useState(false);
-  const [accompName, setAccompName] = useState('');
-  const [interestedMinistry, setInterestedMinistry] = useState(false);
-  const [ministryNotes, setMinistryNotes] = useState('');
-
-  // Passo 4 — Músico
+  // Músico
   const [playsInstrument, setPlaysInstrument] = useState(false);
   const [instrumentNames, setInstrumentNames] = useState<string[]>([]);
 
-  // Modais específicos do Passo 4
-  const [accommodationModalVisible, setAccommodationModalVisible] = useState(false);
-  const [despertarModalVisible, setDespertarModalVisible] = useState(false);
-
   // Modais
   const [stateModalVisible, setStateModalVisible] = useState(false);
+  const [cityModalVisible, setCityModalVisible] = useState(false);
+  const [despertarModalVisible, setDespertarModalVisible] = useState(false);
+  const [missionModalVisible, setMissionModalVisible] = useState(false);
   const [catalogModalVisible, setCatalogModalVisible] = useState(false);
   const [catalogModalTitle, setCatalogModalTitle] = useState('');
   const [catalogModalOptions, setCatalogModalOptions] = useState<CatalogItem[]>([]);
   const [catalogModalOnSelect, setCatalogModalOnSelect] = useState<(item: CatalogItem) => void>(() => () => {});
 
+  // Condicionais derivadas
+  const isConsagrado = selectedVocational?.code === 'CONSAGRADO_FILHO_DA_LUZ';
+  const showSpouseField = ['CASADO', 'UNIAO_ESTAVEL'].includes(selectedMarital?.code ?? '');
+  const filteredMunicipios = citySearch
+    ? municipios.filter(m => m.nome.toLowerCase().includes(citySearch.toLowerCase()))
+    : municipios;
+
+  // Carrega estados ao montar (necessário para passo 2)
+  useEffect(() => {
+    brasilApi.getEstados().then(setEstados).catch(() => {});
+  }, []);
+
+  // Carrega catálogos e setores ao entrar no passo 3
   useEffect(() => {
     if (step === 3 && lifeStates.length === 0) loadCatalogs();
   }, [step]);
@@ -137,15 +161,36 @@ export default function RegisterScreen() {
   const loadCatalogs = async () => {
     setLoadingCatalogs(true);
     try {
-      const catalogs = await profileService.getCatalogs();
-      const find = (code: string) => catalogs.find(c => c.code === code)?.items ?? [];
+      const [catalogs, sectorsData, missionsData] = await Promise.all([
+        profileService.getCatalogs(),
+        profileService.getSectors().catch(() => [] as { id: string; name: string }[]),
+        profileService.getMissions().catch(() => [] as { id: string; name: string }[]),
+      ]);
+      const find = (code: string): CatalogItem[] =>
+        (catalogs as any[]).find((c) => c.code === code)?.items ?? [];
       setLifeStates(find('LIFE_STATE'));
       setMaritalStatuses(find('MARITAL_STATUS'));
       setVocationalRealities(find('VOCATIONAL_REALITY'));
+      setRealidadeAtualOptions(find('REALIDADE_ATUAL'));
+      setSectors(sectorsData);
+      setMissions(missionsData);
     } catch {
       // silencioso — usuário pode preencher depois no perfil
     } finally {
       setLoadingCatalogs(false);
+    }
+  };
+
+  const loadMunicipios = async (sigla: string) => {
+    if (!sigla) { setMunicipios([]); return; }
+    setLoadingMunicipios(true);
+    try {
+      const data = await brasilApi.getMunicipios(sigla);
+      setMunicipios(data);
+    } catch {
+      setMunicipios([]);
+    } finally {
+      setLoadingMunicipios(false);
     }
   };
 
@@ -196,7 +241,7 @@ export default function RegisterScreen() {
     const parts = birthDate.split('/');
     if (parts.length !== 3 || parts[2]?.length !== 4) e.birthDate = 'Data inválida (DD/MM/AAAA)';
     if (!uf) e.uf = 'Selecione o estado';
-    if (city.trim().length < 2) e.city = 'Informe a cidade';
+    if (!city.trim()) e.city = 'Selecione a cidade';
     const cpfDigits = cpf.replace(/\D/g, '');
     if (cpfDigits.length !== 11) e.cpf = 'CPF deve ter 11 dígitos';
     if (rg.trim().length < 4) e.rg = 'RG inválido';
@@ -260,19 +305,23 @@ export default function RegisterScreen() {
           life_state_item_id: selectedLifeState?.id,
           marital_status_item_id: selectedMarital?.id,
           vocational_reality_item_id: selectedVocational?.id,
+          consecration_year: isConsagrado && consecrationYear ? parseInt(consecrationYear) : null,
+          spouse_in_community: spouseInCommunity,
+          realidade_atual: realidadeAtual.length > 0 ? realidadeAtual : null,
           instagram: instagram.trim() || null,
           dietary_restriction: dietaryRestriction,
           dietary_restriction_notes: dietaryRestriction ? dietaryNotes.trim() || null : null,
           health_insurance: healthInsurance,
           health_insurance_name: healthInsurance ? healthInsuranceName.trim() || null : null,
-          accommodation_preference: accommodationPref || null,
+          accommodation_options: accommodationOptions.length > 0 ? accommodationOptions : null,
           is_from_mission: isFromMission,
-          mission_name: isFromMission ? missionName.trim() || null : null,
+          mission_org_unit_id: isFromMission ? missionOrgUnitId : null,
+          mission_name: isFromMission && !missionOrgUnitId ? missionName.trim() || null : null,
+          country: isFromMission ? country.trim() || null : null,
           despertar_encounter: despertarEncounter || null,
-          has_vocational_accompaniment: hasVocacionalAccomp,
-          vocational_accompanist_name: hasVocacionalAccomp ? accompName.trim() || null : null,
-          interested_in_ministry: interestedMinistry,
-          ministry_interest_notes: interestedMinistry ? ministryNotes.trim() || null : null,
+          interested_in_ministry: interestedInMinistry,
+          ministry_interest_notes: interestedInMinistry ? ministryNotes.trim() || null : null,
+          ministry_sector_ids: interestedInMinistry && selectedSectorIds.length > 0 ? selectedSectorIds : null,
           plays_instrument: playsInstrument,
           instrument_names: playsInstrument && instrumentNames.length > 0 ? instrumentNames : null,
         });
@@ -286,7 +335,6 @@ export default function RegisterScreen() {
           });
         }
       } catch (profileErr: any) {
-        // Loga o erro completo para diagnóstico
         console.error('[register] Erro ao salvar perfil:', JSON.stringify(profileErr?.response?.data ?? profileErr?.message ?? profileErr));
         const detail = profileErr?.response?.data?.detail;
         let msg = 'Seus dados básicos foram salvos, mas houve um erro ao salvar algumas informações do perfil. Você pode completar seu perfil depois.';
@@ -404,17 +452,31 @@ export default function RegisterScreen() {
                 keyboardType="numeric" />
               {errors.birthDate ? <Text style={styles.errorText}>{errors.birthDate}</Text> : null}
 
+              {/* Estado (BrasilAPI) */}
               <TouchableOpacity style={[styles.input, styles.selector, errors.uf && styles.inputError]}
                 onPress={() => setStateModalVisible(true)}>
-                <Text style={[styles.selectorText, !uf && styles.selectorPlaceholder]}>{uf || 'Estado (UF)'}</Text>
+                <Text style={[styles.selectorText, !uf && styles.selectorPlaceholder]}>
+                  {uf
+                    ? `${uf} – ${estados.find(e => e.sigla === uf)?.nome ?? ''}`
+                    : 'Estado'}
+                </Text>
                 <Ionicons name="chevron-down" size={18} color={colors.gray} />
               </TouchableOpacity>
               {errors.uf ? <Text style={styles.errorText}>{errors.uf}</Text> : null}
 
-              <TextInput style={[styles.input, errors.city && styles.inputError]}
-                placeholder="Cidade" value={city} placeholderTextColor={colors.gray}
-                onChangeText={t => { setCity(t); setErrors({...errors, city: ''}); }}
-                autoCapitalize="words" />
+              {/* Cidade (BrasilAPI — habilitado após selecionar estado) */}
+              <TouchableOpacity
+                style={[styles.input, styles.selector, errors.city && styles.inputError, !uf && styles.inputDisabled]}
+                onPress={() => { if (uf) setCityModalVisible(true); }}
+                disabled={!uf}>
+                {loadingMunicipios
+                  ? <ActivityIndicator size="small" color={colors.gray} style={{ marginRight: 8 }} />
+                  : null}
+                <Text style={[styles.selectorText, !city && styles.selectorPlaceholder, { flex: 1 }]}>
+                  {city || (uf ? 'Selecione a cidade' : 'Selecione o estado primeiro')}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={colors.gray} />
+              </TouchableOpacity>
               {errors.city ? <Text style={styles.errorText}>{errors.city}</Text> : null}
 
               <TextInput style={[styles.input, errors.cpf && styles.inputError]}
@@ -442,6 +504,7 @@ export default function RegisterScreen() {
                 <ActivityIndicator color={colors.white} style={{ marginVertical: 24 }} />
               ) : (
                 <>
+                  {/* Estado de Vida */}
                   <TouchableOpacity style={[styles.input, styles.selector]}
                     onPress={() => openCatalogModal('Estado de Vida', lifeStates, item => { setSelectedLifeState(item); setCatalogModalVisible(false); })}>
                     <Text style={[styles.selectorText, !selectedLifeState && styles.selectorPlaceholder]}>
@@ -450,14 +513,32 @@ export default function RegisterScreen() {
                     <Ionicons name="chevron-down" size={18} color={colors.gray} />
                   </TouchableOpacity>
 
+                  {/* Estado Civil */}
                   <TouchableOpacity style={[styles.input, styles.selector]}
-                    onPress={() => openCatalogModal('Estado Civil', maritalStatuses, item => { setSelectedMarital(item); setCatalogModalVisible(false); })}>
+                    onPress={() => openCatalogModal('Estado Civil', maritalStatuses, item => {
+                      setSelectedMarital(item);
+                      if (!['CASADO', 'UNIAO_ESTAVEL'].includes(item.code)) setSpouseInCommunity(null);
+                      setCatalogModalVisible(false);
+                    })}>
                     <Text style={[styles.selectorText, !selectedMarital && styles.selectorPlaceholder]}>
                       {selectedMarital?.label || 'Estado Civil'}
                     </Text>
                     <Ionicons name="chevron-down" size={18} color={colors.gray} />
                   </TouchableOpacity>
 
+                  {/* Cônjuge na comunidade (condicional: CASADO ou UNIÃO ESTÁVEL) */}
+                  {showSpouseField && (
+                    <View style={styles.toggleRow}>
+                      <Text style={styles.toggleLabel}>Seu cônjuge faz parte da comunidade de vida?</Text>
+                      <Switch
+                        value={spouseInCommunity ?? false}
+                        onValueChange={setSpouseInCommunity}
+                        trackColor={{ false: '#d1d5db', true: `${colors.primary}80` }}
+                        thumbColor={spouseInCommunity ? colors.primary : '#9ca3af'} />
+                    </View>
+                  )}
+
+                  {/* Realidade Vocacional */}
                   <TouchableOpacity style={[styles.input, styles.selector]}
                     onPress={() => openCatalogModal('Realidade Vocacional', vocationalRealities, item => { setSelectedVocational(item); setCatalogModalVisible(false); })}>
                     <Text style={[styles.selectorText, !selectedVocational && styles.selectorPlaceholder]}>
@@ -465,37 +546,74 @@ export default function RegisterScreen() {
                     </Text>
                     <Ionicons name="chevron-down" size={18} color={colors.gray} />
                   </TouchableOpacity>
+
+                  {/* Ano de Consagração (condicional) */}
+                  {isConsagrado && (
+                    <TextInput style={styles.input}
+                      placeholder="Ano de Consagração (ex: 2020)" value={consecrationYear}
+                      placeholderTextColor={colors.gray}
+                      onChangeText={setConsecrationYear}
+                      keyboardType="numeric" maxLength={4} />
+                  )}
+
+                  {/* Realidade Atual (multi-select chips) */}
+                  {realidadeAtualOptions.length > 0 && (
+                    <>
+                      <Text style={styles.sectionLabel}>Realidade Atual</Text>
+                      <Text style={styles.sectionHint}>Selecione todas que se aplicam:</Text>
+                      <View style={styles.chipsContainer}>
+                        {realidadeAtualOptions.map(opt => {
+                          const selected = realidadeAtual.includes(opt.code);
+                          return (
+                            <TouchableOpacity key={opt.code}
+                              style={[styles.chip, selected && styles.chipSelected]}
+                              onPress={() => setRealidadeAtual(prev =>
+                                selected ? prev.filter(c => c !== opt.code) : [...prev, opt.code]
+                              )}>
+                              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{opt.label}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </>
+                  )}
+
+                  {/* Interesse em Ministério */}
+                  <View style={styles.toggleRow}>
+                    <Text style={styles.toggleLabel}>Tem interesse em servir em algum ministério?</Text>
+                    <Switch value={interestedInMinistry}
+                      onValueChange={v => { setInterestedInMinistry(v); if (!v) { setSelectedSectorIds([]); setMinistryNotes(''); } }}
+                      trackColor={{ false: '#d1d5db', true: `${colors.primary}80` }}
+                      thumbColor={interestedInMinistry ? colors.primary : '#9ca3af'} />
+                  </View>
+
+                  {interestedInMinistry && sectors.length > 0 && (
+                    <>
+                      <Text style={styles.sectionHint}>Em quais setores você tem interesse?</Text>
+                      <View style={styles.chipsContainer}>
+                        {sectors.map(sector => {
+                          const selected = selectedSectorIds.includes(sector.id);
+                          return (
+                            <TouchableOpacity key={sector.id}
+                              style={[styles.chip, selected && styles.chipSelected]}
+                              onPress={() => setSelectedSectorIds(prev =>
+                                selected ? prev.filter(id => id !== sector.id) : [...prev, sector.id]
+                              )}>
+                              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{sector.name}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </>
+                  )}
+
+                  {interestedInMinistry && (
+                    <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                      placeholder="Descreva seu interesse (opcional)" value={ministryNotes}
+                      placeholderTextColor={colors.gray}
+                      onChangeText={setMinistryNotes} multiline numberOfLines={3} />
+                  )}
                 </>
-              )}
-
-              {/* Acompanhamento Vocacional */}
-              <View style={styles.toggleRow}>
-                <Text style={styles.toggleLabel}>Possui acompanhamento vocacional?</Text>
-                <Switch value={hasVocacionalAccomp}
-                  onValueChange={v => { setHasVocacionalAccomp(v); if (!v) setAccompName(''); }}
-                  trackColor={{ false: '#d1d5db', true: `${colors.primary}80` }}
-                  thumbColor={hasVocacionalAccomp ? colors.primary : '#9ca3af'} />
-              </View>
-              {hasVocacionalAccomp && (
-                <TextInput style={styles.input}
-                  placeholder="Nome do acompanhante" value={accompName}
-                  placeholderTextColor={colors.gray}
-                  onChangeText={setAccompName} autoCapitalize="words" />
-              )}
-
-              {/* Interesse em Ministério */}
-              <View style={styles.toggleRow}>
-                <Text style={styles.toggleLabel}>Tem interesse em servir em algum ministério?</Text>
-                <Switch value={interestedMinistry}
-                  onValueChange={v => { setInterestedMinistry(v); if (!v) setMinistryNotes(''); }}
-                  trackColor={{ false: '#d1d5db', true: `${colors.primary}80` }}
-                  thumbColor={interestedMinistry ? colors.primary : '#9ca3af'} />
-              </View>
-              {interestedMinistry && (
-                <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
-                  placeholder="Qual ministério tem interesse? Conte um pouco..." value={ministryNotes}
-                  placeholderTextColor={colors.gray}
-                  onChangeText={setMinistryNotes} multiline numberOfLines={3} />
               )}
 
               <Text style={styles.skipNote}>* Campos opcionais. Você pode preencher depois no perfil.</Text>
@@ -542,26 +660,58 @@ export default function RegisterScreen() {
                   onChangeText={setHealthInsuranceName} />
               )}
 
-              {/* Preferência de Acomodação */}
-              <TouchableOpacity style={[styles.input, styles.selector]}
-                onPress={() => setAccommodationModalVisible(true)}>
-                <Text style={[styles.selectorText, !accommodationPref && styles.selectorPlaceholder]}>
-                  {ACCOMMODATION_OPTIONS.find(o => o.value === accommodationPref)?.label || 'Preferência de acomodação em retiros'}
-                </Text>
-                <Ionicons name="chevron-down" size={18} color={colors.gray} />
-              </TouchableOpacity>
+              {/* Disponibilidade de Acomodação (multi-select chips) */}
+              <Text style={styles.sectionLabel}>Disponibilidade de Acomodação em Retiros</Text>
+              <Text style={styles.sectionHint}>Selecione todas que você aceita:</Text>
+              <View style={styles.chipsContainer}>
+                {ACCOMMODATION_OPTS.map(opt => {
+                  const selected = accommodationOptions.includes(opt.value);
+                  return (
+                    <TouchableOpacity key={opt.value}
+                      style={[styles.chip, selected && styles.chipSelected]}
+                      onPress={() => setAccommodationOptions(prev =>
+                        selected ? prev.filter(v => v !== opt.value) : [...prev, opt.value]
+                      )}>
+                      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
               {/* Missão */}
               <View style={styles.toggleRow}>
-                <Text style={styles.toggleLabel}>É de alguma missão?</Text>
-                <Switch value={isFromMission} onValueChange={v => { setIsFromMission(v); if (!v) setMissionName(''); }}
+                <Text style={styles.toggleLabel}>Faz parte de alguma missão da Obra fora de Fortaleza?</Text>
+                <Switch value={isFromMission} onValueChange={v => {
+                  setIsFromMission(v);
+                  if (!v) { setMissionOrgUnitId(null); setMissionName(''); setCountry(''); }
+                }}
                   trackColor={{ false: '#d1d5db', true: `${colors.primary}80` }}
                   thumbColor={isFromMission ? colors.primary : '#9ca3af'} />
               </View>
               {isFromMission && (
-                <TextInput style={styles.input}
-                  placeholder="Qual missão?" value={missionName} placeholderTextColor={colors.gray}
-                  onChangeText={setMissionName} />
+                <>
+                  {missions.length > 0 && (
+                    <TouchableOpacity style={[styles.input, styles.selector]}
+                      onPress={() => setMissionModalVisible(true)}>
+                      <Text style={[styles.selectorText, !missionOrgUnitId && !missionName && styles.selectorPlaceholder]}>
+                        {missionOrgUnitId
+                          ? missions.find(m => m.id === missionOrgUnitId)?.name ?? 'Missão selecionada'
+                          : missionName || 'Selecione a missão'}
+                      </Text>
+                      <Ionicons name="chevron-down" size={18} color={colors.gray} />
+                    </TouchableOpacity>
+                  )}
+                  {/* Campo livre para "Outros" */}
+                  {(!missionOrgUnitId) && (
+                    <TextInput style={styles.input}
+                      placeholder="Nome da missão (se não listada acima)" value={missionName}
+                      placeholderTextColor={colors.gray}
+                      onChangeText={setMissionName} />
+                  )}
+                  <TextInput style={styles.input}
+                    placeholder="País (ex: Portugal, EUA)" value={country} placeholderTextColor={colors.gray}
+                    onChangeText={setCountry} />
+                </>
               )}
 
               {/* Toca instrumento ou canta */}
@@ -632,22 +782,34 @@ export default function RegisterScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Modal — Seletor de UF */}
+      {/* ─── Modal: Estado (BrasilAPI) ─── */}
       <Modal visible={stateModalVisible} animationType="slide" transparent onRequestClose={() => setStateModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Estado (UF)</Text>
+              <Text style={styles.modalTitle}>Estado</Text>
               <TouchableOpacity onPress={() => setStateModalVisible(false)}>
                 <Ionicons name="close" size={24} color={colors.gray} />
               </TouchableOpacity>
             </View>
-            <FlatList data={BR_STATES} keyExtractor={item => item}
+            <FlatList
+              data={estados}
+              keyExtractor={item => item.sigla}
               renderItem={({ item }) => (
-                <TouchableOpacity style={[styles.modalItem, uf === item && styles.modalItemSelected]}
-                  onPress={() => { setUf(item); setErrors({...errors, uf: ''}); setStateModalVisible(false); }}>
-                  <Text style={[styles.modalItemText, uf === item && styles.modalItemTextSelected]}>{item}</Text>
-                  {uf === item && <Ionicons name="checkmark" size={20} color={colors.primary} />}
+                <TouchableOpacity
+                  style={[styles.modalItem, uf === item.sigla && styles.modalItemSelected]}
+                  onPress={() => {
+                    setUf(item.sigla);
+                    setCity('');
+                    setCitySearch('');
+                    setErrors({...errors, uf: '', city: ''});
+                    setStateModalVisible(false);
+                    loadMunicipios(item.sigla);
+                  }}>
+                  <Text style={[styles.modalItemText, uf === item.sigla && styles.modalItemTextSelected]}>
+                    {item.sigla} – {item.nome}
+                  </Text>
+                  {uf === item.sigla && <Ionicons name="checkmark" size={20} color={colors.primary} />}
                 </TouchableOpacity>
               )}
             />
@@ -655,29 +817,87 @@ export default function RegisterScreen() {
         </View>
       </Modal>
 
-      {/* Modal — Preferência de Acomodação */}
-      <Modal visible={accommodationModalVisible} animationType="slide" transparent onRequestClose={() => setAccommodationModalVisible(false)}>
+      {/* ─── Modal: Cidade (BrasilAPI) ─── */}
+      <Modal visible={cityModalVisible} animationType="slide" transparent onRequestClose={() => { setCityModalVisible(false); setCitySearch(''); }}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Preferência de Acomodação</Text>
-              <TouchableOpacity onPress={() => setAccommodationModalVisible(false)}>
+              <Text style={styles.modalTitle}>Cidade</Text>
+              <TouchableOpacity onPress={() => { setCityModalVisible(false); setCitySearch(''); }}>
                 <Ionicons name="close" size={24} color={colors.gray} />
               </TouchableOpacity>
             </View>
-            {ACCOMMODATION_OPTIONS.map(opt => (
-              <TouchableOpacity key={opt.value}
-                style={[styles.modalItem, accommodationPref === opt.value && styles.modalItemSelected]}
-                onPress={() => { setAccommodationPref(opt.value); setAccommodationModalVisible(false); }}>
-                <Text style={[styles.modalItemText, accommodationPref === opt.value && styles.modalItemTextSelected]}>{opt.label}</Text>
-                {accommodationPref === opt.value && <Ionicons name="checkmark" size={20} color={colors.primary} />}
-              </TouchableOpacity>
-            ))}
+            <TextInput
+              style={styles.modalSearch}
+              placeholder="Buscar cidade..."
+              value={citySearch}
+              onChangeText={setCitySearch}
+              autoFocus
+              placeholderTextColor={colors.gray}
+            />
+            <FlatList
+              data={filteredMunicipios}
+              keyExtractor={item => item.nome}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.modalItem, city === item.nome && styles.modalItemSelected]}
+                  onPress={() => {
+                    setCity(item.nome);
+                    setErrors({...errors, city: ''});
+                    setCityModalVisible(false);
+                    setCitySearch('');
+                  }}>
+                  <Text style={[styles.modalItemText, city === item.nome && styles.modalItemTextSelected]}>
+                    {item.nome}
+                  </Text>
+                  {city === item.nome && <Ionicons name="checkmark" size={20} color={colors.primary} />}
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <Text style={styles.modalEmpty}>Nenhuma cidade encontrada</Text>
+              }
+            />
           </View>
         </View>
       </Modal>
 
-      {/* Modal — Encontro Despertar */}
+      {/* ─── Modal: Missão ─── */}
+      <Modal visible={missionModalVisible} animationType="slide" transparent onRequestClose={() => setMissionModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Selecione a Missão</Text>
+              <TouchableOpacity onPress={() => setMissionModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.gray} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={[...missions, { id: 'OUTROS', name: 'Outros' }]}
+              keyExtractor={item => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.modalItem, missionOrgUnitId === item.id && styles.modalItemSelected]}
+                  onPress={() => {
+                    if (item.id === 'OUTROS') {
+                      setMissionOrgUnitId(null);
+                    } else {
+                      setMissionOrgUnitId(item.id);
+                      setMissionName('');
+                    }
+                    setMissionModalVisible(false);
+                  }}>
+                  <Text style={[styles.modalItemText, missionOrgUnitId === item.id && styles.modalItemTextSelected]}>
+                    {item.name}
+                  </Text>
+                  {missionOrgUnitId === item.id && <Ionicons name="checkmark" size={20} color={colors.primary} />}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Modal: Encontro Despertar ─── */}
       <Modal visible={despertarModalVisible} animationType="slide" transparent onRequestClose={() => setDespertarModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -700,7 +920,7 @@ export default function RegisterScreen() {
         </View>
       </Modal>
 
-      {/* Modal — Seletor de Catálogo */}
+      {/* ─── Modal: Seletor de Catálogo ─── */}
       <Modal visible={catalogModalVisible} animationType="slide" transparent onRequestClose={() => setCatalogModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -754,6 +974,7 @@ const styles = StyleSheet.create({
     fontSize: 16, marginBottom: 12, color: '#333',
   },
   inputError: { borderWidth: 2, borderColor: colors.error, marginBottom: 4 },
+  inputDisabled: { opacity: 0.5 },
   selector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   selectorText: { fontSize: 16, color: '#333', flex: 1 },
   selectorPlaceholder: { color: colors.gray },
@@ -777,24 +998,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 12, marginBottom: 12,
   },
   toggleLabel: { fontSize: 15, color: '#333', flex: 1, marginRight: 8 },
+  sectionLabel: {
+    fontSize: 13, fontWeight: '600', color: colors.white,
+    marginBottom: 4, marginTop: 4, marginLeft: 4, opacity: 0.9,
+  },
+  sectionHint: {
+    fontSize: 12, color: 'rgba(255,255,255,0.7)',
+    marginBottom: 8, marginLeft: 4,
+  },
   chipsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   chip: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)',
   },
-  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipSelected: { backgroundColor: colors.primary, borderColor: colors.white },
   chipText: { fontSize: 13, color: colors.white, fontWeight: '500' },
   chipTextSelected: { color: colors.white, fontWeight: '700' },
-  sectionLabel: {
-    fontSize: 13, fontWeight: '600', color: colors.white,
-    marginBottom: 8, marginTop: 4, marginLeft: 4, opacity: 0.9,
-  },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: colors.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '65%' },
+  modalContent: { backgroundColor: colors.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#e5e5e5' },
   modalTitle: { fontSize: 18, fontWeight: '600', color: '#171717' },
+  modalSearch: {
+    margin: 12, padding: 12, backgroundColor: '#f3f4f6',
+    borderRadius: 10, fontSize: 15, color: '#171717',
+  },
   modalItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   modalItemSelected: { backgroundColor: 'rgba(26,133,155,0.08)' },
   modalItemText: { fontSize: 16, color: '#171717' },
   modalItemTextSelected: { color: colors.primary, fontWeight: '600' },
+  modalEmpty: { textAlign: 'center', padding: 24, color: colors.gray, fontSize: 15 },
 });
