@@ -24,7 +24,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from 'firebase/auth';
 import { auth, IS_DEV_AUTH } from '@/config/firebase';
 import { profileService } from '@/services';
 import api, { setDevToken } from '@/services/api';
@@ -70,6 +70,21 @@ const ACCOMMODATION_OPTS = [
   { value: 'REDE', label: 'Rede' },
   { value: 'COLCHAO_INFLAVEL', label: 'Colchão Inflável' },
 ];
+
+function isValidCpf(cpf: string): boolean {
+  const d = cpf.replace(/\D/g, '');
+  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(d[i]) * (10 - i);
+  let check = (sum * 10) % 11;
+  if (check >= 10) check = 0;
+  if (check !== parseInt(d[9])) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(d[i]) * (11 - i);
+  check = (sum * 10) % 11;
+  if (check >= 10) check = 0;
+  return check === parseInt(d[10]);
+}
 
 const colors = {
   primary: '#1A859B',
@@ -261,16 +276,40 @@ export default function RegisterScreen() {
     if (phone.replace(/\D/g, '').length < 10) e.phone = 'Telefone inválido';
     const parts = birthDate.split('/');
     if (parts.length !== 3 || parts[2]?.length !== 4) e.birthDate = 'Data inválida (DD/MM/AAAA)';
-    if (cpf.replace(/\D/g, '').length !== 11) e.cpf = 'CPF deve ter 11 dígitos';
+    if (!isValidCpf(cpf)) e.cpf = 'CPF inválido';
     if (rg.trim().length < 4) e.rg = 'RG inválido';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleNext = () => {
-    if (step === 1 && validateStep1()) setStep(2);
-    else if (step === 2 && validateStep2()) setStep(3);
-    else if (step === 3) setStep(4);
+  const handleNext = async () => {
+    if (step === 1 && validateStep1()) {
+      setStep(2);
+    } else if (step === 2) {
+      if (!validateStep2()) return;
+      setIsLoading(true);
+      try {
+        const res = await fetch(`${api.baseUrl}/auth/check-cpf`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cpf: cpf.replace(/\D/g, '') }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (!data.available) {
+            setErrors(e => ({ ...e, cpf: 'CPF já está em uso' }));
+            return;
+          }
+        }
+      } catch {
+        // erro de rede — permite avançar; backend valida na hora do cadastro
+      } finally {
+        setIsLoading(false);
+      }
+      setStep(3);
+    } else if (step === 3) {
+      setStep(4);
+    }
   };
 
   // ── Envio ─────────────────────────────────────────────────────────────────────
@@ -301,6 +340,7 @@ export default function RegisterScreen() {
           auth, email.trim().toLowerCase(), password,
         );
         await updateProfile(credential.user, { displayName: fullName.trim() });
+        await sendEmailVerification(credential.user).catch(() => {});
       }
 
       const [dd, mm, yyyy] = birthDate.split('/');
@@ -355,7 +395,7 @@ export default function RegisterScreen() {
         Alert.alert('Atenção', msg, [{ text: 'OK' }]);
       }
 
-      router.replace('/(tabs)/home');
+      router.replace({ pathname: '/(auth)/verify-email', params: { email: email.trim().toLowerCase(), fromRegister: '1' } });
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? '';
       if (code === 'auth/email-already-in-use') { setFirebaseError('Email já cadastrado. Faça login.'); setStep(1); }

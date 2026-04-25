@@ -35,7 +35,10 @@ from app.schemas.auth import (
     MembershipOut,
     InviteOut,
     UserMeResponse,
+    CpfCheckRequest,
+    CpfCheckResponse,
 )
+from app.crypto.service import crypto_service
 from app.settings import settings
 
 # Re-export para compatibilidade com módulos que importam daqui
@@ -49,6 +52,30 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # =============================================================================
 # ROUTES
 # =============================================================================
+
+
+@router.post("/check-cpf", response_model=CpfCheckResponse)
+async def check_cpf_availability(
+    body: CpfCheckRequest,
+    db: Session = Depends(get_db),
+) -> CpfCheckResponse:
+    """Verifica se um CPF já está cadastrado. Público — usado no wizard de cadastro antes da criação da conta."""
+    if not crypto_service.is_configured:
+        return CpfCheckResponse(available=True)
+
+    try:
+        cpf_hash = crypto_service.hash_cpf(body.cpf)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "invalid_cpf", "message": "CPF inválido"},
+        )
+
+    exists = db.execute(
+        select(UserProfile).where(UserProfile.cpf_hash == cpf_hash)
+    ).scalar_one_or_none()
+
+    return CpfCheckResponse(available=exists is None)
 
 
 @router.post("/register", response_model=AuthResponse)

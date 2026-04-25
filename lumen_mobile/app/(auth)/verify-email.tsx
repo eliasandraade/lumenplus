@@ -33,18 +33,19 @@ const colors = {
 };
 
 export default function VerifyEmailScreen() {
-  const params = useLocalSearchParams<{ email: string }>();
+  const params = useLocalSearchParams<{ email: string; fromRegister?: string }>();
   const email = params.email || '';
+  const fromRegister = params.fromRegister === '1';
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [debugToken, setDebugToken] = useState<string | null>(null);
-  const [verificationStarted, setVerificationStarted] = useState(false);
+  const [verificationStarted, setVerificationStarted] = useState(fromRegister);
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (email) {
+    if (email && !fromRegister) {
       sendVerificationEmail();
     }
   }, []);

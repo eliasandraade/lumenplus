@@ -36,6 +36,14 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class CpfCheckRequest(BaseModel):
+    cpf: str
+
+
+class CpfCheckResponse(BaseModel):
+    available: bool
+
+
 # =============================================================================
 # RESPONSES
 # =============================================================================
