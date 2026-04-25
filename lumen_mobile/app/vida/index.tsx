@@ -14,7 +14,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { router, useFocusEffect, type Href } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { IoniconsName } from '@/types/icons';
 import lifePlanApi, { type CycleOut } from '@/services/lifePlan';
@@ -33,6 +33,8 @@ const colors = {
 };
 
 export default function VidaScreen() {
+  const { cycleId } = useLocalSearchParams<{ cycleId?: string }>();
+
   const [cycle, setCycle] = useState<CycleOut | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -40,9 +42,13 @@ export default function VidaScreen() {
   const [showActivateConfirm, setShowActivateConfirm] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Se vier com cycleId (navegação pelo histórico), busca aquele ciclo específico.
+  // Sem cycleId, busca o ciclo ativo/rascunho do usuário.
   const fetchCycle = async () => {
     try {
-      const result = await lifePlanApi.getActiveCycle();
+      const result = cycleId
+        ? await lifePlanApi.getCycle(cycleId)
+        : await lifePlanApi.getActiveCycle();
       setCycle(result);
     } catch {
       setCycle(null);
@@ -53,7 +59,7 @@ export default function VidaScreen() {
     useCallback(() => {
       setLoading(true);
       fetchCycle().finally(() => setLoading(false));
-    }, [])
+    }, [cycleId])
   );
 
   const onRefresh = useCallback(async () => {

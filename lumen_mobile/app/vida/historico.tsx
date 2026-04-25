@@ -108,7 +108,7 @@ export default function HistoricoScreen() {
         return (
           <TouchableOpacity
             style={styles.cycleCard}
-            onPress={() => router.push(`/vida/index?cycleId=${item.id}` as Href)}
+            onPress={() => router.push(`/vida?cycleId=${item.id}` as Href)}
             activeOpacity={0.8}
           >
             {/* Status badge */}
