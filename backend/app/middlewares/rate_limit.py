@@ -1,14 +1,15 @@
 """
 Rate Limiting Middleware
 ========================
-Controle de taxa de requisições via Redis (sliding window).
+Controle de taxa de requisições via Redis (fixed window).
 Funciona corretamente em ambientes com múltiplas instâncias.
 """
 
+import hashlib
 import time
 from typing import Any, Callable, cast
 
-import redis as redis_lib
+import redis.asyncio as redis_lib
 import structlog
 from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
@@ -18,24 +19,29 @@ from app.core.settings import settings
 
 logger = structlog.get_logger()
 
-# Cliente Redis — lazy init para evitar falha no import se Redis estiver indisponível
 _redis_client: redis_lib.Redis | None = None
+_redis_last_failure: float = 0.0
+_REDIS_RETRY_INTERVAL = 30.0
 
 
-def _get_redis() -> redis_lib.Redis | None:
-    global _redis_client
-    if _redis_client is None:
-        try:
-            _redis_client = redis_lib.from_url(
-                settings.redis_url,
-                decode_responses=True,
-                socket_connect_timeout=1,
-                socket_timeout=1,
-            )
-            _redis_client.ping()
-        except Exception as e:
-            logger.warning("redis_unavailable", error=str(e), fallback="in-memory")
-            _redis_client = None
+async def _get_redis() -> redis_lib.Redis | None:
+    global _redis_client, _redis_last_failure
+    if _redis_client is not None:
+        return _redis_client
+    if time.time() - _redis_last_failure < _REDIS_RETRY_INTERVAL:
+        return None
+    try:
+        _redis_client = redis_lib.from_url(
+            settings.redis_url,
+            decode_responses=True,
+            socket_connect_timeout=1,
+            socket_timeout=1,
+        )
+        await _redis_client.ping()
+    except Exception as e:
+        logger.warning("redis_unavailable", error=str(e), fallback="in-memory")
+        _redis_last_failure = time.time()
+        _redis_client = None
     return _redis_client
 
 
@@ -52,7 +58,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         client_id = self._get_client_id(request)
 
-        if self._is_rate_limited(client_id):
+        if await self._is_rate_limited(client_id):
             logger.warning(
                 "rate_limit_exceeded",
                 client_id=client_id,
@@ -60,6 +66,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             )
             return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                headers={"Retry-After": "60"},
                 content={
                     "detail": {
                         "error": "rate_limit_exceeded",
@@ -75,8 +82,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         auth = request.headers.get("authorization", "")
         if auth.startswith("Bearer "):
             token_part = auth[7:27] if len(auth) > 27 else auth[7:]
-            return f"token:{hash(token_part)}"
+            # sha256 garante estabilidade entre processos/workers (hash() é não-determinístico)
+            token_hash = hashlib.sha256(token_part.encode()).hexdigest()[:16]
+            return f"token:{token_hash}"
 
+        # X-Forwarded-For: apenas confiável quando atrás de um proxy reverso confiável
         forwarded = request.headers.get("x-forwarded-for")
         if forwarded:
             return f"ip:{forwarded.split(',')[0].strip()}"
@@ -86,20 +96,20 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         return "ip:unknown"
 
-    def _is_rate_limited(self, client_id: str) -> bool:
-        redis = _get_redis()
+    async def _is_rate_limited(self, client_id: str) -> bool:
+        redis = await _get_redis()
         if redis is not None:
-            return self._redis_is_rate_limited(redis, client_id)
+            return await self._redis_is_rate_limited(redis, client_id)
         return self._memory_is_rate_limited(client_id)
 
-    def _redis_is_rate_limited(self, redis: redis_lib.Redis, client_id: str) -> bool:
-        """Sliding window via Redis INCR + EXPIRE."""
+    async def _redis_is_rate_limited(self, redis: redis_lib.Redis, client_id: str) -> bool:
+        """Fixed window via Redis INCR + EXPIRE (nx=True preserva a janela inicial)."""
         key = f"rl:{client_id}"
         try:
             pipe = redis.pipeline()
             pipe.incr(key)
-            pipe.expire(key, 60)
-            results = pipe.execute()
+            pipe.expire(key, 60, nx=True)  # nx=True: só define TTL na primeira requisição da janela
+            results = await pipe.execute()
             count = results[0]
             return int(count) > settings.rate_limit_requests_per_minute
         except Exception as e:
@@ -108,7 +118,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return False
 
     def _memory_is_rate_limited(self, client_id: str) -> bool:
-        """Fallback em memória (janela deslizante)."""
+        """Fallback em memória (janela deslizante). O(K) no cleanup, raro em < 10000 clientes."""
         now = time.time()
         window_start = now - 60
 
@@ -119,7 +129,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         _fallback_cache[client_id] = recent
         recent.append(now)
 
-        # Limpeza periódica
         if len(_fallback_cache) > 10000:
             cutoff = now - 120
             for k in list(_fallback_cache.keys()):
