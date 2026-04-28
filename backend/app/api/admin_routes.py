@@ -218,6 +218,16 @@ async def reject_sensitive_access(
             status_code=400, detail={"error": "bad_request", "message": "Request is not pending"}
         )
 
+    # SEGURANÇA: separação de deveres — quem solicitou não pode rejeitar a própria solicitação
+    if access_request.requester_user_id == current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "self_rejection_denied",
+                "message": "Não é permitido rejeitar sua própria solicitação de acesso sensível",
+            },
+        )
+
     access_request.status = "REJECTED"
     access_request.approved_by_user_id = current_user.id
     access_request.approved_at = datetime.now(timezone.utc)
