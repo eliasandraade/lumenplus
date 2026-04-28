@@ -11,6 +11,7 @@ import logging
 from datetime import date as _date
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlparse
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
@@ -39,6 +40,29 @@ from app.schemas.profile import (
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# VALIDAÇÃO DE PHOTO_URL
+# =============================================================================
+
+_ALLOWED_PHOTO_DOMAINS = (
+    "firebasestorage.googleapis.com",
+    "storage.googleapis.com",
+    "res.cloudinary.com",
+    "lh3.googleusercontent.com",  # Google profile photos
+)
+
+
+def _validate_photo_url(url: str) -> bool:
+    """Aceita apenas HTTPS de domínios conhecidos de armazenamento de imagens."""
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme != "https":
+            return False
+        return any(parsed.netloc == d or parsed.netloc.endswith("." + d) for d in _ALLOWED_PHOTO_DOMAINS)
+    except Exception:
+        return False
 
 
 # =============================================================================
@@ -411,6 +435,11 @@ def _apply_profile_fields(
         profile.music_availability = None
 
     if body.photo_url:
+        if not _validate_photo_url(body.photo_url):
+            raise HTTPException(
+                status_code=422,
+                detail={"error": "invalid_photo_url", "message": "Domínio de foto não permitido"},
+            )
         profile.photo_url = body.photo_url
 
     # Atualiza telefone (verificação não é mais exigida)
@@ -477,7 +506,11 @@ def _create_profile(
             json.dumps(body.accommodation_options) if body.accommodation_options else None
         ),
         mission_org_unit_id=body.mission_org_unit_id if body.is_from_mission else None,
-        photo_url=body.photo_url,
+        photo_url=(
+            body.photo_url
+            if body.photo_url and _validate_photo_url(body.photo_url)
+            else None
+        ),
         instagram=body.instagram,
         dietary_restriction=body.dietary_restriction,
         dietary_restriction_notes=(
