@@ -189,8 +189,6 @@ async def get_organization_tree(
     Unidades RESTRICTED são omitidas para não-membros.
     Carrega todos os nós e memberships em 2 queries (eager loading).
     """
-    from app.services.organization import get_user_global_roles
-
     # Papéis globais — admins veem tudo
     global_roles = get_user_global_roles(db, user.id)
     viewer_is_admin = any(r in global_roles for r in ["DEV", "ADMIN", "SECRETARY"])
