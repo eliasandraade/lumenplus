@@ -552,15 +552,30 @@ def get_org_tree(db: Session, user_id: UUID) -> OrgUnit | None:
 
 
 def get_org_unit_members(db: Session, org_unit_id: UUID, user_id: UUID) -> list[OrgMembership]:
-    """Retorna membros de uma unidade."""
+    """
+    Retorna membros de uma unidade.
+
+    Regras de visibilidade (data minimization — LGPD):
+    - ADMIN/DEV/SECRETARY global → acesso total (nome + email)
+    - Coordenador ou membro da unidade → acesso total (nome + email)
+    - Unidade RESTRICTED + não-membro → 403
+    - Unidade PUBLIC + não-membro → somente nome (email oculto via flag viewer_is_member=False)
+
+    O campo `viewer_is_member` é adicionado como atributo temporário nos memberships
+    retornados para que a camada de rota possa ocultar o email quando necessário.
+    """
     org_unit = db.get(OrgUnit, org_unit_id)
     if not org_unit:
         raise OrgServiceError("org_unit_not_found", "Unidade não encontrada")
 
-    # Verifica visibilidade
-    if org_unit.visibility == Visibility.RESTRICTED:
-        if not is_member_of(db, user_id, org_unit_id):
-            raise OrgServiceError("permission_denied", "Unidade restrita")
+    global_roles = get_user_global_roles(db, user_id)
+    is_global_admin = any(r in global_roles for r in ["DEV", "ADMIN", "SECRETARY"])
+    is_member = is_member_of(db, user_id, org_unit_id)
+    viewer_has_full_access = is_global_admin or is_member
+
+    # Unidades RESTRICTED: bloquear não-membros completamente
+    if org_unit.visibility == Visibility.RESTRICTED and not viewer_has_full_access:
+        raise OrgServiceError("permission_denied", "Unidade restrita — apenas membros podem ver")
 
     result = db.execute(
         select(OrgMembership)
@@ -570,7 +585,13 @@ def get_org_unit_members(db: Session, org_unit_id: UUID, user_id: UUID) -> list[
         )
         .order_by(OrgMembership.role, OrgMembership.joined_at)
     )
-    return list(result.scalars().all())
+    memberships = list(result.scalars().all())
+
+    # Marca visibilidade para a camada de rota ocultar email quando necessário
+    for m in memberships:
+        m._viewer_has_full_access = viewer_has_full_access  # type: ignore[attr-defined]
+
+    return memberships
 
 
 def search_users_for_invite(
@@ -649,11 +670,31 @@ def update_member_role(
     Atualiza papel de um membro.
 
     - Só coordenador pode alterar
+    - Promoção a COORDINATOR exige DEV/ADMIN global ou coordenador do parent
     - Não pode rebaixar a si mesmo se for único coordenador
     """
     # Verifica se é coordenador
     if not is_coordinator_of(db, acting_user_id, org_unit_id):
         raise OrgServiceError("permission_denied", "Apenas coordenadores podem alterar papéis")
+
+    # SEGURANÇA: promoção para COORDINATOR exige autoridade superior
+    # (consistente com send_invite que já impõe essa regra)
+    if new_role == OrgRoleCode.COORDINATOR:
+        global_roles = get_user_global_roles(db, acting_user_id)
+        has_global_admin = any(r in ("DEV", "ADMIN") for r in global_roles)
+        if not has_global_admin:
+            unit = db.get(OrgUnit, org_unit_id)
+            parent_coord = (
+                unit is not None
+                and unit.parent_id is not None
+                and is_coordinator_of(db, acting_user_id, unit.parent_id)
+            )
+            if not parent_coord:
+                raise OrgServiceError(
+                    "permission_denied",
+                    "Promover membro a coordenador requer ser DEV/ADMIN "
+                    "ou coordenador da entidade superior",
+                )
 
     # Busca membership do target
     membership = db.execute(
