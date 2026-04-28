@@ -86,8 +86,10 @@ def _provision_user(db: Session, payload: TokenPayload, request: Request) -> Use
         .first()
     )
 
-    # 2. Fallback DEV: lookup por email (compatibilidade com identidades criadas via /auth/register)
-    if identity is None and payload.email:
+    # 2. Fallback de compatibilidade por email — SOMENTE em DEV.
+    # Em produção, nunca vincular contas por email sem prova de posse explícita,
+    # pois isso permite account takeover por colisão de email entre providers.
+    if identity is None and payload.email and settings.is_dev:
         identity = db.query(UserIdentity).filter(UserIdentity.email == payload.email).first()
 
     if identity is not None:
@@ -124,7 +126,7 @@ def _provision_user(db: Session, payload: TokenPayload, request: Request) -> Use
         entity_id=str(user.id),
         ip=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
-        metadata={"provider": "firebase", "email": payload.email},
+        metadata={"provider": "firebase"},  # email removido — LGPD minimização de dados
     )
 
     db.commit()
