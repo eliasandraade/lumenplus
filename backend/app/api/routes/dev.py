@@ -33,8 +33,11 @@ router = APIRouter(prefix="/dev", tags=["dev"])
 
 
 @router.post("/seed")
-async def seed_database(db: Session = Depends(get_db)) -> Any:
-    """Popula banco com dados iniciais."""
+async def seed_database(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Any:
+    """Popula banco com dados iniciais. Requer autenticação."""
     results = {
         "global_roles": 0,
         "legal_docs": 0,
