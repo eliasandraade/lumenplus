@@ -4,7 +4,6 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, DBSession
@@ -17,31 +16,11 @@ from app.db.models import (
     UserGlobalRole,
     UserProfile,
 )
+from app.schemas.admin import DocumentsResponse, SensitiveAccessRequestBody, SensitiveAccessResponse
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 DEFAULT_ACCESS_DURATION_MINUTES = 30
-
-
-class SensitiveAccessRequestBody(BaseModel):
-    target_user_id: UUID
-    reason: str = Field(..., min_length=10, max_length=500)
-
-
-class SensitiveAccessResponse(BaseModel):
-    id: UUID
-    requester_user_id: UUID
-    target_user_id: UUID
-    scope: str
-    reason: str
-    status: str
-    expires_at: datetime | None
-    created_at: datetime
-
-
-class DocumentsResponse(BaseModel):
-    cpf: str
-    rg: str
 
 
 def get_user_global_roles(db: Session, user_id: UUID) -> list[str]:
