@@ -255,32 +255,50 @@ async def make_me_dev(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Any:
-    """Torna o usuário atual DEV (APENAS para primeiro setup)."""
-    # Busca role DEV
+    """
+    Torna o usuário atual DEV — APENAS para o primeiro bootstrap do sistema.
+    Bloqueado se já existir qualquer usuário com role DEV.
+    """
+    # Garante que a role DEV existe
     role = db.execute(select(GlobalRole).where(GlobalRole.code == "DEV")).scalar_one_or_none()
     if not role:
-        # Cria se não existir
         role = GlobalRole(code="DEV", name="Desenvolvedor")
         db.add(role)
         db.flush()
 
-    # Verifica se já tem
-    existing = db.execute(
+    # SEGURANÇA: bloqueia se já existe qualquer DEV no sistema
+    existing_dev = db.execute(
+        select(UserGlobalRole).where(UserGlobalRole.global_role_id == role.id)
+    ).first()
+
+    if existing_dev:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "dev_exists",
+                "message": (
+                    "Já existe um administrador DEV no sistema. "
+                    "Use /dev/assign-global-role (requer role DEV)."
+                ),
+            },
+        )
+
+    # Verifica se o próprio usuário já tem DEV (improvável, mas defensivo)
+    already_has = db.execute(
         select(UserGlobalRole).where(
             UserGlobalRole.user_id == user.id,
             UserGlobalRole.global_role_id == role.id,
         )
     ).scalar_one_or_none()
 
-    if existing:
+    if already_has:
         return {"message": "Você já é DEV"}
 
-    # Atribui
     ugr = UserGlobalRole(user_id=user.id, global_role_id=role.id)
     db.add(ugr)
     db.commit()
 
-    return {"message": "Você agora é DEV!", "user_id": str(user.id)}
+    return {"message": "Você agora é DEV! Este endpoint está bloqueado para novos usuários.", "user_id": str(user.id)}
 
 
 @router.post("/grant-inbox-permission")
