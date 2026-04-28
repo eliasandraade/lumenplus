@@ -260,7 +260,7 @@ async def make_me_dev(
     Bloqueado se já existir qualquer usuário com role DEV.
     """
     # Garante que a role DEV existe
-    role = db.execute(select(GlobalRole).where(GlobalRole.code == "DEV")).scalar_one_or_none()
+    role = db.execute(select(GlobalRole).where(GlobalRole.code == "DEV").with_for_update()).scalar_one_or_none()
     if not role:
         role = GlobalRole(code="DEV", name="Desenvolvedor")
         db.add(role)
