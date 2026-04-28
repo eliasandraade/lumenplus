@@ -131,8 +131,8 @@ async def request_sensitive_access(
 async def get_pending_access_requests(
     current_user: CurrentUser, db: DBSession
 ) -> list[SensitiveAccessResponse]:
-    """Get pending sensitive access requests (COUNCIL_GENERAL or DEV only)."""
-    require_role(db, current_user.id, ["COUNCIL_GENERAL", "DEV"])
+    """Get pending sensitive access requests (ADMIN or DEV only)."""
+    require_role(db, current_user.id, ["ADMIN", "DEV"])
 
     requests = (
         db.query(SensitiveAccessRequest)
@@ -159,8 +159,8 @@ async def get_pending_access_requests(
 async def approve_sensitive_access(
     request: Request, request_id: UUID, current_user: CurrentUser, db: DBSession
 ) -> SensitiveAccessResponse:
-    """Approve sensitive access request (COUNCIL_GENERAL or DEV only)."""
-    require_role(db, current_user.id, ["COUNCIL_GENERAL", "DEV"])
+    """Approve sensitive access request (ADMIN or DEV only)."""
+    require_role(db, current_user.id, ["ADMIN", "DEV"])
 
     access_request = (
         db.query(SensitiveAccessRequest).filter(SensitiveAccessRequest.id == request_id).first()
@@ -172,6 +172,16 @@ async def approve_sensitive_access(
     if access_request.status != "PENDING":
         raise HTTPException(
             status_code=400, detail={"error": "bad_request", "message": "Request is not pending"}
+        )
+
+    # SEGURANÇA: separação de deveres — quem solicitou não pode aprovar
+    if access_request.requester_user_id == current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "self_approval_denied",
+                "message": "Não é permitido aprovar sua própria solicitação de acesso sensível",
+            },
         )
 
     access_request.status = "APPROVED"
@@ -214,8 +224,8 @@ async def approve_sensitive_access(
 async def reject_sensitive_access(
     request: Request, request_id: UUID, current_user: CurrentUser, db: DBSession
 ) -> SensitiveAccessResponse:
-    """Reject sensitive access request (COUNCIL_GENERAL or DEV only)."""
-    require_role(db, current_user.id, ["COUNCIL_GENERAL", "DEV"])
+    """Reject sensitive access request (ADMIN or DEV only)."""
+    require_role(db, current_user.id, ["ADMIN", "DEV"])
 
     access_request = (
         db.query(SensitiveAccessRequest).filter(SensitiveAccessRequest.id == request_id).first()
