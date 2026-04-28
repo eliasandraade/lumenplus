@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, DBSession
@@ -25,7 +25,7 @@ DEFAULT_ACCESS_DURATION_MINUTES = 30
 
 class SensitiveAccessRequestBody(BaseModel):
     target_user_id: UUID
-    reason: str
+    reason: str = Field(..., min_length=10, max_length=500)
 
 
 class SensitiveAccessResponse(BaseModel):

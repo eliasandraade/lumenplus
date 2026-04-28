@@ -63,8 +63,8 @@ HIERARCHY_PERMISSIONS = {
 class CreateOrgUnitRequest(BaseModel):
     """Request para criar unidade organizacional."""
 
-    name: str = Field(..., min_length=2, max_length=200)
-    description: Optional[str] = Field(None, max_length=1000)
+    name: str = Field(..., min_length=2, max_length=100)
+    description: Optional[str] = Field(None, max_length=2000)
     visibility: Optional[str] = "PUBLIC"  # PUBLIC | RESTRICTED
     group_type: Optional[str] = None  # ACOLHIDA, APROFUNDAMENTO, VOCACIONAL, CASAIS, CURSO, PROJETO
     mission_types: Optional[List[str]] = None  # ["VIDA", "ALIANCA"] — só para MISSAO
@@ -117,7 +117,7 @@ class SendInviteRequest(BaseModel):
 
     user_id: UUID
     role: Optional[str] = "MEMBER"  # COORDINATOR | MEMBER
-    message: Optional[str] = Field(None, max_length=500)
+    message: Optional[str] = Field(None, max_length=1000)
 
 
 class InviteResponse(BaseModel):
@@ -189,5 +189,5 @@ class MembersListResponse(BaseModel):
 class UpdateOrgUnitRequest(BaseModel):
     """Request para editar nome/descrição de uma unidade."""
 
-    name: str | None = None
-    description: str | None = None
+    name: str | None = Field(None, min_length=2, max_length=100)
+    description: str | None = Field(None, max_length=2000)
