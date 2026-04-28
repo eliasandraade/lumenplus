@@ -60,7 +60,8 @@ def _validate_photo_url(url: str) -> bool:
         parsed = urlparse(url)
         if parsed.scheme != "https":
             return False
-        return any(parsed.netloc == d or parsed.netloc.endswith("." + d) for d in _ALLOWED_PHOTO_DOMAINS)
+        host = parsed.netloc.lower()  # RFC 3986: host comparison is case-insensitive
+        return any(host == d or host.endswith("." + d) for d in _ALLOWED_PHOTO_DOMAINS)
     except Exception:
         return False
 
@@ -506,6 +507,7 @@ def _create_profile(
             json.dumps(body.accommodation_options) if body.accommodation_options else None
         ),
         mission_org_unit_id=body.mission_org_unit_id if body.is_from_mission else None,
+        # Invalid URLs are silently dropped at creation (update path raises 422 — see _apply_profile_fields)
         photo_url=(
             body.photo_url
             if body.photo_url and _validate_photo_url(body.photo_url)
