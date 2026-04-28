@@ -55,6 +55,15 @@ from app.services.organization import (
 router = APIRouter(prefix="/org", tags=["organization"])
 
 
+def _mask_email(email: str) -> str:
+    """Mascara email para data minimization: 'john.doe@gmail.com' → 'jo***@gmail.com'."""
+    try:
+        local, domain = email.split("@", 1)
+        return local[:2] + "***@" + domain
+    except ValueError:
+        return "***"
+
+
 def handle_org_error(e: OrgServiceError) -> Never:
     """Converte OrgServiceError em HTTPException."""
     status_codes = {
@@ -177,22 +186,37 @@ async def get_organization_tree(
 ) -> Any:
     """Retorna árvore organizacional.
 
-    Carrega todos os nós e memberships em 2 queries (eager loading) em vez de N+1.
+    Unidades RESTRICTED são omitidas para não-membros.
+    Carrega todos os nós e memberships em 2 queries (eager loading).
     """
-    # Carrega todas as unidades ativas com children e memberships de uma vez
+    from app.services.organization import get_user_global_roles
+
+    # Papéis globais — admins veem tudo
+    global_roles = get_user_global_roles(db, user.id)
+    viewer_is_admin = any(r in global_roles for r in ["DEV", "ADMIN", "SECRETARY"])
+
+    # IDs das unidades onde o usuário é membro ativo
+    user_unit_ids: set = set()
+    if not viewer_is_admin:
+        memberships_result = db.execute(
+            sa_select(OrgMembership.org_unit_id).where(
+                OrgMembership.user_id == user.id,
+                OrgMembership.status == MembershipStatus.ACTIVE,
+            )
+        )
+        user_unit_ids = {row[0] for row in memberships_result}
+
+    # Carrega todas as unidades ativas com memberships de uma vez
     all_units_result = db.execute(
         sa_select(OrgUnit)
         .where(OrgUnit.is_active == True)  # noqa: E712
-        .options(
-            selectinload(OrgUnit.memberships),
-        )
+        .options(selectinload(OrgUnit.memberships))
     )
     all_units = all_units_result.scalars().all()
 
     if not all_units:
         return OrgTreeResponse(root=None)
 
-    # Encontra raiz em Python (sem novas queries)
     root = next(
         (u for u in all_units if u.type == OrgUnitType.CONSELHO_GERAL and u.parent_id is None),
         None,
@@ -201,12 +225,25 @@ async def get_organization_tree(
     if not root:
         return OrgTreeResponse(root=None)
 
-    def build_tree(unit: OrgUnit, depth: int = 0) -> OrgUnitWithChildren:
+    def can_view_unit(unit: OrgUnit) -> bool:
+        """Admin vê tudo; outros só veem PUBLIC ou unidades das quais são membros."""
+        if viewer_is_admin:
+            return True
+        if unit.visibility == Visibility.PUBLIC:
+            return True
+        return unit.id in user_unit_ids
+
+    def build_tree(unit: OrgUnit, depth: int = 0) -> OrgUnitWithChildren | None:
+        if not can_view_unit(unit):
+            return None
+
         children = []
         if depth < 5:
             for child in all_units:
                 if child.parent_id == unit.id and child.is_active:
-                    children.append(build_tree(child, depth + 1))
+                    child_node = build_tree(child, depth + 1)
+                    if child_node is not None:
+                        children.append(child_node)
 
         active_member_count = sum(
             1 for m in unit.memberships if m.status == MembershipStatus.ACTIVE
@@ -226,7 +263,8 @@ async def get_organization_tree(
             member_count=active_member_count,
         )
 
-    return OrgTreeResponse(root=build_tree(root))
+    tree_root = build_tree(root)
+    return OrgTreeResponse(root=tree_root)
 
 
 @router.post("/units/{parent_id}/children", response_model=OrgUnitOut)
@@ -352,13 +390,16 @@ async def list_members(
         for m in memberships:
             member_user = m.user
             profile = member_user.profile
-            email = member_user.identities[0].email if member_user.identities else None
+            # Email só retorna para membros/admins — data minimization (LGPD)
+            viewer_has_full_access = getattr(m, "_viewer_has_full_access", False)
+            raw_email = member_user.identities[0].email if member_user.identities else None
+            email_out = raw_email if viewer_has_full_access else None
 
             members.append(
                 MemberOut(
                     user_id=m.user_id,
                     user_name=profile.full_name if profile else "Usuário",
-                    user_email=email,
+                    user_email=email_out,
                     role=m.role.value,
                     status=m.status.value,
                     joined_at=m.joined_at,
@@ -593,11 +634,15 @@ async def search_users_to_invite(
 
         result = []
         for u in users:
+            raw_email = u.identities[0].email if u.identities else None
+            # Mascarar email: coordenadores identificam o usuário pelo nome,
+            # o email completo só é necessário internamente ao convidar
+            masked_email = _mask_email(raw_email) if raw_email else None
             result.append(
                 {
                     "id": str(u.id),
                     "name": u.profile.full_name if u.profile else "Usuário",
-                    "email": u.identities[0].email if u.identities else None,
+                    "email": masked_email,
                     "photo_url": u.profile.photo_url if u.profile else None,
                 }
             )
