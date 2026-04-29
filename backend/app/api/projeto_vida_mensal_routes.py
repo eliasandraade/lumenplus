@@ -116,23 +116,14 @@ def _to_full(p: ProjetoVidaMensal) -> ProjetoVidaMensalFull:
 def get_atual(user: CurrentUser, db: DBSession) -> Any:
     """Retorna o projeto do mês/ano corrente ou null."""
     now = datetime.now(timezone.utc)
-    result = db.execute(
-        select(ProjetoVidaMensal)
-        .where(
+    row = db.execute(
+        select(ProjetoVidaMensal.id).where(
             ProjetoVidaMensal.user_id == user.id,
             ProjetoVidaMensal.mes == now.month,
             ProjetoVidaMensal.ano == now.year,
         )
-        .options(
-            selectinload(ProjetoVidaMensal.comunidade),
-            selectinload(ProjetoVidaMensal.cuidado),
-            selectinload(ProjetoVidaMensal.compromissos),
-            selectinload(ProjetoVidaMensal.praticas),
-            selectinload(ProjetoVidaMensal.revisao),
-        )
-    )
-    projeto = result.scalar_one_or_none()
-    return _to_full(projeto) if projeto else None
+    ).scalar_one_or_none()
+    return _to_full(_load(db, row, user.id)) if row else None
 
 
 @router.get("/historico", response_model=list[ProjetoVidaMensalSummary])
@@ -201,7 +192,10 @@ def get_projeto(projeto_id: UUID, user: CurrentUser, db: DBSession) -> Any:
 def update_projeto(
     projeto_id: UUID, body: ProjetoVidaMensalUpdate, user: CurrentUser, db: DBSession
 ) -> Any:
-    """Atualiza campos escalares + comunidade + cuidado + listas (replace completo)."""
+    """Atualiza campos escalares + comunidade + cuidado + listas (replace completo).
+
+    Nota: PIN só pode ser definido na criação. Para alterar o PIN, delete e recrie o projeto.
+    """
     projeto = _load(db, projeto_id, user.id)
 
     if body.tema is not None:
@@ -280,11 +274,8 @@ def upsert_revisao(
         db.refresh(projeto)
 
     rev = projeto.revisao
-    for field in ("graca", "fidelidade", "falhas", "ordenar", "passo",
-                  "decisao", "virtude", "conversao", "passo_proximo"):
-        val = getattr(body, field)
-        if val is not None:
-            setattr(rev, field, val)
+    for field, val in body.model_dump(exclude_none=True).items():
+        setattr(rev, field, val)
 
     db.commit()
     return _to_full(_load(db, projeto_id, user.id))
@@ -308,5 +299,6 @@ def verificar_pin(
             detail={"error": "not_found", "message": "Projeto não encontrado"},
         )
     if not projeto.pin_hash:
+        # Sem PIN configurado: qualquer requisição é válida (sem restrição de acesso)
         return PinVerifyResponse(valid=True)
     return PinVerifyResponse(valid=_hash_pin(body.pin, user.id) == projeto.pin_hash)
