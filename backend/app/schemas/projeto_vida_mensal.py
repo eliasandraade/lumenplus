@@ -14,17 +14,17 @@ from pydantic import BaseModel, Field
 
 
 class ComunidadeData(BaseModel):
-    partilha_acompanhador: Optional[str] = None
-    encontro_familia: Optional[str] = None
-    dias_grupo: Optional[str] = None
-    outros: Optional[str] = None
+    partilha_acompanhador: Optional[str] = Field(None, max_length=2000)
+    encontro_familia: Optional[str] = Field(None, max_length=2000)
+    dias_grupo: Optional[str] = Field(None, max_length=1000)
+    outros: Optional[str] = Field(None, max_length=2000)
 
 
 class CuidadoData(BaseModel):
-    consultas: Optional[str] = None
-    exames: Optional[str] = None
-    descanso: Optional[str] = None
-    outros: Optional[str] = None
+    consultas: Optional[str] = Field(None, max_length=2000)
+    exames: Optional[str] = Field(None, max_length=2000)
+    descanso: Optional[str] = Field(None, max_length=2000)
+    outros: Optional[str] = Field(None, max_length=2000)
 
 
 class CompromissoIn(BaseModel):
@@ -70,15 +70,15 @@ class PraticaOut(BaseModel):
 
 
 class RevisaoUpsert(BaseModel):
-    graca: Optional[str] = None
-    fidelidade: Optional[str] = None
-    falhas: Optional[str] = None
-    ordenar: Optional[str] = None
-    passo: Optional[str] = None
-    decisao: Optional[str] = None
-    virtude: Optional[str] = None
-    conversao: Optional[str] = None
-    passo_proximo: Optional[str] = None
+    graca: Optional[str] = Field(None, max_length=3000)
+    fidelidade: Optional[str] = Field(None, max_length=3000)
+    falhas: Optional[str] = Field(None, max_length=3000)
+    ordenar: Optional[str] = Field(None, max_length=3000)
+    passo: Optional[str] = Field(None, max_length=3000)
+    decisao: Optional[str] = Field(None, max_length=3000)
+    virtude: Optional[str] = Field(None, max_length=3000)
+    conversao: Optional[str] = Field(None, max_length=3000)
+    passo_proximo: Optional[str] = Field(None, max_length=3000)
 
 
 class RevisaoOut(BaseModel):
@@ -102,14 +102,14 @@ class ProjetoVidaMensalCreate(BaseModel):
     mes: int = Field(..., ge=1, le=12)
     ano: int = Field(..., ge=2024, le=2100)
     tema: Optional[str] = Field(None, max_length=500)
-    intencao: Optional[str] = None
+    intencao: Optional[str] = Field(None, max_length=3000)
     pin: Optional[str] = Field(None, min_length=4, max_length=4, pattern=r"^\d{4}$")
 
 
 class ProjetoVidaMensalUpdate(BaseModel):
     tema: Optional[str] = Field(None, max_length=500)
-    intencao: Optional[str] = None
-    observacoes_mes: Optional[str] = None
+    intencao: Optional[str] = Field(None, max_length=3000)
+    observacoes_mes: Optional[str] = Field(None, max_length=3000)
     concluido: Optional[bool] = None
     comunidade: Optional[ComunidadeData] = None
     cuidado: Optional[CuidadoData] = None
@@ -125,8 +125,6 @@ class ProjetoVidaMensalSummary(BaseModel):
     concluido: bool
     has_pin: bool
     created_at: datetime
-
-    model_config = {"from_attributes": True}
 
 
 class ProjetoVidaMensalFull(BaseModel):
