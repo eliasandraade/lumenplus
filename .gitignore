@@ -74,3 +74,6 @@ strapi/node_modules/
 
 # Python egg-info
 *.egg-info/
+
+# Git worktrees
+.worktrees/
