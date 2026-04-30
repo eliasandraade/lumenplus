@@ -41,7 +41,7 @@ export default function VidaHubScreen() {
     if (!isRefresh) setLoading(true);
     setError(null);
     try {
-      const data = await projetoVidaMensalApi.getAtual();
+      const data = await projetoVidaMensalApi.getAtual(mesAtual, anoAtual);
       setProjeto(data);
     } catch {
       setError('Erro ao carregar projeto. Tente novamente.');

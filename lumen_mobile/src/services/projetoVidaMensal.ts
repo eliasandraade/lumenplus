@@ -139,8 +139,8 @@ export interface UpdateProjetoInput {
   intencao?: string | null;
   observacoes_mes?: string | null;
   concluido?: boolean | null;
-  comunidade?: Partial<ComunidadeData> | null;
-  cuidado?: Partial<CuidadoData> | null;
+  comunidade?: ComunidadeData | null;
+  cuidado?: CuidadoData | null;
   compromissos?: CompromissoIn[] | null;
   praticas?: PraticaIn[] | null;
 }
@@ -160,8 +160,10 @@ export interface RevisaoInput {
 // ── API ────────────────────────────────────────────────────────────────────
 
 export const projetoVidaMensalApi = {
-  getAtual: () =>
-    api.get<ProjetoVidaMensalFull | null>('/projeto-vida-mensal/atual'),
+  getAtual: (mes?: number, ano?: number) => {
+    const params = mes && ano ? `?mes=${mes}&ano=${ano}` : '';
+    return api.get<ProjetoVidaMensalFull | null>(`/projeto-vida-mensal/atual${params}`);
+  },
 
   getHistorico: () =>
     api.get<ProjetoVidaMensalSummary[]>('/projeto-vida-mensal/historico'),
