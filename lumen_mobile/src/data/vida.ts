@@ -50,13 +50,14 @@ export const DIAGNOSIS_QUESTIONS: Record<DimensionKey, DiagnosisQuestions> = {
 };
 
 export const VOCATIONAL_REALITIES = [
-  { key: 'SOLTEIRO', label: 'Solteiro(a)' },
-  { key: 'NOIVO', label: 'Noivo(a)' },
-  { key: 'CASADO', label: 'Casado(a)' },
-  { key: 'CONSAGRADO', label: 'Consagrado(a) Filho(a) da Luz' },
+  { key: 'LEIGO', label: 'Leigo' },
+  { key: 'LEIGO_CONSAGRADO', label: 'Leigo Consagrado' },
+  { key: 'CELIBATARIO', label: 'Celibatário' },
   { key: 'SEMINARISTA', label: 'Seminarista' },
+  { key: 'DIACONO_PERMANENTE', label: 'Diácono Permanente' },
+  { key: 'DIACONO', label: 'Diácono' },
   { key: 'SACERDOTE', label: 'Sacerdote' },
-  { key: 'RELIGIOSO', label: 'Religioso(a)' },
+  { key: 'BISPO', label: 'Bispo' },
 ] as const;
 
 export type VocationalRealityKey = (typeof VOCATIONAL_REALITIES)[number]['key'];

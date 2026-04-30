@@ -76,12 +76,12 @@ class Settings(BaseSettings):
     # =========================================================================
     # FEATURE FLAGS
     # =========================================================================
-    enable_dev_endpoints: bool = Field(default=True)
+    enable_dev_endpoints: bool = Field(default=False)  # SEGURANÇA: fail-closed
     enable_audit: bool = Field(default=True)
     enable_phone_verification: bool = Field(default=True)
     enable_email_verification: bool = Field(default=True)
     enable_sensitive_access: bool = Field(default=True)
-    debug_verification_code: bool = Field(default=True)  # Retorna código na resposta (só dev)
+    debug_verification_code: bool = Field(default=False)  # SEGURANÇA: fail-closed — nunca expor OTP em prod
 
     # =========================================================================
     # RATE LIMITING
@@ -111,18 +111,23 @@ class Settings(BaseSettings):
         return self.environment == "production"
 
     def validate_production_settings(self) -> list[str]:
+        """Valida configurações críticas. Em produção, erros são FATAIS (abortam o processo)."""
         errors = []
         if self.is_production:
             if "change-me" in self.secret_key:
-                errors.append("SECRET_KEY deve ser alterado")
+                errors.append("SECRET_KEY deve ser alterado em produção")
             if self.auth_mode == "DEV":
-                errors.append("AUTH_MODE deve ser PROD")
+                errors.append("AUTH_MODE deve ser PROD em produção")
             if self.enable_dev_endpoints:
-                errors.append("ENABLE_DEV_ENDPOINTS deve ser False")
+                errors.append("ENABLE_DEV_ENDPOINTS deve ser False em produção")
             if self.debug_verification_code:
-                errors.append("DEBUG_VERIFICATION_CODE deve ser False")
+                errors.append("DEBUG_VERIFICATION_CODE deve ser False em produção")
             if not self.encryption_key:
-                errors.append("ENCRYPTION_KEY é obrigatório")
+                errors.append("ENCRYPTION_KEY é obrigatório em produção")
+            if not self.hmac_pepper:
+                errors.append("HMAC_PEPPER é obrigatório em produção")
+            if not self.firebase_project_id:
+                errors.append("FIREBASE_PROJECT_ID é obrigatório em produção")
         return errors
 
 

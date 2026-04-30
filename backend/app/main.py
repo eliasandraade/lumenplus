@@ -66,13 +66,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         "application_startup", environment=settings.environment, version=settings.app_version
     )
 
-    # Valida configurações em produção
+    # Valida configurações — FATAL em produção, aviso em outros ambientes
     errors = settings.validate_production_settings()
     if errors:
         for err in errors:
             logger.error("config_error", message=err)
         if settings.is_production:
-            raise RuntimeError(f"Configuração inválida: {errors}")
+            # Abortamos o processo explicitamente — não subir com config quebrada
+            raise RuntimeError(
+                f"[SEGURANÇA] Configuração inválida para produção. "
+                f"Corrija as variáveis de ambiente antes de subir: {errors}"
+            )
 
     yield
     logger.info("application_shutdown")
@@ -119,14 +123,31 @@ def custom_openapi() -> dict[str, Any]:
     return schema
 
 
-# CORS
+# Rate Limiting — deve vir antes do CORS para bloquear antes de processar
+from app.middlewares.rate_limit import RateLimitMiddleware  # noqa: E402
+app.add_middleware(RateLimitMiddleware)
+
+# CORS — métodos e headers explícitos (não usar ["*"] em produção)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Accept"],
 )
+
+
+# Security headers — aplicados a todas as respostas
+@app.middleware("http")
+async def security_headers(request: Request, call_next: Any) -> Any:
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    # Remover header que revela a tecnologia do servidor
+    response.headers.pop("server", None)
+    return response
 
 
 # Request ID middleware

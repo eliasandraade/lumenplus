@@ -67,43 +67,33 @@ class FirebaseAuth:
 
     def _verify_dev_token(self, token: str) -> TokenPayload:
         """
-        DEV ONLY: aceita dois formatos:
-          1. "dev:<uid>:<email>"  — formato de teste rápido (CLI/curl)
-          2. JWT qualquer         — decodificado sem verificação de assinatura (útil com emulador Firebase)
+        DEV ONLY: aceita APENAS o formato "dev:<uid>:<email>".
 
-        AVISO: Este método NÃO valida assinaturas. Use apenas em DEV.
+        JWT sem verificação de assinatura foi REMOVIDO (risco crítico C1):
+        qualquer token fabricado com um 'sub' válido seria aceito sem nenhuma
+        prova de identidade, permitindo account takeover total.
+
+        Se precisar de suporte ao Firebase Emulator, utilize tokens reais
+        emitidos pelo emulador (que usam RS256 válido localmente).
+
+        AVISO: Este método NÃO é seguro para produção. Use apenas com AUTH_MODE=DEV.
         """
-        # Formato 1: dev:<uid>:<email>
-        if token.startswith("dev:"):
-            parts = token.split(":", 2)
-            uid = parts[1] if len(parts) > 1 and parts[1] else "dev-user"
-            email = parts[2] if len(parts) > 2 and parts[2] else "dev@example.com"
-            return TokenPayload(
-                uid=uid,
-                email=email,
-                email_verified=True,
-                provider="firebase",
+        if not token.startswith("dev:"):
+            raise ValueError(
+                "Em modo DEV, use o formato 'dev:<uid>:<email>'. "
+                "Tokens JWT sem verificação de assinatura foram removidos "
+                "por risco de segurança (account takeover por token fabricado)."
             )
 
-        # Formato 2: JWT sem verificação de assinatura (emulador Firebase ou tokens de teste)
-        try:
-            unverified = jwt.get_unverified_claims(token)
-            uid = unverified.get("sub") or unverified.get("user_id")
-            if not uid:
-                raise ValueError("JWT sem campo 'sub'/'user_id'")
-            logger.debug("FirebaseAuth DEV: aceitando JWT sem verificacao de assinatura")
-            return TokenPayload(
-                uid=uid,
-                email=unverified.get("email"),
-                email_verified=bool(unverified.get("email_verified", False)),
-                provider="firebase",
-            )
-        except (JWTError, ValueError) as exc:
-            # Em DEV, JWT malformado vira erro explícito (não mais fallback silencioso)
-            raise ValueError(
-                f"Token invalido em modo DEV: {exc}. "
-                "Use o formato 'dev:<uid>:<email>' ou um JWT valido."
-            ) from exc
+        parts = token.split(":", 2)
+        uid = parts[1] if len(parts) > 1 and parts[1] else "dev-user"
+        email = parts[2] if len(parts) > 2 and parts[2] else "dev@example.com"
+        return TokenPayload(
+            uid=uid,
+            email=email,
+            email_verified=True,
+            provider="firebase",
+        )
 
     def _verify_production_token(self, token: str) -> TokenPayload:
         try:

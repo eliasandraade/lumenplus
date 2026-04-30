@@ -57,9 +57,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/check-cpf", response_model=CpfCheckResponse)
 async def check_cpf_availability(
     body: CpfCheckRequest,
+    _current_user: CurrentUser,  # SEGURANÇA: exige autenticação — impede enumeração pública de CPFs (LGPD)
     db: Session = Depends(get_db),
 ) -> CpfCheckResponse:
-    """Verifica se um CPF já está cadastrado. Público — usado no wizard de cadastro antes da criação da conta."""
+    """Verifica se um CPF já está cadastrado. Requer autenticação — usado no wizard de cadastro."""
     if not crypto_service.is_configured:
         return CpfCheckResponse(available=True)
 
