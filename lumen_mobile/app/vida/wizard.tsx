@@ -106,13 +106,29 @@ export default function WizardScreen() {
     try {
       const mes = parseInt(data.mes, 10);
       const ano = parseInt(data.ano, 10);
-      const criado = await projetoVidaMensalApi.criar({
-        mes, ano,
-        tema: data.tema || null,
-        intencao: data.intencao || null,
-        pin: data.pin || null,
-      });
-      await projetoVidaMensalApi.update(criado.id, {
+
+      let projetoId: string;
+      try {
+        const criado = await projetoVidaMensalApi.criar({
+          mes, ano,
+          tema: data.tema || null,
+          intencao: data.intencao || null,
+          pin: data.pin || null,
+        });
+        projetoId = criado.id;
+      } catch (e: any) {
+        // Se 409 (já existe), busca o existente pelo histórico e usa seu ID
+        if (e?.response?.status === 409 || e?.status === 409) {
+          const historico = await projetoVidaMensalApi.getHistorico();
+          const existente = historico.find(p => p.mes === mes && p.ano === ano);
+          if (!existente) throw e; // situação inesperada
+          projetoId = existente.id;
+        } else {
+          throw e;
+        }
+      }
+
+      await projetoVidaMensalApi.update(projetoId, {
         comunidade: {
           partilha_acompanhador: data.comunidade.partilha_acompanhador || null,
           encontro_familia: data.comunidade.encontro_familia || null,
@@ -128,7 +144,7 @@ export default function WizardScreen() {
         compromissos: data.compromissos,
         praticas: data.praticas,
       });
-      router.replace({ pathname: '/vida/ciclo', params: { projetoId: criado.id } });
+      router.replace({ pathname: '/vida/ciclo', params: { projetoId } });
     } catch (e: any) {
       const msg = e?.response?.data?.detail?.message ?? 'Erro ao salvar. Tente novamente.';
       setError(msg);
@@ -339,10 +355,10 @@ export default function WizardScreen() {
               </View>
             </ScrollView>
 
-            {diaIndexes.map(({ p, i }) => (
+            {diaIndexes.map(({ p, i }, idx) => (
               <View key={i} style={styles.itemCard}>
                 <View style={styles.itemCardHeader}>
-                  <Text style={styles.itemCardTitle}>Prática {diaIndexes.indexOf({ p, i }) + 1}</Text>
+                  <Text style={styles.itemCardTitle}>Prática {idx + 1}</Text>
                   <TouchableOpacity onPress={() => removePratica(i)}>
                     <Ionicons name={'trash-outline' as IoniconsName} size={18} color={colors.error} />
                   </TouchableOpacity>
