@@ -28,12 +28,16 @@ export default function CicloScreen() {
   const [projeto, setProjeto] = useState<ProjetoVidaMensalFull | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
+    setError(null);
     try {
       const data = await projetoVidaMensalApi.get(projetoId);
       setProjeto(data);
+    } catch {
+      setError('Erro ao carregar o ciclo. Tente novamente.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -44,6 +48,13 @@ export default function CicloScreen() {
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  }
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={{ color: '#dc2626', fontSize: 15, textAlign: 'center', padding: 24 }}>{error}</Text>
+      </View>
+    );
   }
   if (!projeto) return null;
 
