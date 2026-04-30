@@ -1,6 +1,6 @@
 /**
- * Vida (Projeto de Vida) Layout
- * ==============================
+ * Vida (Projeto de Vida Mensal) Layout
+ * ======================================
  */
 
 import { Stack } from 'expo-router';
@@ -22,6 +22,20 @@ export default function VidaLayout() {
         name="wizard"
         options={{
           header: () => <BreadcrumbHeader items={[VIDA, { label: 'Novo Ciclo' }]} />,
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="unlock"
+        options={{
+          header: () => <BreadcrumbHeader items={[VIDA, { label: 'Desbloquear' }]} />,
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="ciclo"
+        options={{
+          header: () => <BreadcrumbHeader items={[VIDA, { label: 'Ciclo Mensal' }]} />,
           headerShown: true,
         }}
       />

@@ -1,1107 +1,511 @@
 /**
- * Projeto de Vida — Wizard
- * =========================
- * 8 etapas: vocacional → diagnóstico (5 dim.) → síntese/defeito →
- * objetivo principal → meios → rotina espiritual → diretor → confirmar
+ * Projeto de Vida Mensal — Wizard de Criação
+ * ============================================
+ * 6 passos: Ciclo → Comunidade → Cuidado → Compromissos → Oração → Confirmar
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Switch,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  TextInput, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { router, useLocalSearchParams, type Href } from 'expo-router';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import lifePlanApi, { type CycleOut } from '@/services/lifePlan';
-import {
-  DIMENSIONS,
-  VOCATIONAL_REALITIES,
-  DIAGNOSIS_QUESTIONS,
-  PRAYER_TYPE_OPTIONS,
-  MASS_FREQUENCY_OPTIONS,
-  CONFESSION_FREQUENCY_OPTIONS,
-  WIZARD_STEPS,
-  type DimensionKey,
-} from '@/data/vida';
+import type { IoniconsName } from '@/types/icons';
+import projetoVidaMensalApi, {
+  MESES, SEMANAS, SEMANA_LABELS, DIAS, DIA_LABELS, TIPOS_PRATICA,
+  type CompromissoIn, type PraticaIn,
+} from '@/services/projetoVidaMensal';
 
 const colors = {
-  primary: '#1A859B',
-  primaryLight: '#E8F4F7',
-  white: '#ffffff',
-  gray: '#6b7280',
-  lightGray: '#f3f4f6',
-  dark: '#171717',
-  border: '#e5e7eb',
-  error: '#ef4444',
+  primary: '#1A859B', primaryLight: '#E8F4F7',
+  white: '#ffffff', gray: '#6b7280',
+  lightGray: '#f3f4f6', dark: '#171717', border: '#e5e7eb', error: '#ef4444',
 };
 
-// ── State types ────────────────────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────────────────────
 
-type DiagnosisData = {
-  abandonar: string;
-  melhorar: string;
-  deus_pede: string;
-};
+interface WizardData {
+  mes: string;
+  ano: string;
+  tema: string;
+  intencao: string;
+  pin: string;
+  comunidade: { partilha_acompanhador: string; encontro_familia: string; dias_grupo: string; outros: string };
+  cuidado: { consultas: string; exames: string; descanso: string; outros: string };
+  compromissos: CompromissoIn[];
+  praticas: PraticaIn[];
+}
 
-type PrimaryAction = {
-  _id: string; // stable client-side key — never sent to the backend
-  action: string;
-  frequency: string;
-  context: string;
-};
-
-type WizardData = {
-  vocacional: string;
-  diagnoses: Record<DimensionKey, DiagnosisData>;
-  dominant_defect: string;
-  virtudes: string;
-  other_devotions: string;
-  primary_goal_title: string;
-  primary_goal_description: string;
-  primary_actions: PrimaryAction[];
-  prayer_types: string[]; // multi-select — salvo como string CSV no backend
-  prayer_duration: string;
-  mass_frequency: string;
-  confession_frequency: string;
-  exam_of_conscience: boolean;
-  exam_time: string;
-  spiritual_reading: string;
-  spiritual_direction_frequency: string;
-  other_practices: string;
-  spiritual_director_name: string;
-};
-
-const emptyDiagnosis = (): DiagnosisData => ({ abandonar: '', melhorar: '', deus_pede: '' });
-
-const newAction = (): PrimaryAction => ({
-  _id: Math.random().toString(36).slice(2, 10),
-  action: '',
-  frequency: '',
-  context: '',
-});
-
+const now = new Date();
 const defaultData = (): WizardData => ({
-  vocacional: '',
-  diagnoses: {
-    HUMANA: emptyDiagnosis(),
-    ESPIRITUAL: emptyDiagnosis(),
-    COMUNITARIA: emptyDiagnosis(),
-    INTELECTUAL: emptyDiagnosis(),
-    APOSTOLICA: emptyDiagnosis(),
-  },
-  dominant_defect: '',
-  virtudes: '',
-  other_devotions: '',
-  primary_goal_title: '',
-  primary_goal_description: '',
-  primary_actions: [newAction()],
-  prayer_types: [],
-  prayer_duration: '',
-  mass_frequency: '',
-  confession_frequency: '',
-  exam_of_conscience: false,
-  exam_time: '',
-  spiritual_reading: '',
-  spiritual_direction_frequency: '',
-  other_practices: '',
-  spiritual_director_name: '',
+  mes: String(now.getMonth() + 1),
+  ano: String(now.getFullYear()),
+  tema: '', intencao: '', pin: '',
+  comunidade: { partilha_acompanhador: '', encontro_familia: '', dias_grupo: '', outros: '' },
+  cuidado: { consultas: '', exames: '', descanso: '', outros: '' },
+  compromissos: [],
+  praticas: [],
 });
 
-// ── Main Component ─────────────────────────────────────────────────────────
+const STEP_TITLES = ['Ciclo Mensal', 'Comunidade', 'Cuidado Pessoal', 'Compromissos', 'Oração Diária', 'Confirmar'];
+
+// ── Main ───────────────────────────────────────────────────────────────────
 
 export default function WizardScreen() {
-  const { cycleId } = useLocalSearchParams<{ cycleId: string }>();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizardData>(defaultData());
-  const [dimStep, setDimStep] = useState(0); // sub-step within diagnóstico
+  const [activeSemana, setActiveSemana] = useState('s1');
+  const [activeDia, setActiveDia] = useState('seg');
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const totalSteps = WIZARD_STEPS.length;
+  const update = (partial: Partial<WizardData>) => setData(d => ({ ...d, ...partial }));
 
-  useEffect(() => {
-    if (!cycleId) return;
-    loadExistingData();
-  }, [cycleId]);
-
-  const loadExistingData = async () => {
-    try {
-      const cycle = await lifePlanApi.getCycle(cycleId!);
-      if (cycle.wizard_progress) {
-        const wp = cycle.wizard_progress as Record<string, unknown>;
-        if (wp.step !== undefined) setStep(Number(wp.step));
-        if (wp.dim_step !== undefined) setDimStep(Number(wp.dim_step));
-        if (wp.form_data) setData({ ...defaultData(), ...(wp.form_data as Partial<WizardData>) });
-      }
-      // Pre-fill from existing backend data
-      restoreFromCycle(cycle);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const restoreFromCycle = (cycle: CycleOut) => {
-    setData((prev) => {
-      const updated = { ...prev };
-      if (cycle.realidade_vocacional) updated.vocacional = cycle.realidade_vocacional;
-      if (cycle.core) {
-        updated.dominant_defect = cycle.core.dominant_defect || '';
-        updated.virtudes = cycle.core.virtudes || '';
-        updated.other_devotions = cycle.core.other_devotions || '';
-        updated.spiritual_director_name = cycle.core.spiritual_director_name || '';
-      }
-      if (cycle.routine) {
-        updated.prayer_types = cycle.routine.prayer_type
-          ? cycle.routine.prayer_type.split(',').map((s) => s.trim()).filter(Boolean)
-          : [];
-        updated.prayer_duration = cycle.routine.prayer_duration || '';
-        updated.mass_frequency = cycle.routine.mass_frequency || '';
-        updated.confession_frequency = cycle.routine.confession_frequency || '';
-        updated.exam_of_conscience = cycle.routine.exam_of_conscience ?? false;
-        updated.exam_time = cycle.routine.exam_time || '';
-        updated.spiritual_reading = cycle.routine.spiritual_reading || '';
-        updated.spiritual_direction_frequency = cycle.routine.spiritual_direction_frequency || '';
-        updated.other_practices = cycle.routine.other_practices || '';
-      }
-      cycle.diagnoses.forEach((d) => {
-        const key = d.dimension as DimensionKey;
-        if (updated.diagnoses[key]) {
-          updated.diagnoses[key] = {
-            abandonar: d.abandonar || '',
-            melhorar: d.melhorar || '',
-            deus_pede: d.deus_pede || '',
-          };
-        }
-      });
-      const primary = cycle.goals.find((g) => g.is_primary);
-      if (primary) {
-        updated.primary_goal_title = primary.title;
-        updated.primary_goal_description = primary.description || '';
-        if (primary.actions.length > 0) {
-          updated.primary_actions = primary.actions.map((a) => ({
-            _id: a.id,
-            action: a.action,
-            frequency: a.frequency || '',
-            context: a.context || '',
-          }));
-        }
-      }
-      return updated;
+  const addCompromisso = () => {
+    update({
+      compromissos: [
+        ...data.compromissos,
+        { semana: activeSemana, titulo: '', dia: '', horario: '', obs: '', ordem: data.compromissos.length },
+      ],
     });
   };
 
-  const saveProgress = async (nextStep: number, nextDimStep?: number) => {
-    if (!cycleId) return;
-    try {
-      await lifePlanApi.updateWizardProgress(cycleId, {
-        step: nextStep,
-        dim_step: nextDimStep ?? dimStep,
-        form_data: data,
-      });
-    } catch {
-      // non-blocking
-    }
+  const removeCompromisso = (idx: number) => {
+    update({ compromissos: data.compromissos.filter((_, i) => i !== idx) });
   };
 
-  const saveStepData = async () => {
-    if (!cycleId) return;
+  const updateCompromisso = (idx: number, patch: Partial<CompromissoIn>) => {
+    const list = [...data.compromissos];
+    list[idx] = { ...list[idx], ...patch };
+    update({ compromissos: list });
+  };
+
+  const addPratica = () => {
+    update({
+      praticas: [
+        ...data.praticas,
+        { dia_semana: activeDia, tipo: TIPOS_PRATICA[0], horario: '', duracao: '', obs: '', ordem: data.praticas.length },
+      ],
+    });
+  };
+
+  const removePratica = (idx: number) => {
+    update({ praticas: data.praticas.filter((_, i) => i !== idx) });
+  };
+
+  const updatePratica = (idx: number, patch: Partial<PraticaIn>) => {
+    const list = [...data.praticas];
+    list[idx] = { ...list[idx], ...patch };
+    update({ praticas: list });
+  };
+
+  const handleSave = async () => {
     setSaving(true);
+    setError(null);
     try {
-      // Step 0: vocacional
-      if (step === 0 && data.vocacional) {
-        // saved as wizard_progress; cycle.realidade_vocacional set at activation
-      }
+      const mes = parseInt(data.mes, 10);
+      const ano = parseInt(data.ano, 10);
 
-      // Step 1: diagnóstico
-      if (step === 1) {
-        const dim = DIMENSIONS[dimStep];
-        const d = data.diagnoses[dim.key];
-        await lifePlanApi.upsertDiagnosis(cycleId, {
-          dimension: dim.key,
-          abandonar: d.abandonar || null,
-          melhorar: d.melhorar || null,
-          deus_pede: d.deus_pede || null,
+      let projetoId: string;
+      try {
+        const criado = await projetoVidaMensalApi.criar({
+          mes, ano,
+          tema: data.tema || null,
+          intencao: data.intencao || null,
+          pin: data.pin || null,
         });
-      }
-
-      // Step 2: síntese/core
-      if (step === 2) {
-        await lifePlanApi.upsertCore(cycleId, {
-          dominant_defect: data.dominant_defect || null,
-          virtudes: data.virtudes || null,
-          other_devotions: data.other_devotions || null,
-        });
-      }
-
-      // Step 3: objetivo principal (title only at this step)
-      // Step 4: meios (actions saved together with goal at step 4)
-      if (step === 4 && data.primary_goal_title) {
-        // Try to find existing primary goal
-        const cycle = await lifePlanApi.getCycle(cycleId);
-        const existingPrimary = cycle.goals.find((g) => g.is_primary);
-        const actions = data.primary_actions
-          .filter((a) => a.action.trim())
-          .map(({ action, frequency, context }) => ({
-            action,
-            frequency: frequency || null,
-            context: context || null,
-          }));
-        if (!existingPrimary) {
-          await lifePlanApi.createGoal(cycleId, {
-            is_primary: true,
-            title: data.primary_goal_title,
-            description: data.primary_goal_description || null,
-            display_order: 0,
-            actions,
-          });
+        projetoId = criado.id;
+      } catch (e: any) {
+        // Se 409 (já existe), busca o existente pelo histórico e usa seu ID
+        if (e?.response?.status === 409 || e?.status === 409) {
+          const historico = await projetoVidaMensalApi.getHistorico();
+          const existente = historico.find(p => p.mes === mes && p.ano === ano);
+          if (!existente) throw e; // situação inesperada
+          projetoId = existente.id;
         } else {
-          await lifePlanApi.updateGoal(existingPrimary.id, {
-            title: data.primary_goal_title,
-            description: data.primary_goal_description || null,
-          });
-          // Update actions separately if needed
+          throw e;
         }
       }
 
-      // Step 5: rotina
-      if (step === 5) {
-        await lifePlanApi.upsertRoutine(cycleId, {
-          prayer_type: data.prayer_types.length > 0 ? data.prayer_types.join(', ') : null,
-          prayer_duration: data.prayer_duration || null,
-          mass_frequency: data.mass_frequency || null,
-          confession_frequency: data.confession_frequency || null,
-          exam_of_conscience: data.exam_of_conscience,
-          exam_time: data.exam_time || null,
-          spiritual_reading: data.spiritual_reading || null,
-          spiritual_direction_frequency: data.spiritual_direction_frequency || null,
-          other_practices: data.other_practices || null,
-        });
-      }
-
-      // Step 6: diretor
-      if (step === 6) {
-        await lifePlanApi.upsertCore(cycleId, {
-          spiritual_director_name: data.spiritual_director_name || null,
-        });
-      }
-    } catch (err: any) {
-      const msg = err?.response?.data?.detail?.message || 'Erro ao salvar. Tente novamente.';
-      setValidationError(msg);
-      return false;
+      await projetoVidaMensalApi.update(projetoId, {
+        comunidade: {
+          partilha_acompanhador: data.comunidade.partilha_acompanhador || null,
+          encontro_familia: data.comunidade.encontro_familia || null,
+          dias_grupo: data.comunidade.dias_grupo || null,
+          outros: data.comunidade.outros || null,
+        },
+        cuidado: {
+          consultas: data.cuidado.consultas || null,
+          exames: data.cuidado.exames || null,
+          descanso: data.cuidado.descanso || null,
+          outros: data.cuidado.outros || null,
+        },
+        compromissos: data.compromissos,
+        praticas: data.praticas,
+      });
+      router.replace({ pathname: '/vida/ciclo', params: { projetoId } });
+    } catch (e: any) {
+      const msg = e?.response?.data?.detail?.message ?? 'Erro ao salvar. Tente novamente.';
+      setError(msg);
     } finally {
       setSaving(false);
     }
-    return true;
   };
 
-  const handleNext = async () => {
-    // Valida antes de avançar
-    const error = validateCurrentStep();
-    if (error) {
-      setValidationError(error);
-      return;
-    }
-    setValidationError(null);
+  // ── Render steps ──────────────────────────────────────────────────────────
 
-    // Special case: diagnóstico has sub-steps
-    if (step === 1 && dimStep < DIMENSIONS.length - 1) {
-      const ok = await saveStepData();
-      if (!ok) return;
-      const nextDim = dimStep + 1;
-      setDimStep(nextDim);
-      await saveProgress(step, nextDim);
-      return;
-    }
+  const renderStep = () => {
+    switch (step) {
+      // ── Step 0: Ciclo Mensal ─────────────────────────────────────────────
+      case 0:
+        return (
+          <View style={styles.stepContent}>
+            <Text style={styles.fieldLabel}>Mês *</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+              <View style={styles.chipRow}>
+                {MESES.map((m, i) => (
+                  <TouchableOpacity
+                    key={m}
+                    style={[styles.chip, data.mes === String(i + 1) && styles.chipActive]}
+                    onPress={() => update({ mes: String(i + 1) })}
+                  >
+                    <Text style={[styles.chipText, data.mes === String(i + 1) && styles.chipTextActive]}>
+                      {m.slice(0, 3)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
 
-    const ok = await saveStepData();
-    if (!ok) return;
-    const nextStep = step + 1;
-    setStep(nextStep);
-    setDimStep(0);
-    await saveProgress(nextStep, 0);
-  };
-
-  const handleBack = () => {
-    setValidationError(null);
-    if (step === 1 && dimStep > 0) {
-      setDimStep(dimStep - 1);
-      return;
-    }
-    if (step === 0) {
-      router.back();
-      return;
-    }
-    setStep(step - 1);
-    if (step - 1 === 1) setDimStep(DIMENSIONS.length - 1);
-  };
-
-  const handleFinish = async () => {
-    const ok = await saveStepData();
-    if (!ok) return;
-    router.replace('/vida' as Href);
-  };
-
-  const updateDiagnosis = (key: keyof DiagnosisData, value: string) => {
-    const dim = DIMENSIONS[dimStep].key;
-    setData((prev) => ({
-      ...prev,
-      diagnoses: {
-        ...prev.diagnoses,
-        [dim]: { ...prev.diagnoses[dim], [key]: value },
-      },
-    }));
-  };
-
-  const addAction = () => {
-    setData((prev) => ({
-      ...prev,
-      primary_actions: [...prev.primary_actions, newAction()],
-    }));
-  };
-
-  const updateAction = (idx: number, field: 'action' | 'frequency' | 'context', value: string) => {
-    setData((prev) => {
-      const actions = [...prev.primary_actions];
-      actions[idx] = { ...actions[idx], [field]: value };
-      return { ...prev, primary_actions: actions };
-    });
-  };
-
-  const removeAction = (idx: number) => {
-    setData((prev) => ({
-      ...prev,
-      primary_actions: prev.primary_actions.filter((_, i) => i !== idx),
-    }));
-  };
-
-  // ── Validation ──────────────────────────────────────────────────────────
-
-  const validateCurrentStep = (): string | null => {
-    // Step 0: Realidade Vocacional obrigatória
-    if (step === 0) {
-      if (!data.vocacional) return 'Selecione sua realidade vocacional para continuar.';
-    }
-
-    // Step 1: Diagnóstico — todas as 3 perguntas da dimensão atual são obrigatórias
-    if (step === 1) {
-      const dim = DIMENSIONS[dimStep];
-      const d = data.diagnoses[dim.key];
-      const empty = [d.abandonar, d.melhorar, d.deus_pede].filter((v) => !v.trim());
-      if (empty.length > 0) {
-        return `Responda às três perguntas da ${dim.label} antes de continuar.`;
-      }
-    }
-
-    // Step 2: Defeito dominante obrigatório
-    if (step === 2) {
-      if (!data.dominant_defect.trim()) {
-        return 'Identifique seu defeito dominante para continuar.';
-      }
-    }
-
-    // Step 3: Título do objetivo obrigatório
-    if (step === 3) {
-      if (data.primary_goal_title.trim().length < 3) {
-        return 'Defina o título do objetivo principal (mínimo 3 caracteres).';
-      }
-    }
-
-    // Step 4: Pelo menos um meio concreto com descrição
-    if (step === 4) {
-      const valid = data.primary_actions.filter((a) => a.action.trim().length > 0);
-      if (valid.length === 0) {
-        return 'Defina pelo menos um meio concreto para alcançar seu objetivo.';
-      }
-    }
-
-    // Step 5: Frequência da Missa e da Confissão obrigatórias
-    if (step === 5) {
-      if (!data.mass_frequency) return 'Selecione a frequência com que participará da Santa Missa.';
-      if (!data.confession_frequency) return 'Selecione a frequência com que receberá o Sacramento da Confissão.';
-    }
-
-    return null;
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  // ── Progress bar ────────────────────────────────────────────────────────
-  const progressSteps = totalSteps;
-  const currentProgressStep = step === 1 ? 1 : step;
-
-  return (
-    <View style={styles.container}>
-      {/* Progress */}
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${((currentProgressStep) / (totalSteps - 1)) * 100}%` }]} />
-        </View>
-        <Text style={styles.progressLabel}>
-          {WIZARD_STEPS[step]?.label}
-          {step === 1 ? ` (${dimStep + 1}/${DIMENSIONS.length})` : ''}
-        </Text>
-      </View>
-
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* ── Step 0: Realidade Vocacional ─────────────────────────────── */}
-        {step === 0 && (
-          <View>
-            <Text style={styles.stepTitle}>Sua Realidade Vocacional</Text>
-            <Text style={styles.stepSubtitle}>
-              Selecione o estado de vida que melhor descreve sua vocação atual.
-            </Text>
-            {VOCATIONAL_REALITIES.map((v) => (
-              <TouchableOpacity
-                key={v.key}
-                style={[styles.optionCard, data.vocacional === v.key && styles.optionCardSelected]}
-                onPress={() => setData((p) => ({ ...p, vocacional: v.key }))}
-              >
-                <Text style={[styles.optionLabel, data.vocacional === v.key && styles.optionLabelSelected]}>
-                  {v.label}
-                </Text>
-                {data.vocacional === v.key && (
-                  <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* ── Step 1: Diagnóstico ──────────────────────────────────────── */}
-        {step === 1 && (
-          <View>
-            <View style={styles.dimHeader}>
-              <Ionicons name={DIMENSIONS[dimStep].icon as any} size={24} color={colors.primary} />
-              <Text style={styles.stepTitle}>{DIMENSIONS[dimStep].label}</Text>
-            </View>
-            <Text style={styles.stepSubtitle}>Reflexão honesta sobre esta dimensão da sua vida.</Text>
-
-            <Text style={styles.fieldLabel}>
-              {DIAGNOSIS_QUESTIONS[DIMENSIONS[dimStep].key].abandonar}
-            </Text>
-            <TextInput
-              style={styles.textArea}
-              multiline
-              numberOfLines={3}
-              placeholder="Escreva sua reflexão..."
-              placeholderTextColor={colors.gray}
-              value={data.diagnoses[DIMENSIONS[dimStep].key].abandonar}
-              onChangeText={(v) => updateDiagnosis('abandonar', v)}
-            />
-
-            <Text style={styles.fieldLabel}>
-              {DIAGNOSIS_QUESTIONS[DIMENSIONS[dimStep].key].melhorar}
-            </Text>
-            <TextInput
-              style={styles.textArea}
-              multiline
-              numberOfLines={3}
-              placeholder="Escreva sua reflexão..."
-              placeholderTextColor={colors.gray}
-              value={data.diagnoses[DIMENSIONS[dimStep].key].melhorar}
-              onChangeText={(v) => updateDiagnosis('melhorar', v)}
-            />
-
-            <Text style={styles.fieldLabel}>
-              {DIAGNOSIS_QUESTIONS[DIMENSIONS[dimStep].key].deus_pede}
-            </Text>
-            <TextInput
-              style={styles.textArea}
-              multiline
-              numberOfLines={3}
-              placeholder="O que Deus me pede..."
-              placeholderTextColor={colors.gray}
-              value={data.diagnoses[DIMENSIONS[dimStep].key].deus_pede}
-              onChangeText={(v) => updateDiagnosis('deus_pede', v)}
-            />
-          </View>
-        )}
-
-        {/* ── Step 2: Síntese & Defeito Dominante ─────────────────────── */}
-        {step === 2 && (
-          <View>
-            <Text style={styles.stepTitle}>Síntese e Defeito Dominante</Text>
-            <Text style={styles.stepSubtitle}>
-              A partir do diagnóstico, identifique o defeito dominante que impede seu crescimento espiritual e as virtudes opostas a cultivar.
-            </Text>
-
-            <Text style={styles.fieldLabel}>Defeito dominante *</Text>
+            <Text style={styles.fieldLabel}>Ano *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ex: soberba, preguiça, impureza..."
-              placeholderTextColor={colors.gray}
-              value={data.dominant_defect}
-              onChangeText={(v) => setData((p) => ({ ...p, dominant_defect: v }))}
+              value={data.ano}
+              onChangeText={v => update({ ano: v })}
+              keyboardType="numeric"
+              maxLength={4}
             />
 
-            <Text style={styles.fieldLabel}>Virtudes a cultivar</Text>
-            <TextInput
-              style={styles.textArea}
-              multiline
-              numberOfLines={3}
-              placeholder="Ex: humildade, laboriosidade, castidade..."
-              placeholderTextColor={colors.gray}
-              value={data.virtudes}
-              onChangeText={(v) => setData((p) => ({ ...p, virtudes: v }))}
-            />
-
-            <Text style={styles.fieldLabel}>Outras devoções e práticas</Text>
-            <TextInput
-              style={styles.textArea}
-              multiline
-              numberOfLines={3}
-              placeholder="Ex: terço diário, Via Sacra..."
-              placeholderTextColor={colors.gray}
-              value={data.other_devotions}
-              onChangeText={(v) => setData((p) => ({ ...p, other_devotions: v }))}
-            />
-          </View>
-        )}
-
-        {/* ── Step 3: Objetivo Principal ───────────────────────────────── */}
-        {step === 3 && (
-          <View>
-            <Text style={styles.stepTitle}>Objetivo Principal</Text>
-            <Text style={styles.stepSubtitle}>
-              Defina o objetivo principal do seu plano — geralmente vinculado ao combate do defeito dominante.
-            </Text>
-
-            <Text style={styles.fieldLabel}>Título do objetivo (máx. 80 caracteres) *</Text>
+            <Text style={styles.fieldLabel}>Tema do mês (opcional)</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ex: Vencer a soberba pela humildade"
+              value={data.tema}
+              onChangeText={v => update({ tema: v })}
+              placeholder="Ex: Conversão e perseverança"
               placeholderTextColor={colors.gray}
-              value={data.primary_goal_title}
-              maxLength={80}
-              onChangeText={(v) => setData((p) => ({ ...p, primary_goal_title: v }))}
             />
-            <Text style={styles.charCount}>{data.primary_goal_title.length}/80</Text>
 
-            <Text style={styles.fieldLabel}>Descrição (opcional)</Text>
+            <Text style={styles.fieldLabel}>Intenção do mês (opcional)</Text>
             <TextInput
-              style={styles.textArea}
+              style={[styles.input, styles.textarea]}
+              value={data.intencao}
+              onChangeText={v => update({ intencao: v })}
+              placeholder="Qual a sua intenção principal neste ciclo?"
+              placeholderTextColor={colors.gray}
               multiline
               numberOfLines={4}
-              placeholder="Descreva com mais detalhes o que deseja alcançar..."
+            />
+
+            <Text style={styles.fieldLabel}>PIN de proteção (4 dígitos, opcional)</Text>
+            <TextInput
+              style={styles.input}
+              value={data.pin}
+              onChangeText={v => update({ pin: v.replace(/\D/g, '').slice(0, 4) })}
+              placeholder="Deixe em branco para sem PIN"
               placeholderTextColor={colors.gray}
-              value={data.primary_goal_description}
-              onChangeText={(v) => setData((p) => ({ ...p, primary_goal_description: v }))}
+              keyboardType="numeric"
+              secureTextEntry
+              maxLength={4}
             />
           </View>
-        )}
+        );
 
-        {/* ── Step 4: Meios ────────────────────────────────────────────── */}
-        {step === 4 && (
-          <View>
-            <Text style={styles.stepTitle}>Meios Concretos</Text>
-            <Text style={styles.stepSubtitle}>
-              Liste as ações concretas para alcançar seu objetivo principal.
-            </Text>
-
-            {data.primary_actions.map((action, idx) => (
-              <View key={action._id} style={styles.actionCard}>
-                <View style={styles.actionCardHeader}>
-                  <Text style={styles.actionCardTitle}>Meio {idx + 1}</Text>
-                  {idx > 0 && (
-                    <TouchableOpacity onPress={() => removeAction(idx)}>
-                      <Ionicons name="trash-outline" size={18} color={colors.error} />
-                    </TouchableOpacity>
-                  )}
+      // ── Step 1: Comunidade ───────────────────────────────────────────────
+      case 1:
+        return (
+          <View style={styles.stepContent}>
+            {(['partilha_acompanhador', 'encontro_familia', 'dias_grupo', 'outros'] as const).map((key) => {
+              const labels: Record<string, string> = {
+                partilha_acompanhador: 'Partilha com acompanhador',
+                encontro_familia: 'Encontro com família',
+                dias_grupo: 'Dias de grupo',
+                outros: 'Outros',
+              };
+              return (
+                <View key={key} style={{ marginBottom: 16 }}>
+                  <Text style={styles.fieldLabel}>{labels[key]}</Text>
+                  <TextInput
+                    style={[styles.input, styles.textarea]}
+                    value={data.comunidade[key]}
+                    onChangeText={v => update({ comunidade: { ...data.comunidade, [key]: v } })}
+                    multiline
+                    numberOfLines={3}
+                    placeholderTextColor={colors.gray}
+                  />
                 </View>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Descrição da ação *"
-                  placeholderTextColor={colors.gray}
-                  value={action.action}
-                  onChangeText={(v) => updateAction(idx, 'action', v)}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Frequência (ex: diária, semanal)"
-                  placeholderTextColor={colors.gray}
-                  value={action.frequency}
-                  onChangeText={(v) => updateAction(idx, 'frequency', v)}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Contexto (ex: pela manhã, antes da missa)"
-                  placeholderTextColor={colors.gray}
-                  value={action.context}
-                  onChangeText={(v) => updateAction(idx, 'context', v)}
-                />
+              );
+            })}
+          </View>
+        );
+
+      // ── Step 2: Cuidado Pessoal ──────────────────────────────────────────
+      case 2:
+        return (
+          <View style={styles.stepContent}>
+            {(['consultas', 'exames', 'descanso', 'outros'] as const).map((key) => {
+              const labels: Record<string, string> = {
+                consultas: 'Consultas médicas',
+                exames: 'Exames',
+                descanso: 'Descanso e lazer',
+                outros: 'Outros cuidados',
+              };
+              return (
+                <View key={key} style={{ marginBottom: 16 }}>
+                  <Text style={styles.fieldLabel}>{labels[key]}</Text>
+                  <TextInput
+                    style={[styles.input, styles.textarea]}
+                    value={data.cuidado[key]}
+                    onChangeText={v => update({ cuidado: { ...data.cuidado, [key]: v } })}
+                    multiline
+                    numberOfLines={3}
+                    placeholderTextColor={colors.gray}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        );
+
+      // ── Step 3: Compromissos semanais ────────────────────────────────────
+      case 3:
+        const semanaItems = data.compromissos.filter(c => c.semana === activeSemana);
+        const semanaIndexes = data.compromissos
+          .map((c, i) => ({ c, i }))
+          .filter(({ c }) => c.semana === activeSemana);
+        return (
+          <View style={styles.stepContent}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+              <View style={styles.chipRow}>
+                {SEMANAS.map(s => (
+                  <TouchableOpacity
+                    key={s}
+                    style={[styles.chip, activeSemana === s && styles.chipActive]}
+                    onPress={() => setActiveSemana(s)}
+                  >
+                    <Text style={[styles.chipText, activeSemana === s && styles.chipTextActive]}>
+                      {SEMANA_LABELS[s]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            {semanaIndexes.map(({ c, i }) => (
+              <View key={i} style={styles.itemCard}>
+                <View style={styles.itemCardHeader}>
+                  <Text style={styles.itemCardTitle}>Compromisso {semanaItems.indexOf(c) + 1}</Text>
+                  <TouchableOpacity onPress={() => removeCompromisso(i)}>
+                    <Ionicons name={'trash-outline' as IoniconsName} size={18} color={colors.error} />
+                  </TouchableOpacity>
+                </View>
+                <TextInput style={styles.input} placeholder="Título" placeholderTextColor={colors.gray}
+                  value={c.titulo} onChangeText={v => updateCompromisso(i, { titulo: v })} />
+                <View style={styles.row}>
+                  <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="Dia"
+                    placeholderTextColor={colors.gray} value={c.dia}
+                    onChangeText={v => updateCompromisso(i, { dia: v })} />
+                  <TextInput style={[styles.input, { flex: 1 }]} placeholder="Horário"
+                    placeholderTextColor={colors.gray} value={c.horario}
+                    onChangeText={v => updateCompromisso(i, { horario: v })} />
+                </View>
+                <TextInput style={[styles.input, styles.textarea]} placeholder="Observações"
+                  placeholderTextColor={colors.gray} value={c.obs}
+                  onChangeText={v => updateCompromisso(i, { obs: v })} multiline numberOfLines={2} />
               </View>
             ))}
 
-            {data.primary_actions.length < 5 && (
-              <TouchableOpacity style={styles.addActionButton} onPress={addAction}>
-                <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
-                <Text style={styles.addActionText}>Adicionar meio</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity style={styles.addBtn} onPress={addCompromisso}>
+              <Ionicons name={'add-circle-outline' as IoniconsName} size={20} color={colors.primary} />
+              <Text style={styles.addBtnText}>Adicionar compromisso em {SEMANA_LABELS[activeSemana]}</Text>
+            </TouchableOpacity>
           </View>
-        )}
+        );
 
-        {/* ── Step 5: Rotina Espiritual ────────────────────────────────── */}
-        {step === 5 && (
-          <View>
-            <Text style={styles.stepTitle}>Rotina Espiritual</Text>
-            <Text style={styles.stepSubtitle}>
-              Defina as práticas espirituais que sustentarão seu plano.
-            </Text>
-
-            <Text style={styles.fieldLabel}>Tipos de oração (selecione todos que pratica)</Text>
-            <View style={styles.optionGroup}>
-              {PRAYER_TYPE_OPTIONS.map((opt) => {
-                const selected = data.prayer_types.includes(opt.key);
-                return (
+      // ── Step 4: Oração Diária ────────────────────────────────────────────
+      case 4:
+        const diaIndexes = data.praticas
+          .map((p, i) => ({ p, i }))
+          .filter(({ p }) => p.dia_semana === activeDia);
+        return (
+          <View style={styles.stepContent}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+              <View style={styles.chipRow}>
+                {DIAS.map(d => (
                   <TouchableOpacity
-                    key={opt.key}
-                    style={[styles.chipOption, selected && styles.chipSelected]}
-                    onPress={() =>
-                      setData((p) => ({
-                        ...p,
-                        prayer_types: selected
-                          ? p.prayer_types.filter((k) => k !== opt.key)
-                          : [...p.prayer_types, opt.key],
-                      }))
-                    }
+                    key={d}
+                    style={[styles.chip, activeDia === d && styles.chipActive]}
+                    onPress={() => setActiveDia(d)}
                   >
-                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                      {opt.label}
+                    <Text style={[styles.chipText, activeDia === d && styles.chipTextActive]}>
+                      {DIA_LABELS[d].slice(0, 3)}
                     </Text>
                   </TouchableOpacity>
-                );
-              })}
+                ))}
+              </View>
+            </ScrollView>
+
+            {diaIndexes.map(({ p, i }, idx) => (
+              <View key={i} style={styles.itemCard}>
+                <View style={styles.itemCardHeader}>
+                  <Text style={styles.itemCardTitle}>Prática {idx + 1}</Text>
+                  <TouchableOpacity onPress={() => removePratica(i)}>
+                    <Ionicons name={'trash-outline' as IoniconsName} size={18} color={colors.error} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+                  <View style={styles.chipRow}>
+                    {TIPOS_PRATICA.map(t => (
+                      <TouchableOpacity key={t} style={[styles.chip, p.tipo === t && styles.chipActive]}
+                        onPress={() => updatePratica(i, { tipo: t })}>
+                        <Text style={[styles.chipText, p.tipo === t && styles.chipTextActive]}>{t}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+                <View style={styles.row}>
+                  <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="Horário"
+                    placeholderTextColor={colors.gray} value={p.horario}
+                    onChangeText={v => updatePratica(i, { horario: v })} />
+                  <TextInput style={[styles.input, { flex: 1 }]} placeholder="Duração"
+                    placeholderTextColor={colors.gray} value={p.duracao}
+                    onChangeText={v => updatePratica(i, { duracao: v })} />
+                </View>
+                <TextInput style={[styles.input, styles.textarea]} placeholder="Observações"
+                  placeholderTextColor={colors.gray} value={p.obs}
+                  onChangeText={v => updatePratica(i, { obs: v })} multiline numberOfLines={2} />
+              </View>
+            ))}
+
+            <TouchableOpacity style={styles.addBtn} onPress={addPratica}>
+              <Ionicons name={'add-circle-outline' as IoniconsName} size={20} color={colors.primary} />
+              <Text style={styles.addBtnText}>Adicionar prática em {DIA_LABELS[activeDia]}</Text>
+            </TouchableOpacity>
+          </View>
+        );
+
+      // ── Step 5: Confirmar ────────────────────────────────────────────────
+      case 5:
+        return (
+          <View style={styles.stepContent}>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryTitle}>
+                {MESES[parseInt(data.mes, 10) - 1]} {data.ano}
+              </Text>
+              {data.tema ? <Text style={styles.summaryItem}>🎯 {data.tema}</Text> : null}
+              {data.pin ? <Text style={styles.summaryItem}>🔒 PIN configurado</Text> : null}
+              <Text style={styles.summaryItem}>
+                📅 {data.compromissos.length} compromisso(s)
+              </Text>
+              <Text style={styles.summaryItem}>
+                🙏 {data.praticas.length} prática(s) de oração
+              </Text>
             </View>
-
-            <Text style={styles.fieldLabel}>Duração da oração</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: 30 minutos"
-              placeholderTextColor={colors.gray}
-              value={data.prayer_duration}
-              onChangeText={(v) => setData((p) => ({ ...p, prayer_duration: v }))}
-            />
-
-            <Text style={styles.fieldLabel}>Frequência da Missa</Text>
-            <View style={styles.optionGroup}>
-              {MASS_FREQUENCY_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt.key}
-                  style={[styles.chipOption, data.mass_frequency === opt.key && styles.chipSelected]}
-                  onPress={() => setData((p) => ({ ...p, mass_frequency: opt.key }))}
-                >
-                  <Text style={[styles.chipText, data.mass_frequency === opt.key && styles.chipTextSelected]}>
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.fieldLabel}>Frequência da Confissão</Text>
-            <View style={styles.optionGroup}>
-              {CONFESSION_FREQUENCY_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt.key}
-                  style={[styles.chipOption, data.confession_frequency === opt.key && styles.chipSelected]}
-                  onPress={() => setData((p) => ({ ...p, confession_frequency: opt.key }))}
-                >
-                  <Text style={[styles.chipText, data.confession_frequency === opt.key && styles.chipTextSelected]}>
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={styles.switchRow}>
-              <Text style={styles.fieldLabel}>Exame de consciência diário</Text>
-              <Switch
-                value={data.exam_of_conscience}
-                onValueChange={(v) => setData((p) => ({ ...p, exam_of_conscience: v }))}
-                trackColor={{ true: colors.primary }}
-              />
-            </View>
-
-            {data.exam_of_conscience && (
-              <TextInput
-                style={styles.input}
-                placeholder="Horário do exame (ex: 21h)"
-                placeholderTextColor={colors.gray}
-                value={data.exam_time}
-                onChangeText={(v) => setData((p) => ({ ...p, exam_time: v }))}
-              />
+            {error && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
             )}
-
-            <Text style={styles.fieldLabel}>Leitura espiritual</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: Imitação de Cristo"
-              placeholderTextColor={colors.gray}
-              value={data.spiritual_reading}
-              onChangeText={(v) => setData((p) => ({ ...p, spiritual_reading: v }))}
-            />
-
-            <Text style={styles.fieldLabel}>Outras práticas espirituais</Text>
-            <TextInput
-              style={styles.textArea}
-              multiline
-              numberOfLines={3}
-              placeholder="Ex: Adoração eucarística quinzenal..."
-              placeholderTextColor={colors.gray}
-              value={data.other_practices}
-              onChangeText={(v) => setData((p) => ({ ...p, other_practices: v }))}
-            />
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving} activeOpacity={0.8}>
+              {saving
+                ? <ActivityIndicator color={colors.white} />
+                : <Text style={styles.saveBtnText}>Salvar Projeto de Vida</Text>
+              }
+            </TouchableOpacity>
           </View>
-        )}
+        );
 
-        {/* ── Step 6: Diretor Espiritual ───────────────────────────────── */}
-        {step === 6 && (
-          <View>
-            <Text style={styles.stepTitle}>Diretor Espiritual</Text>
-            <Text style={styles.stepSubtitle}>
-              O acompanhamento espiritual é fundamental para o sucesso do seu projeto de vida.
-            </Text>
+      default:
+        return null;
+    }
+  };
 
-            <Text style={styles.fieldLabel}>Nome do diretor espiritual</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Padre ou acompanhante espiritual..."
-              placeholderTextColor={colors.gray}
-              value={data.spiritual_director_name}
-              onChangeText={(v) => setData((p) => ({ ...p, spiritual_director_name: v }))}
-            />
+  return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* Indicador de passo */}
+      <View style={styles.stepBar}>
+        {STEP_TITLES.map((_, i) => (
+          <View key={i} style={[styles.stepDot, i === step && styles.stepDotActive, i < step && styles.stepDotDone]} />
+        ))}
+      </View>
+      <View style={styles.stepHeader}>
+        <Text style={styles.stepTitle}>{STEP_TITLES[step]}</Text>
+        <Text style={styles.stepCounter}>{step + 1} / {STEP_TITLES.length}</Text>
+      </View>
 
-            <Text style={styles.fieldLabel}>Frequência de encontros com o diretor</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: Mensal, quinzenal..."
-              placeholderTextColor={colors.gray}
-              value={data.spiritual_direction_frequency}
-              onChangeText={(v) => setData((p) => ({ ...p, spiritual_direction_frequency: v }))}
-            />
-
-            <View style={styles.infoBox}>
-              <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
-              <Text style={styles.infoText}>
-                Se ainda não tem diretor espiritual, busque um sacerdote ou pessoa de confiança na sua comunidade para esse acompanhamento.
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* ── Step 7: Confirmar ─────────────────────────────────────────── */}
-        {step === 7 && (
-          <View>
-            <Text style={styles.stepTitle}>Revisar e Confirmar</Text>
-            <Text style={styles.stepSubtitle}>
-              Seu Projeto de Vida está quase pronto. Revise e, quando estiver satisfeito, salve como rascunho. Você poderá ativá-lo na tela principal.
-            </Text>
-
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Realidade Vocacional</Text>
-              <Text style={styles.summaryValue}>{data.vocacional || '(não informado)'}</Text>
-            </View>
-
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Defeito Dominante</Text>
-              <Text style={styles.summaryValue}>{data.dominant_defect || '(não informado)'}</Text>
-            </View>
-
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Objetivo Principal</Text>
-              <Text style={styles.summaryValue}>{data.primary_goal_title || '(não informado)'}</Text>
-            </View>
-
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Meios</Text>
-              <Text style={styles.summaryValue}>
-                {data.primary_actions.filter((a) => a.action.trim()).length} ações definidas
-              </Text>
-            </View>
-
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Dimensões diagnosticadas</Text>
-              <Text style={styles.summaryValue}>
-                {Object.values(data.diagnoses).filter((d) => d.abandonar || d.melhorar || d.deus_pede).length}/5
-              </Text>
-            </View>
-
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Diretor Espiritual</Text>
-              <Text style={styles.summaryValue}>{data.spiritual_director_name || '(não informado)'}</Text>
-            </View>
-
-            <View style={styles.infoBox}>
-              <Ionicons name="checkmark-circle-outline" size={20} color={colors.primary} />
-              <Text style={styles.infoText}>
-                Após salvar, você poderá ativar o plano na tela principal. O plano ativo orienta suas revisões mensais.
-              </Text>
-            </View>
-          </View>
-        )}
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+        {renderStep()}
       </ScrollView>
 
-      {/* Navigation */}
-      <View style={styles.navContainer}>
-        {validationError ? (
-          <View style={styles.validationErrorBox}>
-            <Ionicons name="alert-circle" size={15} color={colors.error} />
-            <Text style={styles.validationErrorText}>{validationError}</Text>
-          </View>
-        ) : null}
-        <View style={styles.navRow}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Ionicons name="chevron-back" size={20} color={colors.gray} />
-          <Text style={styles.backButtonText}>Voltar</Text>
+      {/* Navegação */}
+      <View style={styles.navRow}>
+        <TouchableOpacity
+          style={[styles.navBtn, styles.navBtnBack]}
+          onPress={() => (step === 0 ? router.back() : setStep(s => s - 1))}
+        >
+          <Ionicons name={'chevron-back' as IoniconsName} size={20} color={colors.primary} />
+          <Text style={styles.navBtnBackText}>{step === 0 ? 'Cancelar' : 'Voltar'}</Text>
         </TouchableOpacity>
 
-        {step < totalSteps - 1 ? (
+        {step < STEP_TITLES.length - 1 && (
           <TouchableOpacity
-            style={[styles.nextButton, saving && styles.buttonDisabled]}
-            onPress={handleNext}
-            disabled={saving}
+            style={[styles.navBtn, styles.navBtnNext]}
+            onPress={() => setStep(s => s + 1)}
           >
-            {saving ? (
-              <ActivityIndicator size="small" color={colors.white} />
-            ) : (
-              <>
-                <Text style={styles.nextButtonText}>Próximo</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.white} />
-              </>
-            )}
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={[styles.nextButton, styles.finishButton, saving && styles.buttonDisabled]}
-            onPress={handleFinish}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator size="small" color={colors.white} />
-            ) : (
-              <>
-                <Ionicons name="checkmark" size={20} color={colors.white} />
-                <Text style={styles.nextButtonText}>Salvar Plano</Text>
-              </>
-            )}
+            <Text style={styles.navBtnNextText}>Próximo</Text>
+            <Ionicons name={'chevron-forward' as IoniconsName} size={20} color={colors.white} />
           </TouchableOpacity>
         )}
-        </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.lightGray },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 24 },
-
-  progressContainer: {
-    backgroundColor: colors.white,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: colors.lightGray,
-    borderRadius: 2,
-    marginBottom: 8,
-  },
-  progressFill: {
-    height: 4,
-    backgroundColor: colors.primary,
-    borderRadius: 2,
-  },
-  progressLabel: { fontSize: 13, fontWeight: '600', color: colors.primary },
-
-  stepTitle: { fontSize: 20, fontWeight: '700', color: colors.dark, marginBottom: 8 },
-  stepSubtitle: { fontSize: 14, color: colors.gray, lineHeight: 20, marginBottom: 20 },
-
-  dimHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-
-  fieldLabel: { fontSize: 14, fontWeight: '600', color: colors.dark, marginBottom: 8, marginTop: 12 },
-  charCount: { fontSize: 11, color: colors.gray, textAlign: 'right', marginTop: 2 },
-
-  input: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: colors.dark,
-    marginBottom: 4,
-  },
-  textArea: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: colors.dark,
-    textAlignVertical: 'top',
-    minHeight: 90,
-    marginBottom: 4,
-  },
-
-  optionCard: {
-    backgroundColor: colors.white,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  optionCardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
-  },
-  optionLabel: { fontSize: 15, color: colors.dark },
-  optionLabelSelected: { color: colors.primary, fontWeight: '600' },
-
-  optionGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
-  chipOption: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-  },
-  chipSelected: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  container: { flex: 1, backgroundColor: '#f9fafb' },
+  stepBar: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingVertical: 12, backgroundColor: colors.white, borderBottomWidth: 1, borderColor: colors.border },
+  stepDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
+  stepDotActive: { backgroundColor: colors.primary, width: 20 },
+  stepDotDone: { backgroundColor: colors.primaryLight },
+  stepHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: colors.white },
+  stepTitle: { fontSize: 18, fontWeight: '700', color: colors.dark },
+  stepCounter: { fontSize: 13, color: colors.gray },
+  stepContent: { padding: 20 },
+  fieldLabel: { fontSize: 14, fontWeight: '600', color: colors.dark, marginBottom: 6 },
+  input: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, fontSize: 15, color: colors.dark, marginBottom: 12 },
+  textarea: { height: 90, textAlignVertical: 'top' },
+  chipRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 2 },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: 13, color: colors.gray },
-  chipTextSelected: { color: colors.primary, fontWeight: '600' },
-
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    marginTop: 8,
-  },
-
-  actionCard: {
-    backgroundColor: colors.white,
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  actionCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  actionCardTitle: { fontSize: 13, fontWeight: '600', color: colors.gray, textTransform: 'uppercase' },
-
-  addActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    justifyContent: 'center',
-  },
-  addActionText: { color: colors.primary, fontSize: 14, fontWeight: '500' },
-
-  infoBox: {
-    flexDirection: 'row',
-    gap: 10,
-    backgroundColor: colors.primaryLight,
-    borderRadius: 10,
-    padding: 14,
-    marginTop: 16,
-    alignItems: 'flex-start',
-  },
-  infoText: { flex: 1, fontSize: 13, color: colors.dark, lineHeight: 19 },
-
-  summaryCard: {
-    backgroundColor: colors.white,
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  summaryLabel: { fontSize: 11, fontWeight: '600', color: colors.gray, textTransform: 'uppercase', marginBottom: 4 },
-  summaryValue: { fontSize: 15, color: colors.dark },
-
-  navContainer: {
-    backgroundColor: colors.white,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 16,
-  },
-  validationErrorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 10,
-  },
-  validationErrorText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.error,
-    lineHeight: 18,
-  },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  backButtonText: { color: colors.gray, fontSize: 15 },
-  nextButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    gap: 6,
-  },
-  finishButton: { backgroundColor: '#059669' },
-  buttonDisabled: { opacity: 0.6 },
-  nextButtonText: { color: colors.white, fontSize: 15, fontWeight: '600' },
+  chipTextActive: { color: colors.white, fontWeight: '600' },
+  row: { flexDirection: 'row' },
+  itemCard: { backgroundColor: colors.white, borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: colors.border },
+  itemCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  itemCardTitle: { fontSize: 14, fontWeight: '600', color: colors.dark },
+  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, borderRadius: 12, borderWidth: 1.5, borderColor: colors.primary, borderStyle: 'dashed' },
+  addBtnText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
+  summaryCard: { backgroundColor: colors.primaryLight, borderRadius: 14, padding: 20, marginBottom: 20, gap: 8 },
+  summaryTitle: { fontSize: 20, fontWeight: '700', color: colors.primary, marginBottom: 8 },
+  summaryItem: { fontSize: 15, color: colors.dark },
+  errorBox: { backgroundColor: '#fef2f2', borderColor: '#fecaca', borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 },
+  errorText: { color: '#dc2626', fontSize: 14 },
+  saveBtn: { backgroundColor: colors.primary, borderRadius: 12, padding: 18, alignItems: 'center', marginTop: 8 },
+  saveBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  navRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: colors.white, borderTopWidth: 1, borderColor: colors.border },
+  navBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10 },
+  navBtnBack: { borderWidth: 1, borderColor: colors.border },
+  navBtnBackText: { fontSize: 15, color: colors.primary, fontWeight: '600' },
+  navBtnNext: { backgroundColor: colors.primary },
+  navBtnNextText: { fontSize: 15, color: colors.white, fontWeight: '600' },
 });

@@ -1605,3 +1605,202 @@ class LifePlanMonthlyReview(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     cycle: Mapped["LifePlanCycle"] = relationship("LifePlanCycle", back_populates="monthly_reviews")
+
+
+# ── PROJETO DE VIDA MENSAL ────────────────────────────────────────────────────
+
+
+class ProjetoVidaMensal(Base):
+    __tablename__ = "projetos_vida_mensal"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    mes: Mapped[int] = mapped_column(Integer, nullable=False)
+    ano: Mapped[int] = mapped_column(Integer, nullable=False)
+    tema: Mapped[str | None] = mapped_column(Text, nullable=True)
+    intencao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    pin_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    pin_falhas_consecutivas: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    pin_bloqueado_ate: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    concluido: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    observacoes_mes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    comunidade: Mapped["ProjetoVidaComunidade | None"] = relationship(
+        "ProjetoVidaComunidade",
+        back_populates="projeto",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    cuidado: Mapped["ProjetoVidaCuidado | None"] = relationship(
+        "ProjetoVidaCuidado",
+        back_populates="projeto",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    compromissos: Mapped[list["ProjetoVidaCompromisso"]] = relationship(
+        "ProjetoVidaCompromisso",
+        back_populates="projeto",
+        cascade="all, delete-orphan",
+        order_by="ProjetoVidaCompromisso.ordem",
+    )
+    praticas: Mapped[list["ProjetoVidaPratica"]] = relationship(
+        "ProjetoVidaPratica",
+        back_populates="projeto",
+        cascade="all, delete-orphan",
+        order_by="ProjetoVidaPratica.ordem",
+    )
+    revisao: Mapped["ProjetoVidaRevisao | None"] = relationship(
+        "ProjetoVidaRevisao",
+        back_populates="projeto",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "mes", "ano", name="uq_projeto_vida_mensal_user_mes_ano"),
+    )
+
+
+class ProjetoVidaComunidade(Base):
+    __tablename__ = "projetos_vida_comunidade"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    projeto_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("projetos_vida_mensal.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    partilha_acompanhador: Mapped[str | None] = mapped_column(Text, nullable=True)
+    encontro_familia: Mapped[str | None] = mapped_column(Text, nullable=True)
+    dias_grupo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    outros: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    projeto: Mapped["ProjetoVidaMensal"] = relationship(
+        "ProjetoVidaMensal", back_populates="comunidade"
+    )
+
+
+class ProjetoVidaCuidado(Base):
+    __tablename__ = "projetos_vida_cuidado"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    projeto_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("projetos_vida_mensal.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    consultas: Mapped[str | None] = mapped_column(Text, nullable=True)
+    exames: Mapped[str | None] = mapped_column(Text, nullable=True)
+    descanso: Mapped[str | None] = mapped_column(Text, nullable=True)
+    outros: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    projeto: Mapped["ProjetoVidaMensal"] = relationship(
+        "ProjetoVidaMensal", back_populates="cuidado"
+    )
+
+
+class ProjetoVidaCompromisso(Base):
+    __tablename__ = "projetos_vida_compromissos"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    projeto_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("projetos_vida_mensal.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    semana: Mapped[str] = mapped_column(String(3), nullable=False)  # s1..s5
+    titulo: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    dia: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    horario: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    obs: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ordem: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
+    projeto: Mapped["ProjetoVidaMensal"] = relationship(
+        "ProjetoVidaMensal", back_populates="compromissos"
+    )
+
+
+class ProjetoVidaPratica(Base):
+    __tablename__ = "projetos_vida_praticas"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    projeto_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("projetos_vida_mensal.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    dia_semana: Mapped[str] = mapped_column(String(3), nullable=False)  # seg..dom
+    tipo: Mapped[str] = mapped_column(String(100), nullable=False)
+    horario: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    duracao: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    obs: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ordem: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
+    projeto: Mapped["ProjetoVidaMensal"] = relationship(
+        "ProjetoVidaMensal", back_populates="praticas"
+    )
+
+
+class ProjetoVidaRevisao(Base):
+    __tablename__ = "projetos_vida_revisoes"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    projeto_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("projetos_vida_mensal.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    # Revisão vocacional
+    graca: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fidelidade: Mapped[str | None] = mapped_column(Text, nullable=True)
+    falhas: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ordenar: Mapped[str | None] = mapped_column(Text, nullable=True)
+    passo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Próximo ciclo (StepCommitment)
+    decisao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    virtude: Mapped[str | None] = mapped_column(Text, nullable=True)
+    conversao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    passo_proximo: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    projeto: Mapped["ProjetoVidaMensal"] = relationship(
+        "ProjetoVidaMensal", back_populates="revisao"
+    )
