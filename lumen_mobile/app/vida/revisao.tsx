@@ -36,31 +36,34 @@ const defaultState = (): RevisaoState => ({
   outra_area_atencao: '',
 });
 
-const QUESTOES: Array<{ key: keyof RevisaoState; q: string; placeholder: string }> = [
+const QUESTOES: Array<{ key: keyof RevisaoState; q: string; description?: string; placeholder: string }> = [
   {
     key: 'pratica_melhorar',
     q: 'A prática espiritual que quero melhorar para o próximo mês é:',
-    placeholder: 'Ex: Santa Missa diária, oração das 6h...',
+    placeholder: 'Descreva a prática espiritual...',
   },
   {
     key: 'taticas_vigilancia',
-    q: 'As táticas de vigilância que vou cultivar são:',
-    placeholder: 'Ex: Evitar redes sociais à noite, jejum às quartas...',
+    q: 'Diante das dificuldades que ainda serão enfrentadas para vivenciar essa prática espiritual, escreva algumas táticas que você precisa estar, com muita mansidão e humildade, em postura de vigilância:',
+    description: 'Por exemplo, parar por 30 minutos no dia anterior, marcando horários, para a oração do Santo Terço diário e fazendo comunhão com a intercessão por 24 horas pelas intenções da Comunidade; no sábado, quando fizer o projeto de vida semanal, os dias e horários que irá participar da Missa Diária na semana; iniciar a Lectio Divina com 15 minutos de forma constante no turno da manhã ou da tarde, pois percebe que tem mais cansaço no turno da noite; entre outros.',
+    placeholder: 'Descreva suas táticas de vigilância...',
   },
   {
     key: 'rotina_evangelizacao',
-    q: 'A rotina de evangelização que vou inserir na minha vida é:',
-    placeholder: 'Ex: Convidar um amigo para a Missa, partilhar minha fé com...',
+    q: 'Para abraçar um caminho de santificação pessoal e comunitária para a vivência diária da Evangelização Ser Feliz, em minutos concretos do dia, escreva como você pode assumir isso como rotina do dia a dia:',
+    description: 'Por exemplo, um dia antes, já deixar anotado os 15 minutos iniciais de Evangelização Ser Feliz, ao conferir os compromissos do dia seguinte, anotando o tempo dos deslocamentos, as práticas espirituais incluídas, o trabalho, o apostolado e/ou serviço.',
+    placeholder: 'Descreva sua rotina de evangelização...',
   },
   {
     key: 'outra_area_atencao',
-    q: 'Outra área de atenção que quero trabalhar no próximo ciclo é:',
-    placeholder: 'Ex: Relacionamentos, saúde, estudo...',
+    q: 'Além das práticas espirituais e da vivência da Evangelização Ser Feliz diárias, anote qual outra área você acha importante ter sempre uma atenção nesse mês, a incluir aos poucos tentativas de melhor trabalhar essa realidade:',
+    description: 'Por exemplo, na área da saúde e atividades físicas, ir três vezes por semana fazer uma caminhada ou para a academia; na área da sua família, deixar previamente combinado alguns momentos de qualidade com seus familiares; na área do seu serviço, deixar combinado dias fixos para as reuniões periódicas, com atas e delegações de função com as respectivas pessoas, de forma a iniciar a próxima reunião de acordo com as pautas da reunião anterior e acompanhando a execução dos respectivos pontos.',
+    placeholder: 'Descreva a área e as ações concretas...',
   },
 ];
 
 const CONTRICAO_TEXT =
-  `Emanuel, eu, Teu Filho, reconheço minhas falhas e me arrependo de todo o mal que cometi e do bem que deixei de fazer. Confio no Teu amor misericordioso e me proponho, com a Tua graça, a recomeçar com mais fidelidade no próximo ciclo. Amém.`;
+  `Emanuel, eu, Teu amigo e Teu servo, reconheço minhas falhas e me arrependo de todo o mal que cometi e do bem que deixei de fazer. Confio no Teu amor misericordioso e me proponho, com a Tua graça, a recomeçar com mais fidelidade no próximo ciclo. Amém.`;
 
 export default function RevisaoScreen() {
   const { projetoId } = useLocalSearchParams<{ projetoId: string }>();
@@ -100,9 +103,12 @@ export default function RevisaoScreen() {
             <Text style={styles.intro}>
               Responda com sinceridade diante de Deus. Não é preciso responder a todas as questões.
             </Text>
-            {QUESTOES.map(({ key, q, placeholder }) => (
+            {QUESTOES.map(({ key, q, description, placeholder }) => (
               <View key={key} style={styles.questionCard}>
                 <Text style={styles.questionText}>{q}</Text>
+                {description && (
+                  <Text style={styles.questionDescription}>{description}</Text>
+                )}
                 <TextInput
                   style={styles.textarea}
                   value={state[key]}
@@ -283,7 +289,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white, borderRadius: 12, padding: 16,
     marginBottom: 14, borderWidth: 1, borderColor: colors.border,
   },
-  questionText: { fontSize: 15, fontWeight: '600', color: colors.dark, marginBottom: 10, lineHeight: 22 },
+  questionText: { fontSize: 15, fontWeight: '600', color: colors.dark, marginBottom: 6, lineHeight: 22 },
+  questionDescription: { fontSize: 13, color: colors.gray, lineHeight: 19, marginBottom: 10, fontStyle: 'italic' },
   textarea: {
     borderWidth: 1, borderColor: colors.border, borderRadius: 8,
     padding: 10, fontSize: 14, color: colors.dark,
