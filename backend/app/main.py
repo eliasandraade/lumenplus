@@ -146,7 +146,9 @@ async def security_headers(request: Request, call_next: Any) -> Any:
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     # Remover header que revela a tecnologia do servidor
-    response.headers.pop("server", None)
+    # MutableHeaders não tem .pop() — usar del com guard
+    if "server" in response.headers:
+        del response.headers["server"]
     return response
 
 
