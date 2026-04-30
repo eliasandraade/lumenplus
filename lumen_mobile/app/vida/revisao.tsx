@@ -63,7 +63,7 @@ const QUESTOES: Array<{ key: keyof RevisaoState; q: string; description?: string
 ];
 
 const CONTRICAO_TEXT =
-  `Emanuel, eu, Teu amigo e Teu servo, reconheço minhas falhas e me arrependo de todo o mal que cometi e do bem que deixei de fazer. Confio no Teu amor misericordioso e me proponho, com a Tua graça, a recomeçar com mais fidelidade no próximo ciclo. Amém.`;
+  `Emanuel, eu, Teu amigo e Teu servo, reconheço minhas falhas e me arrependo de todo o mal que cometi e do bem que deixei de fazer. Confio no Teu amor misericordioso e me proponho, com a Tua graça, a recomeçar com mais fidelidade no próximo mês. Amém.`;
 
 export default function RevisaoScreen() {
   const { projetoId } = useLocalSearchParams<{ projetoId: string }>();
