@@ -3,6 +3,14 @@ Projeto de Vida Mensal — API Routes
 ======================================
 Dados pessoais sensíveis: acesso restrito ao próprio usuário.
 Conteúdo textual NÃO entra em audit logs.
+
+Modelo de segurança do PIN:
+  O PIN é um bloqueio visual local (screen-lock). Protege contra acesso físico
+  ao dispositivo (alguém que pega o celular desbloqueado). NÃO é um controle
+  de acesso server-side: qualquer cliente autenticado como o próprio usuário
+  pode chamar as rotas diretamente. Isso é design intencional — o dado já é
+  protegido pela autenticação Firebase. O PIN acrescenta conveniência, não
+  sigilo absoluto server-side.
 """
 
 import hashlib
@@ -114,14 +122,27 @@ def _to_full(p: ProjetoVidaMensal) -> ProjetoVidaMensalFull:
 
 
 @router.get("/atual", response_model=ProjetoVidaMensalFull | None)
-def get_atual(user: CurrentUser, db: DBSession) -> Any:
-    """Retorna o projeto do mês/ano corrente ou null."""
-    now = datetime.now(timezone.utc)
+def get_atual(
+    user: CurrentUser,
+    db: DBSession,
+    mes: int | None = None,
+    ano: int | None = None,
+) -> Any:
+    """Retorna o projeto do mês/ano corrente ou null.
+
+    Aceita ?mes=&ano= opcionais para usar o horário local do cliente
+    (evita divergência UTC vs fuso horário do usuário).
+    Se omitidos, usa UTC do servidor.
+    """
+    if mes is None or ano is None:
+        now = datetime.now(timezone.utc)
+        mes = mes or now.month
+        ano = ano or now.year
     row = db.execute(
         select(ProjetoVidaMensal.id).where(
             ProjetoVidaMensal.user_id == user.id,
-            ProjetoVidaMensal.mes == now.month,
-            ProjetoVidaMensal.ano == now.year,
+            ProjetoVidaMensal.mes == mes,
+            ProjetoVidaMensal.ano == ano,
         )
     ).scalar_one_or_none()
     return _to_full(_load(db, row, user.id)) if row else None
@@ -213,20 +234,18 @@ def update_projeto(
             db.add(ProjetoVidaComunidade(projeto_id=projeto.id))
             db.flush()
             db.refresh(projeto)
-        projeto.comunidade.partilha_acompanhador = body.comunidade.partilha_acompanhador
-        projeto.comunidade.encontro_familia = body.comunidade.encontro_familia
-        projeto.comunidade.dias_grupo = body.comunidade.dias_grupo
-        projeto.comunidade.outros = body.comunidade.outros
+        # Merge: só sobrescreve campos explicitamente fornecidos (não-None)
+        for field, val in body.comunidade.model_dump(exclude_none=True).items():
+            setattr(projeto.comunidade, field, val)
 
     if body.cuidado is not None:
         if not projeto.cuidado:
             db.add(ProjetoVidaCuidado(projeto_id=projeto.id))
             db.flush()
             db.refresh(projeto)
-        projeto.cuidado.consultas = body.cuidado.consultas
-        projeto.cuidado.exames = body.cuidado.exames
-        projeto.cuidado.descanso = body.cuidado.descanso
-        projeto.cuidado.outros = body.cuidado.outros
+        # Merge: só sobrescreve campos explicitamente fornecidos (não-None)
+        for field, val in body.cuidado.model_dump(exclude_none=True).items():
+            setattr(projeto.cuidado, field, val)
 
     # Garante que updated_at é atualizado mesmo quando apenas listas (compromissos/praticas) mudam,
     # pois o onupdate do SQLAlchemy só dispara quando colunas escalares do próprio objeto são alteradas.
@@ -286,11 +305,21 @@ def upsert_revisao(
     return _to_full(_load(db, projeto_id, user.id))
 
 
+PIN_MAX_FALHAS = 5          # tentativas antes de bloquear
+PIN_BLOQUEIO_MINUTOS = 5   # duração do bloqueio
+
+
 @router.post("/{projeto_id}/pin/verificar", response_model=PinVerifyResponse)
 def verificar_pin(
     projeto_id: UUID, body: PinVerifyRequest, user: CurrentUser, db: DBSession
 ) -> Any:
-    """Verifica PIN sem revelar hash. Retorna {valid: bool}."""
+    """Verifica PIN sem revelar hash. Retorna {valid: bool}.
+
+    Rate limit por projeto: após 5 falhas consecutivas, bloqueia por 5 minutos.
+    Sem PIN configurado: qualquer requisição é válida (sem restrição de acesso).
+    """
+    from datetime import timedelta
+
     result = db.execute(
         select(ProjetoVidaMensal).where(
             ProjetoVidaMensal.id == projeto_id,
@@ -303,9 +332,33 @@ def verificar_pin(
             status_code=404,
             detail={"error": "not_found", "message": "Projeto não encontrado"},
         )
+
     if not projeto.pin_hash:
         # Sem PIN configurado: qualquer requisição é válida (sem restrição de acesso)
         return PinVerifyResponse(valid=True)
-    return PinVerifyResponse(valid=hmac.compare_digest(
-        _hash_pin(body.pin, user.id), projeto.pin_hash
-    ))
+
+    # Verifica bloqueio por excesso de falhas
+    now = datetime.now(timezone.utc)
+    if projeto.pin_bloqueado_ate and now < projeto.pin_bloqueado_ate:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "pin_locked",
+                "message": "PIN bloqueado por excesso de tentativas. Tente novamente em alguns minutos.",
+            },
+        )
+
+    # Verifica o PIN
+    valido = hmac.compare_digest(_hash_pin(body.pin, user.id), projeto.pin_hash)
+
+    if valido:
+        projeto.pin_falhas_consecutivas = 0
+        projeto.pin_bloqueado_ate = None
+    else:
+        projeto.pin_falhas_consecutivas = (projeto.pin_falhas_consecutivas or 0) + 1
+        if projeto.pin_falhas_consecutivas >= PIN_MAX_FALHAS:
+            projeto.pin_bloqueado_ate = now + timedelta(minutes=PIN_BLOQUEIO_MINUTOS)
+            projeto.pin_falhas_consecutivas = 0
+
+    db.commit()
+    return PinVerifyResponse(valid=valido)
