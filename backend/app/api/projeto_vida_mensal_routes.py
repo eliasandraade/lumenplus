@@ -6,6 +6,7 @@ Conteúdo textual NÃO entra em audit logs.
 """
 
 import hashlib
+import hmac
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -194,7 +195,7 @@ def update_projeto(
 ) -> Any:
     """Atualiza campos escalares + comunidade + cuidado + listas (replace completo).
 
-    Nota: PIN só pode ser definido na criação. Para alterar o PIN, delete e recrie o projeto.
+    Nota: PIN só pode ser definido na criação e não pode ser alterado posteriormente.
     """
     projeto = _load(db, projeto_id, user.id)
 
@@ -226,6 +227,10 @@ def update_projeto(
         projeto.cuidado.exames = body.cuidado.exames
         projeto.cuidado.descanso = body.cuidado.descanso
         projeto.cuidado.outros = body.cuidado.outros
+
+    # Garante que updated_at é atualizado mesmo quando apenas listas (compromissos/praticas) mudam,
+    # pois o onupdate do SQLAlchemy só dispara quando colunas escalares do próprio objeto são alteradas.
+    projeto.updated_at = datetime.now(timezone.utc)
 
     if body.compromissos is not None:
         for c in list(projeto.compromissos):
@@ -301,4 +306,6 @@ def verificar_pin(
     if not projeto.pin_hash:
         # Sem PIN configurado: qualquer requisição é válida (sem restrição de acesso)
         return PinVerifyResponse(valid=True)
-    return PinVerifyResponse(valid=_hash_pin(body.pin, user.id) == projeto.pin_hash)
+    return PinVerifyResponse(valid=hmac.compare_digest(
+        _hash_pin(body.pin, user.id), projeto.pin_hash
+    ))
