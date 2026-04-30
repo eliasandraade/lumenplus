@@ -1687,10 +1687,12 @@ class ProjetoVidaComunidade(Base):
         nullable=False,
         unique=True,
     )
-    partilha_acompanhador: Mapped[str | None] = mapped_column(Text, nullable=True)
-    encontro_familia: Mapped[str | None] = mapped_column(Text, nullable=True)
-    dias_grupo: Mapped[str | None] = mapped_column(Text, nullable=True)
-    outros: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Cada campo armazena uma lista JSON de objetos {data, horario, local, observacoes}
+    # "outros" usa {titulo, descricao, local, data, horario}
+    partilha_acompanhador: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    encontro_familia: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    dias_grupo: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    outros: Mapped[Any | None] = mapped_column(JSON, nullable=True)
 
     projeto: Mapped["ProjetoVidaMensal"] = relationship(
         "ProjetoVidaMensal", back_populates="comunidade"
@@ -1712,10 +1714,12 @@ class ProjetoVidaCuidado(Base):
         nullable=False,
         unique=True,
     )
-    consultas: Mapped[str | None] = mapped_column(Text, nullable=True)
-    exames: Mapped[str | None] = mapped_column(Text, nullable=True)
-    descanso: Mapped[str | None] = mapped_column(Text, nullable=True)
-    outros: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Cada campo armazena uma lista JSON de objetos {data, horario, local, descricao}
+    # "outros" usa {titulo, descricao, local, data, horario}
+    consultas: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    exames: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    descanso: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    outros: Mapped[Any | None] = mapped_column(JSON, nullable=True)
 
     projeto: Mapped["ProjetoVidaMensal"] = relationship(
         "ProjetoVidaMensal", back_populates="cuidado"
@@ -1789,17 +1793,11 @@ class ProjetoVidaRevisao(Base):
         nullable=False,
         unique=True,
     )
-    # Revisão vocacional
-    graca: Mapped[str | None] = mapped_column(Text, nullable=True)
-    fidelidade: Mapped[str | None] = mapped_column(Text, nullable=True)
-    falhas: Mapped[str | None] = mapped_column(Text, nullable=True)
-    ordenar: Mapped[str | None] = mapped_column(Text, nullable=True)
-    passo: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Próximo ciclo (StepCommitment)
-    decisao: Mapped[str | None] = mapped_column(Text, nullable=True)
-    virtude: Mapped[str | None] = mapped_column(Text, nullable=True)
-    conversao: Mapped[str | None] = mapped_column(Text, nullable=True)
-    passo_proximo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # 4 perguntas da revisão mensal v2
+    pratica_melhorar: Mapped[str | None] = mapped_column(Text, nullable=True)
+    taticas_vigilancia: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rotina_evangelizacao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    outra_area_atencao: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     projeto: Mapped["ProjetoVidaMensal"] = relationship(
         "ProjetoVidaMensal", back_populates="revisao"

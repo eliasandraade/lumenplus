@@ -89,26 +89,25 @@ def _load(db: DBSession, projeto_id: UUID, user_id: UUID) -> ProjetoVidaMensal:
 
 
 def _to_full(p: ProjetoVidaMensal) -> ProjetoVidaMensalFull:
+    # comunidade e cuidado: JSON arrays → Pydantic valida cada item da lista
     return ProjetoVidaMensalFull(
         id=p.id,
         mes=p.mes,
         ano=p.ano,
-        tema=p.tema,
-        intencao=p.intencao,
         has_pin=p.pin_hash is not None,
         concluido=p.concluido,
         observacoes_mes=p.observacoes_mes,
         comunidade=ComunidadeData(
-            partilha_acompanhador=p.comunidade.partilha_acompanhador,
-            encontro_familia=p.comunidade.encontro_familia,
-            dias_grupo=p.comunidade.dias_grupo,
-            outros=p.comunidade.outros,
+            partilha_acompanhador=p.comunidade.partilha_acompanhador or [],
+            encontro_familia=p.comunidade.encontro_familia or [],
+            dias_grupo=p.comunidade.dias_grupo or [],
+            outros=p.comunidade.outros or [],
         ) if p.comunidade else None,
         cuidado=CuidadoData(
-            consultas=p.cuidado.consultas,
-            exames=p.cuidado.exames,
-            descanso=p.cuidado.descanso,
-            outros=p.cuidado.outros,
+            consultas=p.cuidado.consultas or [],
+            exames=p.cuidado.exames or [],
+            descanso=p.cuidado.descanso or [],
+            outros=p.cuidado.outros or [],
         ) if p.cuidado else None,
         compromissos=[CompromissoOut.model_validate(c) for c in p.compromissos],
         praticas=[PraticaOut.model_validate(pr) for pr in p.praticas],
@@ -191,8 +190,6 @@ def criar_projeto(body: ProjetoVidaMensalCreate, user: CurrentUser, db: DBSessio
         user_id=user.id,
         mes=body.mes,
         ano=body.ano,
-        tema=body.tema,
-        intencao=body.intencao,
         pin_hash=_hash_pin(body.pin, user.id) if body.pin else None,
     )
     db.add(projeto)
@@ -220,10 +217,6 @@ def update_projeto(
     """
     projeto = _load(db, projeto_id, user.id)
 
-    if body.tema is not None:
-        projeto.tema = body.tema
-    if body.intencao is not None:
-        projeto.intencao = body.intencao
     if body.observacoes_mes is not None:
         projeto.observacoes_mes = body.observacoes_mes
     if body.concluido is not None:
@@ -234,8 +227,9 @@ def update_projeto(
             db.add(ProjetoVidaComunidade(projeto_id=projeto.id))
             db.flush()
             db.refresh(projeto)
-        # Merge: só sobrescreve campos explicitamente fornecidos (não-None)
-        for field, val in body.comunidade.model_dump(exclude_none=True).items():
+        # Replace completo: comunidade usa listas JSON (não campos escalares simples)
+        dump = body.comunidade.model_dump()
+        for field, val in dump.items():
             setattr(projeto.comunidade, field, val)
 
     if body.cuidado is not None:
@@ -243,8 +237,9 @@ def update_projeto(
             db.add(ProjetoVidaCuidado(projeto_id=projeto.id))
             db.flush()
             db.refresh(projeto)
-        # Merge: só sobrescreve campos explicitamente fornecidos (não-None)
-        for field, val in body.cuidado.model_dump(exclude_none=True).items():
+        # Replace completo
+        dump = body.cuidado.model_dump()
+        for field, val in dump.items():
             setattr(projeto.cuidado, field, val)
 
     # Garante que updated_at é atualizado mesmo quando apenas listas (compromissos/praticas) mudam,

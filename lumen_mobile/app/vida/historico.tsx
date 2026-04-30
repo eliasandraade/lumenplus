@@ -118,12 +118,6 @@ export default function HistoricoScreen() {
             </View>
           </View>
 
-          {item.tema ? (
-            <Text style={styles.tema} numberOfLines={1}>"{item.tema}"</Text>
-          ) : (
-            <Text style={styles.noTema}>Sem tema definido</Text>
-          )}
-
           <Ionicons name="chevron-forward" size={16} color={colors.gray} style={styles.chevron} />
         </TouchableOpacity>
       )}
@@ -146,7 +140,5 @@ const styles = StyleSheet.create({
   badges: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   badge: { backgroundColor: colors.primaryLight, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   badgeText: { fontSize: 11, color: colors.primary, fontWeight: '600' },
-  tema: { fontSize: 14, color: colors.gray, fontStyle: 'italic', marginBottom: 4 },
-  noTema: { fontSize: 14, color: colors.gray, fontStyle: 'italic', marginBottom: 4 },
   chevron: { position: 'absolute', right: 14, top: 20 },
 });

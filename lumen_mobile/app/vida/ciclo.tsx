@@ -15,6 +15,10 @@ import type { IoniconsName } from '@/types/icons';
 import projetoVidaMensalApi, {
   MESES, SEMANAS, SEMANA_LABELS, DIAS, DIA_LABELS,
   type ProjetoVidaMensalFull,
+  type EventoItem,
+  type OutroItemComunidade,
+  type CuidadoEventoItem,
+  type OutroItemCuidado,
 } from '@/services/projetoVidaMensal';
 
 const colors = {
@@ -69,8 +73,6 @@ export default function CicloScreen() {
       {/* Cabeçalho */}
       <View style={styles.header}>
         <Text style={styles.headerMonth}>{mesLabel} {projeto.ano}</Text>
-        {projeto.tema ? <Text style={styles.headerTheme}>"{projeto.tema}"</Text> : null}
-        {projeto.intencao ? <Text style={styles.headerIntencao}>{projeto.intencao}</Text> : null}
         {projeto.concluido && <View style={styles.badge}><Text style={styles.badgeText}>Ciclo concluído</Text></View>}
       </View>
 
@@ -78,10 +80,25 @@ export default function CicloScreen() {
       <Section title="Comunidade" icon={'people-outline' as IoniconsName}>
         {projeto.comunidade ? (
           <>
-            <Field label="Partilha com acompanhador" value={projeto.comunidade.partilha_acompanhador} />
-            <Field label="Encontro com família" value={projeto.comunidade.encontro_familia} />
-            <Field label="Dias de grupo" value={projeto.comunidade.dias_grupo} />
-            <Field label="Outros" value={projeto.comunidade.outros} />
+            <EventoList
+              label="Partilha com acompanhador"
+              items={projeto.comunidade.partilha_acompanhador}
+            />
+            <EventoList
+              label="Encontro com família"
+              items={projeto.comunidade.encontro_familia}
+            />
+            <EventoList
+              label="Dias de grupo"
+              items={projeto.comunidade.dias_grupo}
+            />
+            <OutroComunidadeList items={projeto.comunidade.outros} />
+            {(projeto.comunidade.partilha_acompanhador.length === 0 &&
+              projeto.comunidade.encontro_familia.length === 0 &&
+              projeto.comunidade.dias_grupo.length === 0 &&
+              projeto.comunidade.outros.length === 0) && (
+              <Text style={styles.empty}>Não preenchido</Text>
+            )}
           </>
         ) : <Text style={styles.empty}>Não preenchido</Text>}
       </Section>
@@ -90,10 +107,16 @@ export default function CicloScreen() {
       <Section title="Cuidado Pessoal" icon={'heart-outline' as IoniconsName}>
         {projeto.cuidado ? (
           <>
-            <Field label="Consultas" value={projeto.cuidado.consultas} />
-            <Field label="Exames" value={projeto.cuidado.exames} />
-            <Field label="Descanso e lazer" value={projeto.cuidado.descanso} />
-            <Field label="Outros" value={projeto.cuidado.outros} />
+            <CuidadoList label="Consultas" items={projeto.cuidado.consultas} />
+            <CuidadoList label="Exames" items={projeto.cuidado.exames} />
+            <CuidadoList label="Descanso e lazer" items={projeto.cuidado.descanso} />
+            <OutroCuidadoList items={projeto.cuidado.outros} />
+            {(projeto.cuidado.consultas.length === 0 &&
+              projeto.cuidado.exames.length === 0 &&
+              projeto.cuidado.descanso.length === 0 &&
+              projeto.cuidado.outros.length === 0) && (
+              <Text style={styles.empty}>Não preenchido</Text>
+            )}
           </>
         ) : <Text style={styles.empty}>Não preenchido</Text>}
       </Section>
@@ -149,19 +172,27 @@ export default function CicloScreen() {
       {/* Revisão (se existir) */}
       {projeto.revisao && (
         <Section title="Revisão do Ciclo" icon={'checkmark-circle-outline' as IoniconsName}>
-          <Field label="Onde percebi a graça de Deus" value={projeto.revisao.graca} />
-          <Field label="Onde fui fiel" value={projeto.revisao.fidelidade} />
-          <Field label="Onde falhei" value={projeto.revisao.falhas} />
-          <Field label="O que preciso ordenar" value={projeto.revisao.ordenar} />
-          <Field label="Passo concreto" value={projeto.revisao.passo} />
-          {(projeto.revisao.decisao || projeto.revisao.virtude) && (
-            <>
-              <Text style={[styles.subheading, { marginTop: 8 }]}>Próximo ciclo</Text>
-              <Field label="Decisão" value={projeto.revisao.decisao} />
-              <Field label="Virtude" value={projeto.revisao.virtude} />
-              <Field label="Conversão" value={projeto.revisao.conversao} />
-              <Field label="Passo" value={projeto.revisao.passo_proximo} />
-            </>
+          <TextField
+            label="Prática espiritual que quero melhorar"
+            value={projeto.revisao.pratica_melhorar}
+          />
+          <TextField
+            label="Táticas de vigilância"
+            value={projeto.revisao.taticas_vigilancia}
+          />
+          <TextField
+            label="Rotina de evangelização"
+            value={projeto.revisao.rotina_evangelizacao}
+          />
+          <TextField
+            label="Outra área de atenção"
+            value={projeto.revisao.outra_area_atencao}
+          />
+          {(!projeto.revisao.pratica_melhorar &&
+            !projeto.revisao.taticas_vigilancia &&
+            !projeto.revisao.rotina_evangelizacao &&
+            !projeto.revisao.outra_area_atencao) && (
+            <Text style={styles.empty}>Revisão não preenchida</Text>
           )}
         </Section>
       )}
@@ -181,6 +212,8 @@ export default function CicloScreen() {
   );
 }
 
+// ── Sub-componentes ─────────────────────────────────────────────────────────
+
 function Section({ title, icon, children }: { title: string; icon: IoniconsName; children: React.ReactNode }) {
   return (
     <View style={styles.section}>
@@ -193,12 +226,97 @@ function Section({ title, icon, children }: { title: string; icon: IoniconsName;
   );
 }
 
-function Field({ label, value }: { label: string; value: string | null | undefined }) {
+function TextField({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <Text style={styles.fieldValue}>{value}</Text>
+    </View>
+  );
+}
+
+function EventoList({ label, items }: { label: string; items: EventoItem[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <View style={styles.subSection}>
+      <Text style={styles.subheading}>{label}</Text>
+      {items.map((item, i) => (
+        <View key={i} style={styles.listItem}>
+          {item.data || item.horario ? (
+            <Text style={styles.listItemMeta}>
+              {[item.data, item.horario].filter(Boolean).join(' · ')}
+            </Text>
+          ) : null}
+          {item.local ? <Text style={styles.listItemTitle}>{item.local}</Text> : null}
+          {item.observacoes ? <Text style={styles.listItemObs}>{item.observacoes}</Text> : null}
+          {!item.data && !item.horario && !item.local && !item.observacoes && (
+            <Text style={styles.listItemObs}>—</Text>
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function OutroComunidadeList({ items }: { items: OutroItemComunidade[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <View style={styles.subSection}>
+      <Text style={styles.subheading}>Outros compromissos</Text>
+      {items.map((item, i) => (
+        <View key={i} style={styles.listItem}>
+          {item.titulo ? <Text style={styles.listItemTitle}>{item.titulo}</Text> : null}
+          {item.data || item.horario ? (
+            <Text style={styles.listItemMeta}>
+              {[item.data, item.horario].filter(Boolean).join(' · ')}
+            </Text>
+          ) : null}
+          {item.local ? <Text style={styles.listItemMeta}>{item.local}</Text> : null}
+          {item.descricao ? <Text style={styles.listItemObs}>{item.descricao}</Text> : null}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function CuidadoList({ label, items }: { label: string; items: CuidadoEventoItem[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <View style={styles.subSection}>
+      <Text style={styles.subheading}>{label}</Text>
+      {items.map((item, i) => (
+        <View key={i} style={styles.listItem}>
+          {item.data || item.horario ? (
+            <Text style={styles.listItemMeta}>
+              {[item.data, item.horario].filter(Boolean).join(' · ')}
+            </Text>
+          ) : null}
+          {item.local ? <Text style={styles.listItemTitle}>{item.local}</Text> : null}
+          {item.descricao ? <Text style={styles.listItemObs}>{item.descricao}</Text> : null}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function OutroCuidadoList({ items }: { items: OutroItemCuidado[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <View style={styles.subSection}>
+      <Text style={styles.subheading}>Outros cuidados</Text>
+      {items.map((item, i) => (
+        <View key={i} style={styles.listItem}>
+          {item.titulo ? <Text style={styles.listItemTitle}>{item.titulo}</Text> : null}
+          {item.data || item.horario ? (
+            <Text style={styles.listItemMeta}>
+              {[item.data, item.horario].filter(Boolean).join(' · ')}
+            </Text>
+          ) : null}
+          {item.local ? <Text style={styles.listItemMeta}>{item.local}</Text> : null}
+          {item.descricao ? <Text style={styles.listItemObs}>{item.descricao}</Text> : null}
+        </View>
+      ))}
     </View>
   );
 }
@@ -209,13 +327,12 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { backgroundColor: colors.primary, borderRadius: 16, padding: 22, marginBottom: 20, gap: 6 },
   headerMonth: { fontSize: 22, fontWeight: '700', color: colors.white },
-  headerTheme: { fontSize: 15, color: 'rgba(255,255,255,0.85)', fontStyle: 'italic' },
-  headerIntencao: { fontSize: 14, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
   badge: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3, marginTop: 4 },
   badgeText: { color: colors.white, fontSize: 12, fontWeight: '600' },
   section: { backgroundColor: colors.white, borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.border },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.dark },
+  subSection: { marginBottom: 12 },
   subheading: { fontSize: 13, fontWeight: '600', color: colors.primary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
   field: { marginBottom: 10 },
   fieldLabel: { fontSize: 12, color: colors.gray, marginBottom: 2 },

@@ -4,27 +4,64 @@ Schemas — Projeto de Vida Mensal
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 
-# ── Sub-schemas ────────────────────────────────────────────────────────────
+# ── Sub-schemas: itens de lista ─────────────────────────────────────────────
+
+
+class EventoItem(BaseModel):
+    """Compromisso/encontro com data, horário e local. Usado em comunidade."""
+    data: Optional[str] = Field(None, max_length=20)        # "2026-04-04"
+    horario: Optional[str] = Field(None, max_length=20)     # "19:00"
+    local: Optional[str] = Field(None, max_length=500)
+    observacoes: Optional[str] = Field(None, max_length=2000)
+
+
+class OutroItemComunidade(BaseModel):
+    """Item genérico de compromisso comunitário."""
+    titulo: Optional[str] = Field(None, max_length=200)
+    descricao: Optional[str] = Field(None, max_length=2000)
+    local: Optional[str] = Field(None, max_length=500)
+    data: Optional[str] = Field(None, max_length=20)
+    horario: Optional[str] = Field(None, max_length=20)
+
+
+class CuidadoEventoItem(BaseModel):
+    """Consulta / exame / descanso com data, horário e local."""
+    data: Optional[str] = Field(None, max_length=20)
+    horario: Optional[str] = Field(None, max_length=20)
+    local: Optional[str] = Field(None, max_length=500)
+    descricao: Optional[str] = Field(None, max_length=2000)
+
+
+class OutroItemCuidado(BaseModel):
+    """Item genérico de cuidado pessoal."""
+    titulo: Optional[str] = Field(None, max_length=200)
+    descricao: Optional[str] = Field(None, max_length=2000)
+    local: Optional[str] = Field(None, max_length=500)
+    data: Optional[str] = Field(None, max_length=20)
+    horario: Optional[str] = Field(None, max_length=20)
+
+
+# ── Sub-schemas de seção ────────────────────────────────────────────────────
 
 
 class ComunidadeData(BaseModel):
-    partilha_acompanhador: Optional[str] = Field(None, max_length=2000)
-    encontro_familia: Optional[str] = Field(None, max_length=2000)
-    dias_grupo: Optional[str] = Field(None, max_length=1000)
-    outros: Optional[str] = Field(None, max_length=2000)
+    partilha_acompanhador: List[EventoItem] = []
+    encontro_familia: List[EventoItem] = []
+    dias_grupo: List[EventoItem] = []
+    outros: List[OutroItemComunidade] = []
 
 
 class CuidadoData(BaseModel):
-    consultas: Optional[str] = Field(None, max_length=2000)
-    exames: Optional[str] = Field(None, max_length=2000)
-    descanso: Optional[str] = Field(None, max_length=2000)
-    outros: Optional[str] = Field(None, max_length=2000)
+    consultas: List[CuidadoEventoItem] = []
+    exames: List[CuidadoEventoItem] = []
+    descanso: List[CuidadoEventoItem] = []
+    outros: List[OutroItemCuidado] = []
 
 
 class CompromissoIn(BaseModel):
@@ -70,27 +107,18 @@ class PraticaOut(BaseModel):
 
 
 class RevisaoUpsert(BaseModel):
-    graca: Optional[str] = Field(None, max_length=3000)
-    fidelidade: Optional[str] = Field(None, max_length=3000)
-    falhas: Optional[str] = Field(None, max_length=3000)
-    ordenar: Optional[str] = Field(None, max_length=3000)
-    passo: Optional[str] = Field(None, max_length=3000)
-    decisao: Optional[str] = Field(None, max_length=3000)
-    virtude: Optional[str] = Field(None, max_length=3000)
-    conversao: Optional[str] = Field(None, max_length=3000)
-    passo_proximo: Optional[str] = Field(None, max_length=3000)
+    """4 perguntas da revisão mensal v2."""
+    pratica_melhorar: Optional[str] = Field(None, max_length=5000)
+    taticas_vigilancia: Optional[str] = Field(None, max_length=5000)
+    rotina_evangelizacao: Optional[str] = Field(None, max_length=5000)
+    outra_area_atencao: Optional[str] = Field(None, max_length=5000)
 
 
 class RevisaoOut(BaseModel):
-    graca: Optional[str] = None
-    fidelidade: Optional[str] = None
-    falhas: Optional[str] = None
-    ordenar: Optional[str] = None
-    passo: Optional[str] = None
-    decisao: Optional[str] = None
-    virtude: Optional[str] = None
-    conversao: Optional[str] = None
-    passo_proximo: Optional[str] = None
+    pratica_melhorar: Optional[str] = None
+    taticas_vigilancia: Optional[str] = None
+    rotina_evangelizacao: Optional[str] = None
+    outra_area_atencao: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -101,14 +129,10 @@ class RevisaoOut(BaseModel):
 class ProjetoVidaMensalCreate(BaseModel):
     mes: int = Field(..., ge=1, le=12)
     ano: int = Field(..., ge=2024, le=2100)
-    tema: Optional[str] = Field(None, max_length=500)
-    intencao: Optional[str] = Field(None, max_length=3000)
     pin: Optional[str] = Field(None, min_length=4, max_length=4, pattern=r"^\d{4}$")
 
 
 class ProjetoVidaMensalUpdate(BaseModel):
-    tema: Optional[str] = Field(None, max_length=500)
-    intencao: Optional[str] = Field(None, max_length=3000)
     observacoes_mes: Optional[str] = Field(None, max_length=3000)
     concluido: Optional[bool] = None
     comunidade: Optional[ComunidadeData] = None
@@ -121,7 +145,6 @@ class ProjetoVidaMensalSummary(BaseModel):
     id: UUID
     mes: int
     ano: int
-    tema: Optional[str] = None
     concluido: bool
     has_pin: bool
     created_at: datetime
@@ -131,8 +154,6 @@ class ProjetoVidaMensalFull(BaseModel):
     id: UUID
     mes: int
     ano: int
-    tema: Optional[str] = None
-    intencao: Optional[str] = None
     has_pin: bool
     concluido: bool
     observacoes_mes: Optional[str] = None

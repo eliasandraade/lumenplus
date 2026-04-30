@@ -30,7 +30,39 @@ export const TIPOS_PRATICA = [
   'Outro',
 ];
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// ── Tipos de itens estruturados ────────────────────────────────────────────
+
+export interface EventoItem {
+  data: string | null;
+  horario: string | null;
+  local: string | null;
+  observacoes: string | null;
+}
+
+export interface OutroItemComunidade {
+  titulo: string | null;
+  descricao: string | null;
+  local: string | null;
+  data: string | null;
+  horario: string | null;
+}
+
+export interface CuidadoEventoItem {
+  data: string | null;
+  horario: string | null;
+  local: string | null;
+  descricao: string | null;
+}
+
+export interface OutroItemCuidado {
+  titulo: string | null;
+  descricao: string | null;
+  local: string | null;
+  data: string | null;
+  horario: string | null;
+}
+
+// ── Types principais ───────────────────────────────────────────────────────
 
 export interface CompromissoOut {
   id: string;
@@ -53,37 +85,30 @@ export interface PraticaOut {
 }
 
 export interface ComunidadeData {
-  partilha_acompanhador: string | null;
-  encontro_familia: string | null;
-  dias_grupo: string | null;
-  outros: string | null;
+  partilha_acompanhador: EventoItem[];
+  encontro_familia: EventoItem[];
+  dias_grupo: EventoItem[];
+  outros: OutroItemComunidade[];
 }
 
 export interface CuidadoData {
-  consultas: string | null;
-  exames: string | null;
-  descanso: string | null;
-  outros: string | null;
+  consultas: CuidadoEventoItem[];
+  exames: CuidadoEventoItem[];
+  descanso: CuidadoEventoItem[];
+  outros: OutroItemCuidado[];
 }
 
 export interface RevisaoOut {
-  graca: string | null;
-  fidelidade: string | null;
-  falhas: string | null;
-  ordenar: string | null;
-  passo: string | null;
-  decisao: string | null;
-  virtude: string | null;
-  conversao: string | null;
-  passo_proximo: string | null;
+  pratica_melhorar: string | null;
+  taticas_vigilancia: string | null;
+  rotina_evangelizacao: string | null;
+  outra_area_atencao: string | null;
 }
 
 export interface ProjetoVidaMensalFull {
   id: string;
   mes: number;
   ano: number;
-  tema: string | null;
-  intencao: string | null;
   has_pin: boolean;
   concluido: boolean;
   observacoes_mes: string | null;
@@ -100,7 +125,6 @@ export interface ProjetoVidaMensalSummary {
   id: string;
   mes: number;
   ano: number;
-  tema: string | null;
   concluido: boolean;
   has_pin: boolean;
   created_at: string;
@@ -129,14 +153,10 @@ export interface PraticaIn {
 export interface CreateProjetoInput {
   mes: number;
   ano: number;
-  tema?: string | null;
-  intencao?: string | null;
   pin?: string | null;
 }
 
 export interface UpdateProjetoInput {
-  tema?: string | null;
-  intencao?: string | null;
   observacoes_mes?: string | null;
   concluido?: boolean | null;
   comunidade?: ComunidadeData | null;
@@ -146,15 +166,10 @@ export interface UpdateProjetoInput {
 }
 
 export interface RevisaoInput {
-  graca?: string | null;
-  fidelidade?: string | null;
-  falhas?: string | null;
-  ordenar?: string | null;
-  passo?: string | null;
-  decisao?: string | null;
-  virtude?: string | null;
-  conversao?: string | null;
-  passo_proximo?: string | null;
+  pratica_melhorar?: string | null;
+  taticas_vigilancia?: string | null;
+  rotina_evangelizacao?: string | null;
+  outra_area_atencao?: string | null;
 }
 
 // ── API ────────────────────────────────────────────────────────────────────
