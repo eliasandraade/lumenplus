@@ -494,6 +494,20 @@ export default function MembersScreen() {
           <Text style={styles.headerTitleText}>{params.org_unit_name}</Text>
           <Text style={styles.headerSubtitle}>{members.length} membros</Text>
         </View>
+        <TouchableOpacity
+          onPress={() => router.push(`/channel/${params.org_unit_id}` as any)}
+          style={{
+            backgroundColor: '#EDE9FE',
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderRadius: 20,
+            marginRight: 8,
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ color: '#7C3AED', fontWeight: '600', fontSize: 13 }}>💬 Canal</Text>
+        </TouchableOpacity>
         {permissions?.can_invite && (
           <TouchableOpacity
             style={styles.inviteButton}

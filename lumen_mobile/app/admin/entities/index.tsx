@@ -841,6 +841,7 @@ function EditEntityModal({
 }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [channelPostMode, setChannelPostMode] = useState<'COORDINATOR_ONLY' | 'ALL_MEMBERS'>('COORDINATOR_ONLY');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -848,6 +849,7 @@ function EditEntityModal({
     if (state.visible && state.unit) {
       setName(state.unit.name);
       setDescription(state.unit.description ?? '');
+      setChannelPostMode((state.unit as any).channel_post_mode ?? 'COORDINATOR_ONLY');
       setError(null);
     }
   }, [state.visible, state.unit]);
@@ -864,7 +866,8 @@ function EditEntityModal({
       await orgAdminService.updateUnit(state.unit.id, {
         name: name.trim(),
         description: description.trim() || undefined,
-      });
+        channel_post_mode: channelPostMode,
+      } as any);
       onSuccess();
     } catch (e: any) {
       const status = e?.response?.status;
@@ -911,6 +914,42 @@ function EditEntityModal({
             numberOfLines={3}
             maxLength={300}
           />
+
+          <Text style={styles.fieldLabel}>Quem pode criar posts no canal?</Text>
+          {(['COORDINATOR_ONLY', 'ALL_MEMBERS'] as const).map((mode) => (
+            <TouchableOpacity
+              key={mode}
+              onPress={() => setChannelPostMode(mode)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+                padding: 12,
+                borderRadius: 10,
+                marginBottom: 8,
+                backgroundColor: channelPostMode === mode ? '#EDE9FE' : '#F9FAFB',
+                borderWidth: 1,
+                borderColor: channelPostMode === mode ? '#7C3AED' : '#E5E7EB',
+              }}
+            >
+              <View style={{
+                width: 18, height: 18, borderRadius: 9,
+                borderWidth: 2,
+                borderColor: channelPostMode === mode ? '#7C3AED' : '#9CA3AF',
+                backgroundColor: channelPostMode === mode ? '#7C3AED' : 'transparent',
+              }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: '600', fontSize: 13, color: channelPostMode === mode ? '#7C3AED' : '#374151' }}>
+                  {mode === 'COORDINATOR_ONLY' ? 'Somente coordenadores' : 'Todos os membros'}
+                </Text>
+                <Text style={{ fontSize: 11, color: '#6B7280' }}>
+                  {mode === 'COORDINATOR_ONLY'
+                    ? 'Membros só respondem; coordenadores postam'
+                    : 'Qualquer membro ativo pode criar posts'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
 
           {error && (
             <Text style={{ color: colors.danger, fontSize: 13, marginTop: 8 }}>{error}</Text>
