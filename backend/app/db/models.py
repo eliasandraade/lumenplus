@@ -736,6 +736,50 @@ class UserPreferences(Base):
     push_opt_in: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
 
 
+class PushSubscription(Base):
+    __tablename__ = "push_subscriptions"
+    __table_args__ = (Index("idx_push_subscriptions_user_id", "user_id"),)
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True,
+        default=_uuid_mod.uuid4, server_default=func.gen_random_uuid()
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    endpoint: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    p256dh: Mapped[str] = mapped_column(Text, nullable=False)
+    auth: Mapped[str] = mapped_column(Text, nullable=False)
+    user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class NotificationDeliveryLog(Base):
+    __tablename__ = "notification_delivery_log"
+    __table_args__ = (
+        Index("idx_notif_delivery_user_id", "user_id"),
+        Index("idx_notif_delivery_sent_at", "sent_at"),
+        Index("idx_notif_delivery_inbox_msg", "inbox_message_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True,
+        default=_uuid_mod.uuid4, server_default=func.gen_random_uuid()
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    notification_type: Mapped[str] = mapped_column(Text, nullable=False)
+    channel: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    inbox_message_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("inbox_messages.id", ondelete="SET NULL"), nullable=True
+    )
+    deep_link: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 # === AUDIT ===
 
 
@@ -839,6 +883,15 @@ class InboxMessage(Base):
 
     # Anexos (lista de {type, url, title?} — armazenada como array JSON)
     attachments: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
+
+    category: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # GENERAL, EVENT, RETREAT, FORMATION, SURVEY, ALERT — None = GENERAL para msgs antigas
+    deep_link: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Deep link interno no app, ex: /retreats/123, /vida, /channel/abc
+    action_label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Texto do CTA: "Inscrever-se", "Abrir Canal". None → frontend usa "Ver mais"
+    priority: Mapped[str] = mapped_column(Text, nullable=False, server_default="NORMAL")
+    # LOW=somente Inbox | NORMAL=push+email fallback | HIGH=push+email sempre | CRITICAL=bypass opt-in+email
 
     # Filtros usados para segmentação (guardamos para histórico — objeto JSON)
     filters: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
