@@ -82,6 +82,11 @@ class OrgRoleCode(enum.Enum):
     MEMBER = "MEMBER"
 
 
+class ChannelPostMode(enum.Enum):
+    COORDINATOR_ONLY = "COORDINATOR_ONLY"
+    ALL_MEMBERS = "ALL_MEMBERS"
+
+
 # === USER ===
 
 
@@ -443,6 +448,12 @@ class OrgUnit(Base):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     retreat_scope: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    channel_post_mode: Mapped[ChannelPostMode] = mapped_column(
+        Enum(ChannelPostMode, name="channel_post_mode_enum", create_constraint=False),
+        nullable=False,
+        default=ChannelPostMode.COORDINATOR_ONLY,
+        server_default="COORDINATOR_ONLY",
+    )
     created_by_user_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -462,6 +473,80 @@ class OrgUnit(Base):
     invites: Mapped[list["OrgInvite"]] = relationship(
         "OrgInvite", back_populates="org_unit", cascade="all, delete-orphan"
     )
+    channel_posts: Mapped[list["ChannelPost"]] = relationship(
+        "ChannelPost",
+        cascade="all, delete-orphan",
+        foreign_keys="ChannelPost.org_unit_id",
+        primaryjoin="OrgUnit.id == ChannelPost.org_unit_id",
+    )
+
+
+class ChannelPost(Base):
+    __tablename__ = "channel_posts"
+    __table_args__ = (
+        Index("idx_channel_posts_org_unit_id", "org_unit_id"),
+        Index("idx_channel_posts_created_at", "created_at"),
+        Index("idx_channel_posts_ordering",
+              "org_unit_id", "is_institutional_highlight", "is_pinned", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True,
+        default=_uuid_mod.uuid4, server_default=func.gen_random_uuid()
+    )
+    org_unit_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("org_units.id", ondelete="CASCADE"), nullable=False
+    )
+    author_user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    is_pinned: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    is_institutional_highlight: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
+    media_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_by_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    delete_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    replies: Mapped[list["ChannelReply"]] = relationship(
+        "ChannelReply", back_populates="post", cascade="all, delete-orphan"
+    )
+
+
+class ChannelReply(Base):
+    __tablename__ = "channel_replies"
+    __table_args__ = (Index("idx_channel_replies_post_id", "post_id"),)
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True,
+        default=_uuid_mod.uuid4, server_default=func.gen_random_uuid()
+    )
+    post_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("channel_posts.id", ondelete="CASCADE"), nullable=False
+    )
+    author_user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_by_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    delete_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    post: Mapped["ChannelPost"] = relationship("ChannelPost", back_populates="replies")
 
 
 class OrgMembership(Base):
