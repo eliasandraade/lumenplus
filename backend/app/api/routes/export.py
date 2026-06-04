@@ -16,8 +16,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 
@@ -193,20 +193,20 @@ async def create_export_request(
     )
 
     if not has_sensitive:
+        # Gera e retorna CSV imediatamente como stream (sem salvar em disco)
         csv_content = _generate_csv(db, body.fields, body.filters)
-        file_path = f"/tmp/export_{export_req.id}.csv"
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(csv_content)
         export_req.status = "GENERATED"
-        export_req.file_path = file_path
         export_req.expires_at = datetime.now(timezone.utc) + timedelta(hours=EXPORT_TTL_HOURS)
         db.commit()
-        return {
-            "id": str(export_req.id),
-            "status": export_req.status,
-            "has_sensitive": has_sensitive,
-            "expires_at": export_req.expires_at.isoformat(),
-        }
+        filename = f"lumenplus_usuarios_{export_req.id}.csv"
+        return Response(
+            content=csv_content.encode("utf-8-sig"),  # BOM para Excel
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Export-Id": str(export_req.id),
+            },
+        )
     else:
         _notify_council_for_approval(db, export_req, current_user.id)
         db.commit()
@@ -302,16 +302,10 @@ async def approve_export(
             detail={"error": "not_pending", "current_status": export_req.status},
         )
 
-    csv_content = _generate_csv(db, export_req.fields_requested, export_req.filters_json or {})
-    file_path = f"/tmp/export_{export_req.id}.csv"
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write(csv_content)
-
     now = datetime.now(timezone.utc)
     export_req.status = "GENERATED"
     export_req.approved_by = current_user.id
     export_req.approved_at = now
-    export_req.file_path = file_path
     export_req.expires_at = now + timedelta(hours=EXPORT_TTL_HOURS)
 
     db.add(
@@ -379,8 +373,8 @@ async def download_export(
     export_id: UUID,
     current_user: CurrentUser,
     db: DBSession,
-) -> StreamingResponse:
-    """Baixa o CSV. Apenas o solicitante ou admins. Registra auditoria."""
+) -> Response:
+    """Baixa o CSV gerado na hora. Apenas solicitante ou admins. Registra auditoria."""
     caller_roles = get_user_global_roles(db, current_user.id)
     is_admin = any(r in caller_roles for r in ["DEV", "ADMIN"])
 
@@ -405,8 +399,8 @@ async def download_export(
         db.commit()
         raise HTTPException(status_code=410, detail={"error": "expired"})
 
-    if not export_req.file_path or not os.path.exists(export_req.file_path):
-        raise HTTPException(status_code=500, detail={"error": "file_not_found"})
+    # Gera o CSV na hora (sem depender de arquivo em disco)
+    csv_content = _generate_csv(db, export_req.fields_requested, export_req.filters_json or {})
 
     db.add(
         AuditLog(
@@ -418,12 +412,9 @@ async def download_export(
     )
     db.commit()
 
-    def iter_file():
-        with open(export_req.file_path, "r", encoding="utf-8") as f:
-            yield from f
-
-    return StreamingResponse(
-        iter_file(),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=export_{export_id}.csv"},
+    filename = f"lumenplus_usuarios_{export_id}.csv"
+    return Response(
+        content=csv_content.encode("utf-8-sig"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

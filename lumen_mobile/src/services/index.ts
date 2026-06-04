@@ -436,9 +436,47 @@ export interface ExportRequest {
 }
 
 export const adminExportService = {
-  requestExport: async (fields: string[], filters: Record<string, string> = {}): Promise<ExportRequest & { message?: string }> => {
-    return api.post('/admin/export/request', { fields, filters });
+  /**
+   * Solicita exportação.
+   * - Sem dados sensíveis: retorna Blob CSV diretamente para download imediato.
+   * - Com dados sensíveis: retorna { id, status: 'PENDING', message }.
+   */
+  requestExport: async (
+    fields: string[],
+    filters: Record<string, string> = {},
+  ): Promise<{ blob?: Blob; filename?: string; id?: string; status: string; message?: string }> => {
+    const token = await api.getToken?.();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const resp = await fetch(`${api.baseUrl}/admin/export/request`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ fields, filters }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw { response: { data: err } };
+    }
+
+    const contentType = resp.headers.get('content-type') ?? '';
+    if (contentType.includes('text/csv')) {
+      // Exportação imediata — retorna o CSV como Blob
+      const blob = await resp.blob();
+      const disposition = resp.headers.get('content-disposition') ?? '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match?.[1] ?? 'exportacao.csv';
+      return { blob, filename, status: 'GENERATED' };
+    }
+
+    // Exportação pendente de aprovação
+    return resp.json();
   },
+
+  /** URL de download de uma exportação aprovada (abre no browser). */
+  getDownloadUrl: (id: string): string => `${api.baseUrl}/admin/export/${id}/download`,
+
   listRequests: async (): Promise<ExportRequest[]> => {
     return api.get('/admin/export/requests');
   },

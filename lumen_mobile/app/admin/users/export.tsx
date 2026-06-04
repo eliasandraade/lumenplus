@@ -1,14 +1,15 @@
 /**
  * Admin — Exportar Lista de Usuários
  * ====================================
- * Seleciona campos e filtros aplicados, solicita exportação CSV.
- * Campos sensíveis (RG/CPF) requerem aprovação do Conselho Geral.
+ * Seleciona campos, solicita exportação CSV.
+ * - Sem dados sensíveis: download imediato no browser.
+ * - Com CPF/RG: enviado para aprovação do Conselho Geral.
  */
 
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert,
+  ActivityIndicator, Alert, Linking, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,12 +38,12 @@ const FIELD_GROUPS = [
   {
     label: 'Vocacional',
     fields: [
-      { code: 'estado_de_vida',             label: 'Estado de Vida' },
-      { code: 'realidade_vocacional',       label: 'Realidade Vocacional' },
-      { code: 'estado_civil',               label: 'Estado Civil' },
-      { code: 'acompanhamento_vocacional',  label: 'Acompanhamento Vocacional' },
-      { code: 'interesse_ministerio',       label: 'Interesse em Ministério' },
-      { code: 'consagracao_ano',            label: 'Ano de Consagração' },
+      { code: 'estado_de_vida',            label: 'Estado de Vida' },
+      { code: 'realidade_vocacional',      label: 'Realidade Vocacional' },
+      { code: 'estado_civil',              label: 'Estado Civil' },
+      { code: 'acompanhamento_vocacional', label: 'Acompanhamento Vocacional' },
+      { code: 'interesse_ministerio',      label: 'Interesse em Ministério' },
+      { code: 'consagracao_ano',           label: 'Ano de Consagração' },
     ],
   },
   {
@@ -67,6 +68,20 @@ const colors = {
   warning: '#d97706',
   success: '#16a34a',
 };
+
+/** Dispara download de um Blob CSV no browser (web) ou alerta no native */
+function downloadBlob(blob: Blob, filename: string) {
+  if (Platform.OS === 'web') {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  } else {
+    Alert.alert('CSV gerado', 'Abra a URL no browser para baixar o arquivo.');
+  }
+}
 
 export default function ExportScreen() {
   const router = useRouter();
@@ -96,21 +111,28 @@ export default function ExportScreen() {
     setLoading(true);
     try {
       const result = await adminExportService.requestExport([...selected]);
-      if (result.status === 'GENERATED') {
+
+      if (result.status === 'GENERATED' && result.blob) {
+        // Download imediato
+        downloadBlob(result.blob, result.filename ?? 'lumenplus_usuarios.csv');
         Alert.alert(
-          'CSV gerado!',
-          'O arquivo está disponível. Acesse Aprovações para baixar.',
+          'Download iniciado',
+          'O CSV foi gerado. Se não baixou automaticamente, verifique a aba de downloads do navegador.',
           [{ text: 'OK', onPress: () => router.back() }],
         );
       } else {
+        // Pendente de aprovação
         Alert.alert(
           'Enviado para aprovação',
-          result.message ?? 'Aguardando aprovação do Conselho Geral.',
+          result.message ?? 'Sua solicitação foi enviada ao Conselho Geral. Você será notificado quando aprovada.',
           [{ text: 'OK', onPress: () => router.back() }],
         );
       }
     } catch (e: any) {
-      const msg = e?.response?.data?.detail?.message ?? 'Erro ao solicitar exportação';
+      const msg =
+        e?.response?.data?.detail?.message ??
+        e?.message ??
+        'Erro ao solicitar exportação';
       Alert.alert('Erro', msg);
     } finally {
       setLoading(false);
@@ -125,7 +147,7 @@ export default function ExportScreen() {
     if (hasSensitive) {
       Alert.alert(
         'Dados sensíveis incluídos',
-        'Esta exportação contém CPF e/ou RG. Ela será enviada para aprovação do Conselho Geral antes de ser gerada.',
+        'Esta exportação contém CPF e/ou RG e será enviada para aprovação do Conselho Geral antes de ser gerada.',
         [
           { text: 'Cancelar', style: 'cancel' },
           { text: 'Enviar para aprovação', onPress: doExport },
@@ -139,17 +161,15 @@ export default function ExportScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Aviso dados sensíveis */}
         {hasSensitive && (
           <View style={styles.warningBox}>
             <Ionicons name="lock-closed-outline" size={16} color={colors.warning} />
             <Text style={styles.warningText}>
-              CPF/RG selecionados — exportação requer aprovação do Conselho Geral
+              CPF/RG selecionados — requer aprovação do Conselho Geral
             </Text>
           </View>
         )}
 
-        {/* Info campos selecionados */}
         <View style={styles.counterRow}>
           <Text style={styles.counterText}>
             {selected.size} campo{selected.size !== 1 ? 's' : ''} selecionado{selected.size !== 1 ? 's' : ''}
@@ -161,7 +181,6 @@ export default function ExportScreen() {
           )}
         </View>
 
-        {/* Grupos de campos */}
         {FIELD_GROUPS.map((group) => {
           const codes = group.fields.map((f) => f.code);
           const allActive = codes.every((c) => selected.has(c));
@@ -169,7 +188,6 @@ export default function ExportScreen() {
 
           return (
             <View key={group.label} style={styles.group}>
-              {/* Cabeçalho do grupo com toggle-all */}
               <TouchableOpacity
                 style={[styles.groupHeader, group.sensitive && styles.groupHeaderSensitive]}
                 onPress={() => toggleGroup(codes)}
@@ -186,11 +204,10 @@ export default function ExportScreen() {
                 <Ionicons
                   name={allActive ? 'checkbox' : someActive ? 'remove-circle-outline' : 'square-outline'}
                   size={20}
-                  color={allActive ? colors.admin : someActive ? colors.admin : colors.gray}
+                  color={allActive || someActive ? colors.admin : colors.gray}
                 />
               </TouchableOpacity>
 
-              {/* Campos do grupo */}
               {group.fields.map((field) => {
                 const active = selected.has(field.code);
                 return (
@@ -218,7 +235,6 @@ export default function ExportScreen() {
         <View style={{ height: 90 }} />
       </ScrollView>
 
-      {/* Botão fixo no rodapé */}
       <View style={styles.footer}>
         <TouchableOpacity
           style={[styles.exportBtn, (loading || selected.size === 0) && styles.exportBtnDisabled]}
@@ -232,7 +248,9 @@ export default function ExportScreen() {
             <>
               <Ionicons name="download-outline" size={18} color={colors.white} />
               <Text style={styles.exportBtnText}>
-                Exportar {selected.size} campo{selected.size !== 1 ? 's' : ''}
+                {hasSensitive
+                  ? 'Solicitar aprovação'
+                  : `Exportar ${selected.size} campo${selected.size !== 1 ? 's' : ''}`}
               </Text>
             </>
           )}
@@ -273,7 +291,8 @@ const styles = StyleSheet.create({
   },
   groupHeaderSensitive: { backgroundColor: '#fffbeb' },
   groupLabel: {
-    fontSize: 12, fontWeight: '700', color: colors.gray, textTransform: 'uppercase', letterSpacing: 0.5,
+    fontSize: 12, fontWeight: '700', color: colors.gray,
+    textTransform: 'uppercase', letterSpacing: 0.5,
   },
 
   fieldRow: {
