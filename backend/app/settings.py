@@ -68,6 +68,16 @@ class Settings(BaseSettings):
     # Sentry (opcional — monitoramento de erros)
     sentry_dsn: str = Field(default="")
 
+    # Web Push (VAPID)
+    vapid_private_key: str = Field(default="")
+    vapid_public_key: str = Field(default="")
+    vapid_email: str = Field(default="mailto:admin@example.com")
+
+    # E-mail transacional (SendGrid)
+    sendgrid_api_key: str = Field(default="")
+    sendgrid_from_email: str = Field(default="noreply@example.com")
+    sendgrid_from_name: str = Field(default="Lumen+")
+
     # Cloudinary (upload de comprovantes de retiro)
     cloudinary_cloud_name: str = Field(default="")
     cloudinary_api_key: str = Field(default="")
