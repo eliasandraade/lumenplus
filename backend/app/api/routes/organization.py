@@ -740,6 +740,20 @@ async def update_org_unit_endpoint(
     except OrgServiceError as e:
         handle_org_error(e)
 
+    # Atualizar channel_post_mode se fornecido
+    if data.channel_post_mode is not None:
+        from app.db.models import ChannelPostMode
+        try:
+            unit.channel_post_mode = ChannelPostMode(data.channel_post_mode)
+        except ValueError:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=422,
+                detail={"error": "invalid_value", "message": "channel_post_mode deve ser COORDINATOR_ONLY ou ALL_MEMBERS"},
+            )
+        db.commit()
+        db.refresh(unit)
+
     return OrgUnitOut(
         id=unit.id,
         name=unit.name,
@@ -752,6 +766,7 @@ async def update_org_unit_endpoint(
         parent_id=unit.parent_id,
         slug=unit.slug,
         created_at=unit.created_at,
+        channel_post_mode=unit.channel_post_mode.value if unit.channel_post_mode else "COORDINATOR_ONLY",
     )
 
 

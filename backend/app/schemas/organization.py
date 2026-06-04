@@ -85,6 +85,7 @@ class OrgUnitOut(BaseModel):
     is_active: bool
     parent_id: Optional[UUID] = None
     created_at: datetime
+    channel_post_mode: str = "COORDINATOR_ONLY"
 
     class Config:
         from_attributes = True
@@ -191,3 +192,4 @@ class UpdateOrgUnitRequest(BaseModel):
 
     name: str | None = Field(None, min_length=2, max_length=100)
     description: str | None = Field(None, max_length=2000)
+    channel_post_mode: str | None = None  # COORDINATOR_ONLY | ALL_MEMBERS
