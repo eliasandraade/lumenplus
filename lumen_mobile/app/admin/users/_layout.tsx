@@ -9,7 +9,9 @@ import { Stack } from 'expo-router';
 export default function UsersAdminLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="[id]" options={{ title: 'Perfil do Usuário', headerShown: true }} />
+      <Stack.Screen name="export" options={{ title: 'Exportar Usuários', headerShown: true }} />
     </Stack>
   );
 }
