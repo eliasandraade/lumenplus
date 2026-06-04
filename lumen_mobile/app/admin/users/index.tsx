@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { adminUserService, AdminUserItem } from '@/services';
+import { adminUserService, adminFilterService, AdminUserItem, FilterOptions } from '@/services';
 import api from '@/services/api';
 
 interface PermissionsResponse {
@@ -513,50 +513,85 @@ function FilterModal({
   onClose: () => void;
   onApply: () => void;
 }) {
+  const [options, setOptions] = React.useState<FilterOptions | null>(null);
+
+  React.useEffect(() => {
+    if (visible && !options) {
+      adminFilterService.getOptions().then(setOptions).catch(() => {});
+    }
+  }, [visible]);
+
+  const clearAll = () => {
+    ['cidade', 'estado', 'realidade_vocacional', 'ministerio_id', 'estado_civil', 'profile_status']
+      .forEach((k) => onChange(k, ''));
+    onApply();
+    onClose();
+  };
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#fff' }}>
+        {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E8E8E8' }}>
           <Text style={{ fontSize: 16, fontWeight: '700' }}>Filtros</Text>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="close" size={24} color="#171717" />
           </TouchableOpacity>
         </View>
+
         <ScrollView style={{ flex: 1, padding: 16 }}>
-          {[
-            { key: 'cidade', label: 'Cidade', placeholder: 'Ex: São Paulo' },
-            { key: 'estado', label: 'Estado (UF)', placeholder: 'Ex: SP' },
-            { key: 'realidade_vocacional', label: 'Realidade Vocacional', placeholder: 'Ex: VOCACIONAL' },
-            { key: 'ministerio_id', label: 'Ministério (ID)', placeholder: 'UUID do ministério' },
-            { key: 'estado_civil', label: 'Estado Civil', placeholder: 'Ex: SOLTEIRO' },
-            { key: 'profile_status', label: 'Status do Perfil', placeholder: 'COMPLETE ou INCOMPLETE' },
-          ].map(({ key, label, placeholder }) => (
-            <View key={key} style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 4 }}>{label}</Text>
-              <TextInput
-                style={{ borderWidth: 1, borderColor: '#E8E8E8', borderRadius: 8, padding: 10, fontSize: 14 }}
-                value={filters[key] ?? ''}
-                onChangeText={(v) => onChange(key, v)}
-                placeholder={placeholder}
-                placeholderTextColor="#6b7280"
-                autoCapitalize="none"
-              />
+          {/* Cidade */}
+          <FilterSection label="Cidade" selected={filters.cidade} onClear={() => onChange('cidade', '')}>
+            {options?.cidades.map((c) => (
+              <OptionChip key={c} label={c} active={filters.cidade === c}
+                onPress={() => onChange('cidade', filters.cidade === c ? '' : c)} />
+            )) ?? <Text style={{ color: '#6b7280', fontSize: 13 }}>Carregando...</Text>}
+          </FilterSection>
+
+          {/* Estado */}
+          <FilterSection label="Estado (UF)" selected={filters.estado} onClear={() => onChange('estado', '')}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {options?.estados.map((e) => (
+                <OptionChip key={e} label={e} active={filters.estado === e}
+                  onPress={() => onChange('estado', filters.estado === e ? '' : e)} />
+              )) ?? <Text style={{ color: '#6b7280', fontSize: 13 }}>Carregando...</Text>}
             </View>
-          ))}
+          </FilterSection>
+
+          {/* Realidade Vocacional */}
+          <FilterSection label="Realidade Vocacional" selected={filters.realidade_vocacional} onClear={() => onChange('realidade_vocacional', '')}>
+            {options?.realidades_vocacionais.map((r) => (
+              <OptionChip key={r.code} label={r.label} active={filters.realidade_vocacional === r.code}
+                onPress={() => onChange('realidade_vocacional', filters.realidade_vocacional === r.code ? '' : r.code)} />
+            )) ?? <Text style={{ color: '#6b7280', fontSize: 13 }}>Carregando...</Text>}
+          </FilterSection>
+
+          {/* Estado Civil */}
+          <FilterSection label="Estado Civil" selected={filters.estado_civil} onClear={() => onChange('estado_civil', '')}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {options?.estados_civis.map((e) => (
+                <OptionChip key={e.code} label={e.label} active={filters.estado_civil === e.code}
+                  onPress={() => onChange('estado_civil', filters.estado_civil === e.code ? '' : e.code)} />
+              )) ?? <Text style={{ color: '#6b7280', fontSize: 13 }}>Carregando...</Text>}
+            </View>
+          </FilterSection>
+
+          {/* Status do Perfil */}
+          <FilterSection label="Status do Perfil" selected={filters.profile_status} onClear={() => onChange('profile_status', '')}>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[{ code: 'COMPLETE', label: 'Completo' }, { code: 'INCOMPLETE', label: 'Incompleto' }].map((s) => (
+                <OptionChip key={s.code} label={s.label} active={filters.profile_status === s.code}
+                  onPress={() => onChange('profile_status', filters.profile_status === s.code ? '' : s.code)} />
+              ))}
+            </View>
+          </FilterSection>
         </ScrollView>
+
+        {/* Footer */}
         <View style={{ flexDirection: 'row', gap: 12, padding: 16, borderTopWidth: 1, borderTopColor: '#E8E8E8' }}>
           <TouchableOpacity
             style={{ flex: 1, borderWidth: 2, borderColor: '#7c3aed', borderRadius: 10, paddingVertical: 14, alignItems: 'center' }}
-            onPress={() => {
-              onChange('cidade', '');
-              onChange('estado', '');
-              onChange('realidade_vocacional', '');
-              onChange('ministerio_id', '');
-              onChange('estado_civil', '');
-              onChange('profile_status', '');
-              onApply();
-              onClose();
-            }}
+            onPress={clearAll}
           >
             <Text style={{ color: '#7c3aed', fontWeight: '700' }}>Limpar</Text>
           </TouchableOpacity>
@@ -569,6 +604,47 @@ function FilterModal({
         </View>
       </View>
     </Modal>
+  );
+}
+
+function FilterSection({
+  label, selected, onClear, children,
+}: {
+  label: string;
+  selected?: string;
+  onClear: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={{ marginBottom: 20 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <Text style={{ fontSize: 13, fontWeight: '700', color: '#171717' }}>{label}</Text>
+        {selected ? (
+          <TouchableOpacity onPress={onClear}>
+            <Text style={{ fontSize: 12, color: '#7c3aed' }}>Limpar</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function OptionChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{
+        paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, marginBottom: 6,
+        borderWidth: 1.5,
+        borderColor: active ? '#7c3aed' : '#E8E8E8',
+        backgroundColor: active ? '#7c3aed' : '#fafafa',
+      }}
+    >
+      <Text style={{ fontSize: 13, fontWeight: active ? '700' : '400', color: active ? '#fff' : '#171717' }}>
+        {label}
+      </Text>
+    </TouchableOpacity>
   );
 }
 

@@ -57,8 +57,8 @@ def _require_approval_permission(db, user_id: UUID) -> None:
 
 def _generate_csv(db, fields: list[str], filters: dict) -> str:
     """Gera CSV em memória com os usuários."""
-    from app.crypto.service import get_crypto_service
-    crypto = get_crypto_service()
+    from app.crypto.service import crypto_service
+    crypto = crypto_service
 
     stmt = (
         select(User)

@@ -59,6 +59,64 @@ def require_admin_or_analista(db: Session, user_id: UUID) -> None:
 # =============================================================================
 
 
+@router.get("/users/filter-options")
+async def get_filter_options(
+    current_user: CurrentUser,
+    db: DBSession,
+) -> Any:
+    """
+    Retorna as opções disponíveis para filtros de usuários:
+    cidades, estados, realidades vocacionais, estados civis.
+    Requer DEV, ADMIN ou SECRETARY.
+    """
+    global_roles = get_user_global_roles(db, current_user.id)
+    if not any(r in global_roles for r in ["DEV", "ADMIN", "SECRETARY"]):
+        raise HTTPException(status_code=403, detail={"error": "forbidden"})
+
+    # Cidades distintas (não nulas, ordenadas)
+    cidades = db.execute(
+        select(UserProfile.city)
+        .where(UserProfile.city.isnot(None), UserProfile.city != "")
+        .distinct()
+        .order_by(UserProfile.city)
+    ).scalars().all()
+
+    # Estados distintos
+    estados = db.execute(
+        select(UserProfile.state)
+        .where(UserProfile.state.isnot(None), UserProfile.state != "")
+        .distinct()
+        .order_by(UserProfile.state)
+    ).scalars().all()
+
+    # Realidades vocacionais do catálogo (com contagem de usuários que as têm)
+    voc_items = db.execute(
+        select(ProfileCatalogItem.code, ProfileCatalogItem.label)
+        .join(ProfileCatalog)
+        .where(ProfileCatalog.code == "VOCATIONAL_REALITY")
+        .order_by(ProfileCatalogItem.sort_order)
+    ).all()
+
+    # Estados civis do catálogo
+    ec_items = db.execute(
+        select(ProfileCatalogItem.code, ProfileCatalogItem.label)
+        .join(ProfileCatalog)
+        .where(ProfileCatalog.code == "MARITAL_STATUS")
+        .order_by(ProfileCatalogItem.sort_order)
+    ).all()
+
+    return {
+        "cidades": cidades,
+        "estados": estados,
+        "realidades_vocacionais": [{"code": r.code, "label": r.label} for r in voc_items],
+        "estados_civis": [{"code": r.code, "label": r.label} for r in ec_items],
+        "profile_status": [
+            {"code": "COMPLETE", "label": "Completo"},
+            {"code": "INCOMPLETE", "label": "Incompleto"},
+        ],
+    }
+
+
 @router.get("/users")
 async def list_users(
     current_user: CurrentUser,
@@ -192,7 +250,7 @@ async def get_user_full_profile(
     e histórico de auditoria.
     Requer DEV, ADMIN ou SECRETARY.
     """
-    from app.crypto.service import get_crypto_service
+    from app.crypto.service import crypto_service
 
     caller_roles = get_user_global_roles(db, current_user.id)
     if not any(r in caller_roles for r in ["DEV", "ADMIN", "SECRETARY"]):
@@ -207,7 +265,7 @@ async def get_user_full_profile(
     user_roles = get_user_global_roles(db, user_id)
 
     # Descriptografar RG e CPF
-    crypto = get_crypto_service()
+    crypto = crypto_service
     cpf_plain = None
     rg_plain = None
     if profile:

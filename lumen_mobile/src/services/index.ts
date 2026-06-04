@@ -372,6 +372,20 @@ export const verificationService = {
     ),
 };
 
+export interface FilterOptions {
+  cidades: string[];
+  estados: string[];
+  realidades_vocacionais: { code: string; label: string }[];
+  estados_civis: { code: string; label: string }[];
+  profile_status: { code: string; label: string }[];
+}
+
+export const adminFilterService = {
+  getOptions: async (): Promise<FilterOptions> => {
+    return api.get<FilterOptions>('/admin/users/filter-options');
+  },
+};
+
 // =============================================================================
 // ADMIN USER PROFILE — perfil completo de usuário
 // =============================================================================
