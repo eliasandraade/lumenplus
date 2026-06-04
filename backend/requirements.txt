@@ -31,6 +31,10 @@ structlog==24.1.0
 cloudinary==1.40.0
 openpyxl==3.1.2
 
+# Notifications
+pywebpush>=2.0.0
+sendgrid>=6.11.0
+
 # Monitoramento de erros
 sentry-sdk[fastapi]==2.19.2
 

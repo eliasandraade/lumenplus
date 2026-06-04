@@ -16,6 +16,8 @@ dependencies = [
     "cachetools>=5.5.0",
     "structlog>=24.4.0",
     "cryptography>=44.0.0",
+    "pywebpush>=2.0.0",
+    "sendgrid>=6.11.0",
 ]
 
 [project.optional-dependencies]
