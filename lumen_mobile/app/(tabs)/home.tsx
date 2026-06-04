@@ -5,13 +5,15 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Platform } from 'react-native';
 import { router, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { IoniconsName } from '@/types/icons';
 import { auth } from '@/config/firebase';
 import api from '@/services/api';
 import { getVersiculoDoDia } from '@/services/bible';
+import { PushPermissionCard } from '@/components/PushPermissionCard';
+import { getPushDecision } from '@/services/push';
 
 const colors = {
   primary: '#1A859B',
@@ -41,9 +43,23 @@ export default function HomeScreen() {
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
   const [isCoordinator, setIsCoordinator] = useState(false);
   const [hasRetreatAccess, setHasRetreatAccess] = useState(false);
+  const [showPushCard, setShowPushCard] = useState(false);
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    if (typeof window === 'undefined') return;
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'denied') return;
+
+    getPushDecision().then((decision: string | null) => {
+      if (!decision || decision === 'later') {
+        setShowPushCard(true);
+      }
+    });
   }, []);
 
   const loadData = async () => {
@@ -154,6 +170,10 @@ export default function HomeScreen() {
     >
       {/* Greeting */}
       <Text style={styles.greeting}>Olá, {userName || 'Usuário'}!</Text>
+
+      {Platform.OS === 'web' && showPushCard && (
+        <PushPermissionCard onDismiss={() => setShowPushCard(false)} />
+      )}
 
       {/* Admin Button */}
       {hasAdminAccess && (
