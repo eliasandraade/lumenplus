@@ -387,7 +387,7 @@ def edit_reply(
         raise HTTPException(status_code=403, detail={"error": "forbidden", "message": "Sem permissão para editar esta resposta"})
     reply.body = body.body
     reply.edited_at = datetime.now(timezone.utc)
-    create_audit_log(db, action="channel_reply_edited", actor_user_id=current_user.id, entity_type="channel_reply", entity_id=str(reply.id))
+    create_audit_log(db, action="channel_reply_edited", actor_user_id=current_user.id, entity_type="channel_reply", entity_id=str(reply.id), metadata={"fields_changed": ["body"]})
     db.commit()
     author_name = db.scalars(select(UserProfile.full_name).where(UserProfile.user_id == reply.author_user_id)).first() or "Membro"
     return ChannelReplyResponse(id=reply.id, post_id=reply.post_id, author_user_id=reply.author_user_id, author_name=author_name, body=reply.body, edited_at=reply.edited_at, created_at=reply.created_at, is_deleted=False)
