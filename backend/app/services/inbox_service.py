@@ -514,6 +514,12 @@ class InboxService:
         attachments: list[dict[str, Any]] | None = None,
         scope_org_unit_id: UUID | None = None,
         requires_approval: bool = False,
+        # Novos parâmetros
+        category: str | None = None,
+        deep_link: str | None = None,
+        action_label: str | None = None,
+        priority: str = "NORMAL",
+        critical_reason: str | None = None,
     ) -> tuple[UUID, int]:
         """
         Envia uma mensagem para os destinatários.
@@ -545,6 +551,11 @@ class InboxService:
             filters=filters.model_dump() if filters else None,
             target_org_unit_id=scope_org_unit_id,
             approval_status=approval_status,
+            # Novos campos
+            category=category,
+            deep_link=deep_link,
+            action_label=action_label,
+            priority=priority,
         )
         self.db.add(inbox_message)
         self.db.flush()  # Para obter o ID
@@ -569,6 +580,21 @@ class InboxService:
             new_title=title,
             new_message=message,
         )
+
+        if priority == "CRITICAL":
+            from app.audit.service import create_audit_log
+            create_audit_log(
+                self.db,
+                action="inbox_critical_sent",
+                actor_user_id=created_by_user_id,
+                entity_type="inbox_message",
+                entity_id=str(inbox_message.id),
+                metadata={
+                    "title": title,
+                    "recipient_count": len(user_ids),
+                    "critical_reason": critical_reason,
+                },
+            )
 
         self.db.commit()
 

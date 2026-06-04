@@ -7,7 +7,7 @@ Rotas para o sistema de avisos/inbox.
 from typing import Any
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import BackgroundTasks, HTTPException, status
 from fastapi.routing import APIRouter
 
 from sqlalchemy import select
@@ -264,9 +264,31 @@ def send_message(
     request: InboxSendRequest,
     db: DBSession,
     current_user: CurrentUser,
+    background_tasks: BackgroundTasks,
 ) -> Any:
     """Envia um aviso para os destinatários selecionados."""
     _check_send_permission(db, current_user)
+
+    # Guard de prioridade CRITICAL — somente DEV e ADMIN
+    if getattr(request, 'priority', 'NORMAL') == 'CRITICAL':
+        global_roles = get_user_global_roles(db, current_user.id)
+        if not any(r in global_roles for r in ["DEV", "ADMIN"]):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "critical_requires_admin",
+                    "message": "Apenas administradores podem enviar avisos com prioridade Urgente",
+                },
+            )
+        critical_reason = getattr(request, 'critical_reason', None)
+        if not critical_reason or len(critical_reason.strip()) < 10:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "error": "critical_reason_required",
+                    "message": "Avisos urgentes exigem uma justificativa com pelo menos 10 caracteres",
+                },
+            )
 
     # Envio global (send_to_all) exige permissão explícita CAN_SEND_INBOX
     if request.send_to_all:
@@ -301,6 +323,8 @@ def send_message(
 
     attachments = [a.model_dump() for a in request.attachments] if request.attachments else None
 
+    requires_approval_flag = not _has_full_send_access(db, current_user.id)
+
     message_id, recipient_count = service.send_message(
         title=request.title,
         message=request.message,
@@ -310,8 +334,35 @@ def send_message(
         filters=request.filters,
         attachments=attachments,
         scope_org_unit_id=request.scope_org_unit_id,
-        requires_approval=not _has_full_send_access(db, current_user.id),
+        requires_approval=requires_approval_flag,
+        category=getattr(request, 'category', None),
+        deep_link=getattr(request, 'deep_link', None),
+        action_label=getattr(request, 'action_label', None),
+        priority=getattr(request, 'priority', 'NORMAL'),
+        critical_reason=getattr(request, 'critical_reason', None),
     )
+
+    # Dispara notificações em background (não bloqueia a resposta)
+    if not requires_approval_flag:
+        from app.notifications.notification_service import notify_new_inbox
+        from sqlalchemy import select as sa_select
+        from app.db.models import InboxRecipient
+        recipient_ids = db.scalars(
+            sa_select(InboxRecipient.user_id).where(
+                InboxRecipient.message_id == message_id
+            )
+        ).all()
+        if recipient_ids:
+            background_tasks.add_task(
+                notify_new_inbox,
+                user_ids=[str(uid) for uid in recipient_ids],
+                title=request.title,
+                message=request.message,
+                inbox_message_id=str(message_id),
+                deep_link=getattr(request, 'deep_link', None),
+                action_label=getattr(request, 'action_label', None),
+                priority=getattr(request, 'priority', 'NORMAL'),
+            )
 
     return InboxSendResponse(
         message_id=message_id,

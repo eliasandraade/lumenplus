@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # === ENUMS ===
@@ -62,6 +62,20 @@ class InboxSendRequest(BaseModel):
 
     # Anexos
     attachments: list[InboxAttachment] | None = Field(None, description="Anexos (imagens ou links)")
+
+    # Novos campos de comunicação
+    category: str | None = None
+    deep_link: str | None = None
+    action_label: str | None = None
+    priority: str = "NORMAL"
+    critical_reason: str | None = None
+
+    @model_validator(mode='after')
+    def validate_critical_reason(self) -> 'InboxSendRequest':
+        if self.priority == 'CRITICAL':
+            if not self.critical_reason or len(self.critical_reason.strip()) < 10:
+                raise ValueError('critical_reason obrigatório (min 10 chars) quando priority=CRITICAL')
+        return self
 
 
 class InboxPreviewRequest(BaseModel):
