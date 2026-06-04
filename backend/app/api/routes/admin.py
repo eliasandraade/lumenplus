@@ -177,6 +177,99 @@ async def list_users(
 
 
 # =============================================================================
+# USERS — perfil completo
+# =============================================================================
+
+
+@router.get("/users/{user_id}/profile")
+async def get_user_full_profile(
+    user_id: UUID,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> Any:
+    """
+    Retorna perfil completo de um usuário, incluindo RG/CPF (descriptografados)
+    e histórico de auditoria.
+    Requer DEV, ADMIN ou SECRETARY.
+    """
+    from app.crypto.service import get_crypto_service
+
+    caller_roles = get_user_global_roles(db, current_user.id)
+    if not any(r in caller_roles for r in ["DEV", "ADMIN", "SECRETARY"]):
+        raise HTTPException(status_code=403, detail={"error": "forbidden"})
+
+    target = db.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+
+    profile = target.profile
+    email = target.identities[0].email if target.identities else None
+    user_roles = get_user_global_roles(db, user_id)
+
+    # Descriptografar RG e CPF
+    crypto = get_crypto_service()
+    cpf_plain = None
+    rg_plain = None
+    if profile:
+        if profile.cpf_encrypted:
+            try:
+                cpf_plain = crypto.decrypt(profile.cpf_encrypted)
+            except Exception:
+                cpf_plain = None
+        if profile.rg_encrypted:
+            try:
+                rg_plain = crypto.decrypt(profile.rg_encrypted)
+            except Exception:
+                rg_plain = None
+
+    # Auditoria — registrar acesso
+    db.add(
+        AuditLog(
+            actor_user_id=current_user.id,
+            action="VIEW_FULL_PROFILE",
+            entity_type="USER",
+            entity_id=str(user_id),
+            extra_data={"caller_email": email},
+        )
+    )
+    db.commit()
+
+    # Últimas 50 entradas de auditoria sobre este usuário
+    audit_entries = db.execute(
+        select(AuditLog)
+        .where(AuditLog.entity_type == "USER", AuditLog.entity_id == str(user_id))
+        .order_by(desc(AuditLog.created_at))
+        .limit(50)
+    ).scalars().all()
+
+    return {
+        "id": str(target.id),
+        "name": profile.full_name if profile else None,
+        "email": email,
+        "phone": profile.phone_e164 if profile else None,
+        "birth_date": profile.birth_date.isoformat() if profile and profile.birth_date else None,
+        "city": profile.city if profile else None,
+        "state": profile.state if profile else None,
+        "instagram": profile.instagram if profile else None,
+        "cpf": cpf_plain,
+        "rg": rg_plain,
+        "profile_status": profile.status if profile else "INCOMPLETE",
+        "global_roles": user_roles,
+        "created_at": target.created_at.isoformat(),
+        "audit_entries": [
+            {
+                "id": str(e.id),
+                "action": e.action,
+                "actor_user_id": str(e.actor_user_id) if e.actor_user_id else None,
+                "extra_data": e.extra_data,
+                "created_at": e.created_at.isoformat(),
+            }
+            for e in audit_entries
+        ],
+    }
+
+
+# =============================================================================
 # USERS — edição administrativa
 # =============================================================================
 
