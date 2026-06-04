@@ -225,6 +225,7 @@ from app.api.routes.organization import router as org_router  # noqa: E402
 from app.api.verification_routes import router as verify_router  # noqa: E402
 from app.api.life_plan_routes import router as life_plan_router  # noqa: E402
 from app.api.projeto_vida_mensal_routes import router as projeto_vida_mensal_router  # noqa: E402
+from app.api.routes.export import router as export_router  # noqa: E402
 
 app.include_router(auth_router)
 app.include_router(profile_router)
@@ -238,6 +239,7 @@ app.include_router(verify_router)
 app.include_router(legal_router)
 app.include_router(life_plan_router)
 app.include_router(projeto_vida_mensal_router)
+app.include_router(export_router)
 
 # Dev endpoints
 if settings.enable_dev_endpoints:
