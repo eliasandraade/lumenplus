@@ -444,6 +444,7 @@ export const adminExportService = {
   requestExport: async (
     fields: string[],
     filters: Record<string, string> = {},
+    format: 'csv' | 'xlsx' = 'csv',
   ): Promise<{ blob?: Blob; filename?: string; id?: string; status: string; message?: string }> => {
     const token = await api.getToken?.();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -452,7 +453,7 @@ export const adminExportService = {
     const resp = await fetch(`${api.baseUrl}/admin/export/request`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ fields, filters }),
+      body: JSON.stringify({ fields, filters, format }),
     });
 
     if (!resp.ok) {
@@ -461,12 +462,13 @@ export const adminExportService = {
     }
 
     const contentType = resp.headers.get('content-type') ?? '';
-    if (contentType.includes('text/csv')) {
-      // Exportação imediata — retorna o CSV como Blob
+    if (contentType.includes('text/csv') || contentType.includes('spreadsheetml')) {
+      // Exportação imediata — retorna como Blob para download
       const blob = await resp.blob();
       const disposition = resp.headers.get('content-disposition') ?? '';
       const match = disposition.match(/filename="?([^"]+)"?/);
-      const filename = match?.[1] ?? 'exportacao.csv';
+      const ext = contentType.includes('spreadsheetml') ? 'xlsx' : 'csv';
+      const filename = match?.[1] ?? `exportacao.${ext}`;
       return { blob, filename, status: 'GENERATED' };
     }
 

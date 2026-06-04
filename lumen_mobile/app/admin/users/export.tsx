@@ -86,6 +86,7 @@ function downloadBlob(blob: Blob, filename: string) {
 export default function ExportScreen() {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set(['name', 'email']));
+  const [format, setFormat] = useState<'csv' | 'xlsx'>('xlsx');
   const [loading, setLoading] = useState(false);
 
   const toggle = (code: string) =>
@@ -110,7 +111,7 @@ export default function ExportScreen() {
   const doExport = async () => {
     setLoading(true);
     try {
-      const result = await adminExportService.requestExport([...selected]);
+      const result = await adminExportService.requestExport([...selected], {}, format);
 
       if (result.status === 'GENERATED' && result.blob) {
         // Download imediato
@@ -169,6 +170,29 @@ export default function ExportScreen() {
             </Text>
           </View>
         )}
+
+        {/* Seletor de formato */}
+        <View style={styles.formatRow}>
+          <Text style={styles.formatLabel}>Formato:</Text>
+          <TouchableOpacity
+            style={[styles.formatChip, format === 'xlsx' && styles.formatChipActive]}
+            onPress={() => setFormat('xlsx')}
+          >
+            <Ionicons name="grid-outline" size={14} color={format === 'xlsx' ? colors.white : colors.admin} />
+            <Text style={[styles.formatChipText, format === 'xlsx' && styles.formatChipTextActive]}>
+              Excel (.xlsx)
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.formatChip, format === 'csv' && styles.formatChipActive]}
+            onPress={() => setFormat('csv')}
+          >
+            <Ionicons name="document-text-outline" size={14} color={format === 'csv' ? colors.white : colors.admin} />
+            <Text style={[styles.formatChipText, format === 'csv' && styles.formatChipTextActive]}>
+              CSV (.csv)
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.counterRow}>
           <Text style={styles.counterText}>
@@ -270,6 +294,19 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#fcd34d', marginBottom: 12,
   },
   warningText: { flex: 1, fontSize: 13, color: colors.warning, lineHeight: 18 },
+
+  formatRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16,
+  },
+  formatLabel: { fontSize: 13, color: colors.gray, fontWeight: '600', marginRight: 4 },
+  formatChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1.5, borderColor: colors.admin, backgroundColor: colors.white,
+  },
+  formatChipActive: { backgroundColor: colors.admin },
+  formatChipText: { fontSize: 13, fontWeight: '600', color: colors.admin },
+  formatChipTextActive: { color: colors.white },
 
   counterRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

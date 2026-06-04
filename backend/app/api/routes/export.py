@@ -13,10 +13,10 @@ import csv
 import io
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -149,9 +149,162 @@ def _generate_csv(db, fields: list[str], filters: dict) -> str:
     return output.getvalue()
 
 
+# Cabeçalhos legíveis em português para o XLSX
+_FIELD_LABELS: dict[str, str] = {
+    "name":                      "Nome Completo",
+    "email":                     "E-mail",
+    "phone":                     "Telefone",
+    "birth_date":                "Data de Nascimento",
+    "city":                      "Cidade",
+    "state":                     "Estado (UF)",
+    "instagram":                 "Instagram",
+    "profile_status":            "Status do Perfil",
+    "realidade_vocacional":      "Realidade Vocacional",
+    "estado_civil":              "Estado Civil",
+    "estado_de_vida":            "Estado de Vida",
+    "acompanhamento_vocacional": "Acompanhamento Vocacional",
+    "interesse_ministerio":      "Interesse em Ministério",
+    "consagracao_ano":           "Ano de Consagração",
+    "global_roles":              "Cargos",
+    "cpf":                       "CPF",
+    "rg":                        "RG",
+}
+
+
+def _generate_xlsx(db, fields: list[str], filters: dict) -> bytes:
+    """Gera XLSX em memória com cabeçalhos formatados e colunas ajustadas."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    # Reutiliza a lógica de geração de dados do CSV (sem serializar)
+    from app.crypto.service import crypto_service
+    from app.services.organization import get_user_global_roles as _get_roles
+
+    crypto = crypto_service
+
+    stmt = (
+        select(User)
+        .outerjoin(UserProfile, User.id == UserProfile.user_id)
+        .outerjoin(UserIdentity, User.id == UserIdentity.user_id)
+    )
+    users = db.execute(stmt).scalars().unique().all()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Usuários Lumen+"
+
+    # ── Cabeçalho estilizado ─────────────────────────────────────────────────
+    header_fill = PatternFill("solid", fgColor="7C3AED")   # roxo admin
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    thin = Side(style="thin", color="E8E8E8")
+    border = Border(left=thin, right=thin, bottom=thin)
+
+    for col_idx, field in enumerate(fields, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=_FIELD_LABELS.get(field, field))
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_align
+        cell.border = border
+
+    ws.row_dimensions[1].height = 28
+
+    # ── Dados ────────────────────────────────────────────────────────────────
+    data_align = Alignment(vertical="center")
+    even_fill = PatternFill("solid", fgColor="F9F5FF")     # roxo muito claro
+
+    for row_idx, user in enumerate(users, start=2):
+        profile = user.profile
+        identity = user.identities[0] if user.identities else None
+        fill = even_fill if row_idx % 2 == 0 else None
+
+        for col_idx, field in enumerate(fields, start=1):
+            value: Any = ""
+            if field == "name":
+                value = profile.full_name if profile else ""
+            elif field == "email":
+                value = identity.email if identity else ""
+            elif field == "phone":
+                value = profile.phone_e164 if profile else ""
+            elif field == "city":
+                value = profile.city if profile else ""
+            elif field == "state":
+                value = profile.state if profile else ""
+            elif field == "birth_date":
+                value = profile.birth_date if profile and profile.birth_date else ""
+            elif field == "instagram":
+                value = profile.instagram if profile else ""
+            elif field == "profile_status":
+                raw = profile.status if profile else "INCOMPLETE"
+                value = "Completo" if raw == "COMPLETE" else "Incompleto"
+            elif field == "realidade_vocacional":
+                value = _catalog_label(db, profile.vocational_reality_item_id if profile else None)
+            elif field == "estado_civil":
+                value = _catalog_label(db, profile.marital_status_item_id if profile else None)
+            elif field == "estado_de_vida":
+                value = _catalog_label(db, profile.life_state_item_id if profile else None)
+            elif field == "acompanhamento_vocacional":
+                value = (
+                    "Sim" if profile and profile.has_vocational_accompaniment else
+                    "Não" if profile and profile.has_vocational_accompaniment is not None else ""
+                )
+            elif field == "interesse_ministerio":
+                value = (
+                    "Sim" if profile and profile.interested_in_ministry else
+                    "Não" if profile and profile.interested_in_ministry is not None else ""
+                )
+            elif field == "consagracao_ano":
+                value = profile.consecration_year if profile and profile.consecration_year else ""
+            elif field == "global_roles":
+                value = ", ".join(_get_roles(db, user.id))
+            elif field == "cpf":
+                if profile and profile.cpf_encrypted:
+                    try:
+                        value = crypto.decrypt(profile.cpf_encrypted)
+                    except Exception:
+                        value = ""
+            elif field == "rg":
+                if profile and profile.rg_encrypted:
+                    try:
+                        value = crypto.decrypt(profile.rg_encrypted)
+                    except Exception:
+                        value = ""
+
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.alignment = data_align
+            cell.border = border
+            if fill:
+                cell.fill = fill
+
+        ws.row_dimensions[row_idx].height = 20
+
+    # ── Ajuste automático de largura das colunas ─────────────────────────────
+    for col_idx, field in enumerate(fields, start=1):
+        col_letter = get_column_letter(col_idx)
+        header_len = len(_FIELD_LABELS.get(field, field))
+        max_len = max(
+            header_len,
+            *[
+                len(str(ws.cell(row=r, column=col_idx).value or ""))
+                for r in range(2, min(ws.max_row + 1, 102))  # sample primeiras 100 linhas
+            ],
+            1,
+        )
+        ws.column_dimensions[col_letter].width = min(max_len + 3, 45)
+
+    # Congela a linha de cabeçalho
+    ws.freeze_panes = "A2"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 class ExportRequestBody(BaseModel):
     fields: list[str]
     filters: dict = {}
+    format: Literal["csv", "xlsx"] = "csv"
 
 
 @router.post("/request")
@@ -192,21 +345,40 @@ async def create_export_request(
         )
     )
 
+    # Também salva o formato solicitado para uso no download posterior
+    fmt = body.format  # "csv" ou "xlsx"
+
     if not has_sensitive:
-        # Gera e retorna CSV imediatamente como stream (sem salvar em disco)
-        csv_content = _generate_csv(db, body.fields, body.filters)
         export_req.status = "GENERATED"
         export_req.expires_at = datetime.now(timezone.utc) + timedelta(hours=EXPORT_TTL_HOURS)
+        # Guarda o formato no filters_json para reusar no download
+        if export_req.filters_json is None:
+            export_req.filters_json = {}
+        export_req.filters_json = {**(export_req.filters_json or {}), "_fmt": fmt}
         db.commit()
-        filename = f"lumenplus_usuarios_{export_req.id}.csv"
-        return Response(
-            content=csv_content.encode("utf-8-sig"),  # BOM para Excel
-            media_type="text/csv; charset=utf-8",
-            headers={
-                "Content-Disposition": f'attachment; filename="{filename}"',
-                "X-Export-Id": str(export_req.id),
-            },
-        )
+
+        if fmt == "xlsx":
+            content = _generate_xlsx(db, body.fields, body.filters)
+            filename = f"lumenplus_usuarios_{export_req.id}.xlsx"
+            return Response(
+                content=content,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{filename}"',
+                    "X-Export-Id": str(export_req.id),
+                },
+            )
+        else:
+            csv_content = _generate_csv(db, body.fields, body.filters)
+            filename = f"lumenplus_usuarios_{export_req.id}.csv"
+            return Response(
+                content=csv_content.encode("utf-8-sig"),
+                media_type="text/csv; charset=utf-8",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{filename}"',
+                    "X-Export-Id": str(export_req.id),
+                },
+            )
     else:
         _notify_council_for_approval(db, export_req, current_user.id)
         db.commit()
@@ -399,8 +571,9 @@ async def download_export(
         db.commit()
         raise HTTPException(status_code=410, detail={"error": "expired"})
 
-    # Gera o CSV na hora (sem depender de arquivo em disco)
-    csv_content = _generate_csv(db, export_req.fields_requested, export_req.filters_json or {})
+    # Descobre o formato solicitado originalmente (_fmt salvo em filters_json)
+    filters = dict(export_req.filters_json or {})
+    fmt = filters.pop("_fmt", "csv")  # remove a chave interna antes de passar aos filtros
 
     db.add(
         AuditLog(
@@ -412,6 +585,17 @@ async def download_export(
     )
     db.commit()
 
+    if fmt == "xlsx":
+        content = _generate_xlsx(db, export_req.fields_requested, filters)
+        filename = f"lumenplus_usuarios_{export_id}.xlsx"
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    # CSV (padrão)
+    csv_content = _generate_csv(db, export_req.fields_requested, filters)
     filename = f"lumenplus_usuarios_{export_id}.csv"
     return Response(
         content=csv_content.encode("utf-8-sig"),
