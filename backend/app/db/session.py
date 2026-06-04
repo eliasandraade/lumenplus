@@ -34,3 +34,20 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def get_db_session() -> Generator[Session, None, None]:
+    """Context manager para sessões independentes (ex: BackgroundTasks, scheduler)."""
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
