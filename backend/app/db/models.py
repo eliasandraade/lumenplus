@@ -24,6 +24,7 @@ from sqlalchemy import (
     Index,
     func,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -668,6 +669,47 @@ class AuditLog(Base):
     entity_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     extra_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# === EXPORTAÇÃO DE DADOS ===
+
+class DataExportRequest(Base):
+    __tablename__ = "data_export_requests"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    requested_by: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    # PENDING | APPROVED | REJECTED | GENERATED | EXPIRED
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="PENDING")
+    fields_requested: Mapped[list[str]] = mapped_column(
+        postgresql.ARRAY(Text), nullable=False
+    )
+    filters_json: Mapped[dict | None] = mapped_column(
+        postgresql.JSONB(astext_type=Text), nullable=True
+    )
+    has_sensitive: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    approved_by: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    approved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    file_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    requester: Mapped["User"] = relationship("User", foreign_keys=[requested_by])
+    approver: Mapped["User | None"] = relationship("User", foreign_keys=[approved_by])
 
 
 # === INBOX (AVISOS) ===

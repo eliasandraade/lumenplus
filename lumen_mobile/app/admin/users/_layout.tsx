@@ -7,5 +7,9 @@ import { Stack } from 'expo-router';
  * /admin/users sem exibir um cabeçalho duplicado.
  */
 export default function UsersAdminLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="[id]" options={{ title: 'Perfil do Usuário', headerShown: true }} />
+    </Stack>
+  );
 }

@@ -64,12 +64,19 @@ async def list_users(
     current_user: CurrentUser,
     db: DBSession,
     search: str = Query(default="", description="Busca por nome ou e-mail"),
+    cidade: str = Query(default="", description="Filtro por cidade"),
+    estado: str = Query(default="", description="Filtro por estado (UF)"),
+    realidade_vocacional: str = Query(default="", description="Code do item de realidade vocacional"),
+    ministerio_id: str = Query(default="", description="UUID da unidade org tipo MINISTRY"),
+    estado_civil: str = Query(default="", description="Code do item de estado civil"),
+    profile_status: str = Query(default="", description="COMPLETE ou INCOMPLETE"),
     limit: int = Query(default=50, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> Any:
     """
     Lista usuários com perfil, e-mail e papéis globais.
     Requer DEV, ADMIN ou SECRETARY.
+    Suporta filtros por: cidade, estado, realidade_vocacional, ministerio_id, estado_civil, profile_status.
     """
     global_roles = get_user_global_roles(db, current_user.id)
     if not any(r in global_roles for r in ["DEV", "ADMIN", "SECRETARY"]):
@@ -97,19 +104,56 @@ async def list_users(
     if search.strip():
         base = _apply_search(base, f"%{search.strip()}%")
 
+    # Filtros adicionais
+    if cidade:
+        base = base.where(UserProfile.city.ilike(f"%{cidade}%"))
+    if estado:
+        base = base.where(UserProfile.state.ilike(f"%{estado}%"))
+    if profile_status:
+        base = base.where(UserProfile.status == profile_status)
+
+    if realidade_vocacional:
+        voc_item = db.execute(
+            select(ProfileCatalogItem)
+            .join(ProfileCatalog)
+            .where(
+                ProfileCatalog.code == "VOCATIONAL_REALITY",
+                ProfileCatalogItem.code == realidade_vocacional,
+            )
+        ).scalar_one_or_none()
+        if voc_item:
+            base = base.where(UserProfile.vocational_reality_item_id == voc_item.id)
+        else:
+            return {"users": [], "total": 0, "limit": limit, "offset": offset}
+
+    if estado_civil:
+        ec_item = db.execute(
+            select(ProfileCatalogItem)
+            .join(ProfileCatalog)
+            .where(
+                ProfileCatalog.code == "MARITAL_STATUS",
+                ProfileCatalogItem.code == estado_civil,
+            )
+        ).scalar_one_or_none()
+        if ec_item:
+            base = base.where(UserProfile.marital_status_item_id == ec_item.id)
+        else:
+            return {"users": [], "total": 0, "limit": limit, "offset": offset}
+
+    if ministerio_id:
+        try:
+            from uuid import UUID as _UUID
+            min_uuid = _UUID(ministerio_id)
+            base = base.where(UserProfile.interested_ministry_id == min_uuid)
+        except ValueError:
+            return {"users": [], "total": 0, "limit": limit, "offset": offset}
+
     # Paginação
     stmt = base.order_by(nullslast(UserProfile.full_name.asc())).offset(offset).limit(limit)
     users = db.execute(stmt).scalars().all()
 
     # Contagem total
-    count_base = (
-        select(func.count(User.id))
-        .join(UserProfile, UserProfile.user_id == User.id, isouter=True)
-        .where(User.is_active == True)  # noqa: E712
-    )
-    if search.strip():
-        count_base = _apply_search(count_base, f"%{search.strip()}%")
-    total = db.execute(count_base).scalar() or 0
+    total = db.execute(select(func.count()).select_from(base.subquery())).scalar() or 0
 
     result = []
     for u in users:
@@ -130,6 +174,99 @@ async def list_users(
         )
 
     return {"users": result, "total": total, "limit": limit, "offset": offset}
+
+
+# =============================================================================
+# USERS — perfil completo
+# =============================================================================
+
+
+@router.get("/users/{user_id}/profile")
+async def get_user_full_profile(
+    user_id: UUID,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> Any:
+    """
+    Retorna perfil completo de um usuário, incluindo RG/CPF (descriptografados)
+    e histórico de auditoria.
+    Requer DEV, ADMIN ou SECRETARY.
+    """
+    from app.crypto.service import get_crypto_service
+
+    caller_roles = get_user_global_roles(db, current_user.id)
+    if not any(r in caller_roles for r in ["DEV", "ADMIN", "SECRETARY"]):
+        raise HTTPException(status_code=403, detail={"error": "forbidden"})
+
+    target = db.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+
+    profile = target.profile
+    email = target.identities[0].email if target.identities else None
+    user_roles = get_user_global_roles(db, user_id)
+
+    # Descriptografar RG e CPF
+    crypto = get_crypto_service()
+    cpf_plain = None
+    rg_plain = None
+    if profile:
+        if profile.cpf_encrypted:
+            try:
+                cpf_plain = crypto.decrypt(profile.cpf_encrypted)
+            except Exception:
+                cpf_plain = None
+        if profile.rg_encrypted:
+            try:
+                rg_plain = crypto.decrypt(profile.rg_encrypted)
+            except Exception:
+                rg_plain = None
+
+    # Auditoria — registrar acesso
+    db.add(
+        AuditLog(
+            actor_user_id=current_user.id,
+            action="VIEW_FULL_PROFILE",
+            entity_type="USER",
+            entity_id=str(user_id),
+            extra_data={"caller_email": email},
+        )
+    )
+    db.commit()
+
+    # Últimas 50 entradas de auditoria sobre este usuário
+    audit_entries = db.execute(
+        select(AuditLog)
+        .where(AuditLog.entity_type == "USER", AuditLog.entity_id == str(user_id))
+        .order_by(desc(AuditLog.created_at))
+        .limit(50)
+    ).scalars().all()
+
+    return {
+        "id": str(target.id),
+        "name": profile.full_name if profile else None,
+        "email": email,
+        "phone": profile.phone_e164 if profile else None,
+        "birth_date": profile.birth_date.isoformat() if profile and profile.birth_date else None,
+        "city": profile.city if profile else None,
+        "state": profile.state if profile else None,
+        "instagram": profile.instagram if profile else None,
+        "cpf": cpf_plain,
+        "rg": rg_plain,
+        "profile_status": profile.status if profile else "INCOMPLETE",
+        "global_roles": user_roles,
+        "created_at": target.created_at.isoformat(),
+        "audit_entries": [
+            {
+                "id": str(e.id),
+                "action": e.action,
+                "actor_user_id": str(e.actor_user_id) if e.actor_user_id else None,
+                "extra_data": e.extra_data,
+                "created_at": e.created_at.isoformat(),
+            }
+            for e in audit_entries
+        ],
+    }
 
 
 # =============================================================================

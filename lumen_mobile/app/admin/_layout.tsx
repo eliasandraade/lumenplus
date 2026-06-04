@@ -40,6 +40,14 @@ export default function AdminLayout() {
         header: () => <BreadcrumbHeader items={[ADMIN, { label: 'Logs de Auditoria' }]} />,
         headerShown: true,
       }} />
+      <Stack.Screen name="approvals/index" options={{
+        header: () => <BreadcrumbHeader items={[ADMIN, { label: 'Aprovações' }]} />,
+        headerShown: true,
+      }} />
+      <Stack.Screen name="users/export" options={{
+        header: () => <BreadcrumbHeader items={[ADMIN, { label: 'Exportar Usuários' }]} />,
+        headerShown: true,
+      }} />
     </Stack>
   );
 }

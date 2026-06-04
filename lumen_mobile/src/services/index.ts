@@ -295,15 +295,34 @@ export const orgAdminService = {
 // =============================================================================
 // ADMIN USERS — gestão de usuários
 // =============================================================================
+
+export interface ListUsersParams {
+  search?: string;
+  limit?: number;
+  offset?: number;
+  cidade?: string;
+  estado?: string;
+  realidade_vocacional?: string;
+  ministerio_id?: string;
+  estado_civil?: string;
+  profile_status?: string;
+}
+
 export const adminUserService = {
   /** Lista usuários com busca. Requer DEV, ADMIN ou SECRETARY. */
-  listUsers: (params?: { search?: string; limit?: number; offset?: number }) => {
-    const q = new URLSearchParams();
-    if (params?.search) q.set('search', params.search);
-    if (params?.limit !== undefined) q.set('limit', String(params.limit));
-    if (params?.offset !== undefined) q.set('offset', String(params.offset));
-    const qs = q.toString();
-    return api.get<{ users: AdminUserItem[]; total: number; limit: number; offset: number }>(
+  listUsers: async (params: ListUsersParams = {}): Promise<{ users: AdminUserItem[]; total: number }> => {
+    const query = new URLSearchParams();
+    if (params.search)               query.set('search', params.search);
+    if (params.limit != null)        query.set('limit', String(params.limit));
+    if (params.offset != null)       query.set('offset', String(params.offset));
+    if (params.cidade)               query.set('cidade', params.cidade);
+    if (params.estado)               query.set('estado', params.estado);
+    if (params.realidade_vocacional) query.set('realidade_vocacional', params.realidade_vocacional);
+    if (params.ministerio_id)        query.set('ministerio_id', params.ministerio_id);
+    if (params.estado_civil)         query.set('estado_civil', params.estado_civil);
+    if (params.profile_status)       query.set('profile_status', params.profile_status);
+    const qs = query.toString();
+    return api.get<{ users: AdminUserItem[]; total: number }>(
       `/admin/users${qs ? `?${qs}` : ''}`
     );
   },
@@ -351,6 +370,70 @@ export const verificationService = {
       '/verify/email/confirm',
       { token }
     ),
+};
+
+// =============================================================================
+// ADMIN USER PROFILE — perfil completo de usuário
+// =============================================================================
+
+export interface UserFullProfile {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  birth_date: string | null;
+  city: string | null;
+  state: string | null;
+  instagram: string | null;
+  cpf: string | null;
+  rg: string | null;
+  profile_status: string;
+  global_roles: string[];
+  created_at: string;
+  audit_entries: Array<{
+    id: string;
+    action: string;
+    actor_user_id: string | null;
+    extra_data: Record<string, any> | null;
+    created_at: string;
+  }>;
+}
+
+export const adminUserProfileService = {
+  getFullProfile: async (userId: string): Promise<UserFullProfile> => {
+    return api.get<UserFullProfile>(`/admin/users/${userId}/profile`);
+  },
+};
+
+// =============================================================================
+// ADMIN EXPORT — exportação de usuários com aprovação
+// =============================================================================
+
+export interface ExportRequest {
+  id: string;
+  requested_by: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'GENERATED' | 'EXPIRED';
+  fields_requested: string[];
+  has_sensitive: boolean;
+  approved_by: string | null;
+  approved_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export const adminExportService = {
+  requestExport: async (fields: string[], filters: Record<string, string> = {}): Promise<ExportRequest & { message?: string }> => {
+    return api.post('/admin/export/request', { fields, filters });
+  },
+  listRequests: async (): Promise<ExportRequest[]> => {
+    return api.get('/admin/export/requests');
+  },
+  approve: async (id: string): Promise<ExportRequest> => {
+    return api.post(`/admin/export/${id}/approve`);
+  },
+  reject: async (id: string): Promise<ExportRequest> => {
+    return api.post(`/admin/export/${id}/reject`);
+  },
 };
 
 // Export all services
