@@ -78,7 +78,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 f"Corrija as variáveis de ambiente antes de subir: {errors}"
             )
 
+    # Scheduler de notificações
+    from app.notifications.scheduler import start_scheduler, stop_scheduler
+    start_scheduler()
+
     yield
+
+    stop_scheduler()
     logger.info("application_shutdown")
 
 

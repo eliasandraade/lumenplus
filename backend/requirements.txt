@@ -34,6 +34,7 @@ openpyxl==3.1.2
 # Notifications
 pywebpush>=2.0.0
 sendgrid>=6.11.0
+apscheduler>=3.10.0
 
 # Monitoramento de erros
 sentry-sdk[fastapi]==2.19.2
