@@ -94,6 +94,7 @@ export default function RootLayout() {
             <Stack.Screen name="retreats" options={{ headerShown: false }} />
             <Stack.Screen name="coordinator" options={{ headerShown: false }} />
             <Stack.Screen name="vida" options={{ headerShown: false }} />
+            <Stack.Screen name="channel" options={{ headerShown: false }} />
           </Stack>
           <VercelAnalytics />
         </SafeAreaProvider>
