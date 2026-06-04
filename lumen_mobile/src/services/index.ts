@@ -295,15 +295,34 @@ export const orgAdminService = {
 // =============================================================================
 // ADMIN USERS — gestão de usuários
 // =============================================================================
+
+export interface ListUsersParams {
+  search?: string;
+  limit?: number;
+  offset?: number;
+  cidade?: string;
+  estado?: string;
+  realidade_vocacional?: string;
+  ministerio_id?: string;
+  estado_civil?: string;
+  profile_status?: string;
+}
+
 export const adminUserService = {
   /** Lista usuários com busca. Requer DEV, ADMIN ou SECRETARY. */
-  listUsers: (params?: { search?: string; limit?: number; offset?: number }) => {
-    const q = new URLSearchParams();
-    if (params?.search) q.set('search', params.search);
-    if (params?.limit !== undefined) q.set('limit', String(params.limit));
-    if (params?.offset !== undefined) q.set('offset', String(params.offset));
-    const qs = q.toString();
-    return api.get<{ users: AdminUserItem[]; total: number; limit: number; offset: number }>(
+  listUsers: async (params: ListUsersParams = {}): Promise<{ users: AdminUserItem[]; total: number }> => {
+    const query = new URLSearchParams();
+    if (params.search)               query.set('search', params.search);
+    if (params.limit != null)        query.set('limit', String(params.limit));
+    if (params.offset != null)       query.set('offset', String(params.offset));
+    if (params.cidade)               query.set('cidade', params.cidade);
+    if (params.estado)               query.set('estado', params.estado);
+    if (params.realidade_vocacional) query.set('realidade_vocacional', params.realidade_vocacional);
+    if (params.ministerio_id)        query.set('ministerio_id', params.ministerio_id);
+    if (params.estado_civil)         query.set('estado_civil', params.estado_civil);
+    if (params.profile_status)       query.set('profile_status', params.profile_status);
+    const qs = query.toString();
+    return api.get<{ users: AdminUserItem[]; total: number }>(
       `/admin/users${qs ? `?${qs}` : ''}`
     );
   },

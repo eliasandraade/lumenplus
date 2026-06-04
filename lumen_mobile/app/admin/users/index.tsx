@@ -53,6 +53,14 @@ const STATUS_COLORS: Record<string, string> = {
   INCOMPLETE: colors.warning,
 };
 
+const FILTER_LABELS: Record<string, string> = {
+  cidade: 'Cidade',
+  estado: 'Estado',
+  realidade_vocacional: 'Voc.',
+  estado_civil: 'Est. Civil',
+  profile_status: 'Status',
+};
+
 export default function UsersAdminScreen() {
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -64,6 +72,20 @@ export default function UsersAdminScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  const [filters, setFilters] = useState<{
+    cidade: string;
+    estado: string;
+    realidade_vocacional: string;
+    estado_civil: string;
+    profile_status: string;
+  }>({
+    cidade: '',
+    estado: '',
+    realidade_vocacional: '',
+    estado_civil: '',
+    profile_status: '',
+  });
 
   const LIMIT = 40;
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -71,7 +93,15 @@ export default function UsersAdminScreen() {
   const fetchUsers = useCallback(async (q: string, offset: number, append: boolean = false) => {
     try {
       setError(null);
-      const data = await adminUserService.listUsers({ search: q, limit: LIMIT, offset });
+      const activeFilters = Object.fromEntries(
+        Object.entries(filters).filter(([_, v]) => v !== '')
+      );
+      const data = await adminUserService.listUsers({
+        search: q,
+        limit: LIMIT,
+        offset,
+        ...activeFilters,
+      });
       if (append) {
         setUsers((prev) => [...prev, ...data.users]);
       } else {
@@ -82,7 +112,7 @@ export default function UsersAdminScreen() {
       const msg = e?.response?.data?.detail?.message ?? 'Erro ao carregar usuários';
       setError(msg);
     }
-  }, []);
+  }, [filters]);
 
   // Carga inicial + permissões
   useEffect(() => {
@@ -180,6 +210,8 @@ export default function UsersAdminScreen() {
     );
   };
 
+  const activeFilterCount = Object.values(filters).filter(Boolean).length;
+
   return (
     <>
       <View style={styles.container}>
@@ -199,7 +231,35 @@ export default function UsersAdminScreen() {
               <Ionicons name="close-circle" size={18} color={colors.gray} />
             </TouchableOpacity>
           )}
+          <TouchableOpacity
+            style={[styles.filterBtn, activeFilterCount > 0 && styles.filterBtnActive]}
+            onPress={() => setFiltersVisible(true)}
+          >
+            <Ionicons name="options-outline" size={18} color={activeFilterCount > 0 ? colors.white : colors.admin} />
+            {activeFilterCount > 0 && (
+              <Text style={styles.filterBtnCount}>{activeFilterCount}</Text>
+            )}
+          </TouchableOpacity>
         </View>
+
+        {activeFilterCount > 0 && (
+          <View style={styles.pillRow}>
+            {Object.entries(filters).map(([key, val]) =>
+              val ? (
+                <TouchableOpacity
+                  key={key}
+                  style={styles.pill}
+                  onPress={() => {
+                    setFilters((prev) => ({ ...prev, [key]: '' }));
+                  }}
+                >
+                  <Text style={styles.pillText}>{FILTER_LABELS[key]}: {val}</Text>
+                  <Ionicons name="close-circle" size={14} color={colors.admin} />
+                </TouchableOpacity>
+              ) : null
+            )}
+          </View>
+        )}
 
         {/* Total */}
         {!loading && (
@@ -244,6 +304,14 @@ export default function UsersAdminScreen() {
           />
         )}
       </View>
+
+      <FilterModal
+        visible={filtersVisible}
+        filters={filters}
+        onChange={(key, val) => setFilters((prev) => ({ ...prev, [key]: val }))}
+        onClose={() => setFiltersVisible(false)}
+        onApply={() => { setLoading(true); fetchUsers(search, 0).finally(() => setLoading(false)); }}
+      />
 
       {/* Modal de edição de usuário */}
       <EditUserModal
@@ -417,6 +485,76 @@ function EditUserModal({
   );
 }
 
+function FilterModal({
+  visible,
+  filters,
+  onChange,
+  onClose,
+  onApply,
+}: {
+  visible: boolean;
+  filters: Record<string, string>;
+  onChange: (key: string, val: string) => void;
+  onClose: () => void;
+  onApply: () => void;
+}) {
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: '#fff' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E8E8E8' }}>
+          <Text style={{ fontSize: 16, fontWeight: '700' }}>Filtros</Text>
+          <TouchableOpacity onPress={onClose}>
+            <Ionicons name="close" size={24} color="#171717" />
+          </TouchableOpacity>
+        </View>
+        <ScrollView style={{ flex: 1, padding: 16 }}>
+          {[
+            { key: 'cidade', label: 'Cidade', placeholder: 'Ex: São Paulo' },
+            { key: 'estado', label: 'Estado (UF)', placeholder: 'Ex: SP' },
+            { key: 'realidade_vocacional', label: 'Realidade Vocacional', placeholder: 'Ex: VOCACIONAL' },
+            { key: 'estado_civil', label: 'Estado Civil', placeholder: 'Ex: SOLTEIRO' },
+            { key: 'profile_status', label: 'Status do Perfil', placeholder: 'COMPLETE ou INCOMPLETE' },
+          ].map(({ key, label, placeholder }) => (
+            <View key={key} style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 4 }}>{label}</Text>
+              <TextInput
+                style={{ borderWidth: 1, borderColor: '#E8E8E8', borderRadius: 8, padding: 10, fontSize: 14 }}
+                value={filters[key] ?? ''}
+                onChangeText={(v) => onChange(key, v)}
+                placeholder={placeholder}
+                placeholderTextColor="#6b7280"
+                autoCapitalize="none"
+              />
+            </View>
+          ))}
+        </ScrollView>
+        <View style={{ flexDirection: 'row', gap: 12, padding: 16, borderTopWidth: 1, borderTopColor: '#E8E8E8' }}>
+          <TouchableOpacity
+            style={{ flex: 1, borderWidth: 2, borderColor: '#7c3aed', borderRadius: 10, paddingVertical: 14, alignItems: 'center' }}
+            onPress={() => {
+              onChange('cidade', '');
+              onChange('estado', '');
+              onChange('realidade_vocacional', '');
+              onChange('estado_civil', '');
+              onChange('profile_status', '');
+              onApply();
+              onClose();
+            }}
+          >
+            <Text style={{ color: '#7c3aed', fontWeight: '700' }}>Limpar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: '#7c3aed', borderRadius: 10, paddingVertical: 14, alignItems: 'center' }}
+            onPress={() => { onApply(); onClose(); }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700' }}>Aplicar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const modalStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
   header: {
@@ -520,4 +658,10 @@ const styles = StyleSheet.create({
   emptyBox: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 12 },
   emptyText: { color: colors.gray, fontSize: 15 },
   editBtn: { padding: 4, marginLeft: 4 },
+  filterBtn: { padding: 6, marginLeft: 4, borderRadius: 8, borderWidth: 1, borderColor: colors.admin, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  filterBtnActive: { backgroundColor: colors.admin },
+  filterBtnCount: { color: colors.white, fontSize: 12, fontWeight: '700' },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 12, paddingBottom: 6 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ede9fe', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  pillText: { color: colors.admin, fontSize: 12, fontWeight: '600' },
 });
