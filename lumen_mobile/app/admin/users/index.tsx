@@ -57,6 +57,7 @@ const FILTER_LABELS: Record<string, string> = {
   cidade: 'Cidade',
   estado: 'Estado',
   realidade_vocacional: 'Voc.',
+  ministerio_id: 'Ministério',
   estado_civil: 'Est. Civil',
   profile_status: 'Status',
 };
@@ -77,12 +78,14 @@ export default function UsersAdminScreen() {
     cidade: string;
     estado: string;
     realidade_vocacional: string;
+    ministerio_id: string;
     estado_civil: string;
     profile_status: string;
   }>({
     cidade: '',
     estado: '',
     realidade_vocacional: '',
+    ministerio_id: '',
     estado_civil: '',
     profile_status: '',
   });
@@ -512,6 +515,7 @@ function FilterModal({
             { key: 'cidade', label: 'Cidade', placeholder: 'Ex: São Paulo' },
             { key: 'estado', label: 'Estado (UF)', placeholder: 'Ex: SP' },
             { key: 'realidade_vocacional', label: 'Realidade Vocacional', placeholder: 'Ex: VOCACIONAL' },
+            { key: 'ministerio_id', label: 'Ministério (ID)', placeholder: 'UUID do ministério' },
             { key: 'estado_civil', label: 'Estado Civil', placeholder: 'Ex: SOLTEIRO' },
             { key: 'profile_status', label: 'Status do Perfil', placeholder: 'COMPLETE ou INCOMPLETE' },
           ].map(({ key, label, placeholder }) => (
@@ -535,6 +539,7 @@ function FilterModal({
               onChange('cidade', '');
               onChange('estado', '');
               onChange('realidade_vocacional', '');
+              onChange('ministerio_id', '');
               onChange('estado_civil', '');
               onChange('profile_status', '');
               onApply();
