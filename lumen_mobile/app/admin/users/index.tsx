@@ -249,6 +249,12 @@ export default function UsersAdminScreen() {
               <Text style={styles.filterBtnCount}>{activeFilterCount}</Text>
             )}
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.exportHeaderBtn}
+            onPress={() => router.push('/admin/users/export' as any)}
+          >
+            <Ionicons name="download-outline" size={18} color={colors.admin} />
+          </TouchableOpacity>
         </View>
 
         {activeFilterCount > 0 && (
@@ -670,6 +676,7 @@ const styles = StyleSheet.create({
   emptyText: { color: colors.gray, fontSize: 15 },
   editBtn: { padding: 4, marginLeft: 4 },
   filterBtn: { padding: 6, marginLeft: 4, borderRadius: 8, borderWidth: 1, borderColor: colors.admin, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  exportHeaderBtn: { padding: 6, marginLeft: 4 },
   filterBtnActive: { backgroundColor: colors.admin },
   filterBtnCount: { color: colors.white, fontSize: 12, fontWeight: '700' },
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 12, paddingBottom: 6 },

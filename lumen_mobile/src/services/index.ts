@@ -405,6 +405,37 @@ export const adminUserProfileService = {
   },
 };
 
+// =============================================================================
+// ADMIN EXPORT — exportação de usuários com aprovação
+// =============================================================================
+
+export interface ExportRequest {
+  id: string;
+  requested_by: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'GENERATED' | 'EXPIRED';
+  fields_requested: string[];
+  has_sensitive: boolean;
+  approved_by: string | null;
+  approved_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export const adminExportService = {
+  requestExport: async (fields: string[], filters: Record<string, string> = {}): Promise<ExportRequest & { message?: string }> => {
+    return api.post('/admin/export/request', { fields, filters });
+  },
+  listRequests: async (): Promise<ExportRequest[]> => {
+    return api.get('/admin/export/requests');
+  },
+  approve: async (id: string): Promise<ExportRequest> => {
+    return api.post(`/admin/export/${id}/approve`);
+  },
+  reject: async (id: string): Promise<ExportRequest> => {
+    return api.post(`/admin/export/${id}/reject`);
+  },
+};
+
 // Export all services
 export default {
   health: healthService,
