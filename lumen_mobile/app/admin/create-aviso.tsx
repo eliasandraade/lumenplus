@@ -54,12 +54,32 @@ const messageTypes: { type: MessageType; label: string; color: string; icon: str
   { type: 'urgent', label: 'Urgente', color: colors.error, icon: 'alert-circle' },
 ];
 
+const CATEGORIES = [
+  { value: 'GENERAL', label: 'Geral' },
+  { value: 'EVENT', label: 'Evento' },
+  { value: 'RETREAT', label: 'Retiro' },
+  { value: 'FORMATION', label: 'Formação' },
+  { value: 'ALERT', label: 'Alerta' },
+] as const;
+
+const PRIORITIES = [
+  { value: 'LOW', label: 'Baixa', description: 'Somente Inbox', color: '#6B7280' },
+  { value: 'NORMAL', label: 'Normal', description: 'Push + e-mail fallback', color: '#2563EB' },
+  { value: 'HIGH', label: 'Alta', description: 'Push + e-mail sempre', color: '#D97706' },
+  { value: 'CRITICAL', label: 'Urgente', description: 'Entrega imediata a todos', color: '#DC2626' },
+] as const;
+
 type DestMode = 'all' | 'scope' | 'filter';
 
 export default function CreateAvisoScreen() {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<MessageType>('info');
+  const [category, setCategory] = useState<string>('GENERAL');
+  const [priority, setPriority] = useState<string>('NORMAL');
+  const [deepLink, setDeepLink] = useState<string>('');
+  const [actionLabel, setActionLabel] = useState<string>('');
+  const [criticalReason, setCriticalReason] = useState<string>('');
 
   // Escopos disponíveis
   const [scopesData, setScopesData] = useState<SendScopesResponse | null>(null);
@@ -166,6 +186,10 @@ export default function CreateAvisoScreen() {
     if (message.trim().length < 10) { setValidationError('O texto do aviso deve ter pelo menos 10 caracteres'); return; }
     if (destMode === 'scope' && !selectedScope) { setValidationError('Selecione um setor ou grupo'); return; }
     if (destMode === 'filter' && !buildFilters()) { setValidationError('Selecione pelo menos um filtro'); return; }
+    if (priority === 'CRITICAL' && criticalReason.trim().length < 10) {
+      setValidationError('Avisos urgentes exigem uma justificativa com pelo menos 10 caracteres.');
+      return;
+    }
     setShowConfirmModal(true);
   };
 
@@ -182,7 +206,13 @@ export default function CreateAvisoScreen() {
         send_to_all: destMode === 'all',
         scope_org_unit_id: destMode === 'scope' ? (selectedScope?.id ?? null) : null,
         filters,
-      });
+        // Novos campos
+        category,
+        priority,
+        deep_link: deepLink.trim() || null,
+        action_label: actionLabel.trim() || null,
+        critical_reason: priority === 'CRITICAL' ? criticalReason.trim() : null,
+      } as any);
       setSentCount(response.recipient_count);
       setShowSuccessModal(true);
     } catch (error: any) {
@@ -280,6 +310,91 @@ export default function CreateAvisoScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Categoria */}
+        <Text style={styles.label}>Categoria</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+          {CATEGORIES.map((cat) => (
+            <TouchableOpacity
+              key={cat.value}
+              onPress={() => setCategory(cat.value)}
+              style={{
+                paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
+                backgroundColor: category === cat.value ? colors.primary : colors.white,
+                borderWidth: 1,
+                borderColor: category === cat.value ? colors.primary : '#e5e5e5',
+              }}
+            >
+              <Text style={{ color: category === cat.value ? colors.white : colors.gray, fontSize: 13 }}>
+                {cat.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Prioridade */}
+        <Text style={styles.label}>Prioridade de Entrega</Text>
+        {PRIORITIES.map((p) => (
+          <TouchableOpacity
+            key={p.value}
+            onPress={() => setPriority(p.value)}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 10,
+              padding: 12, borderRadius: 10, marginBottom: 8,
+              backgroundColor: priority === p.value ? '#F9FAFB' : colors.white,
+              borderWidth: 1,
+              borderColor: priority === p.value ? p.color : '#e5e5e5',
+            }}
+          >
+            <View style={{
+              width: 16, height: 16, borderRadius: 8,
+              backgroundColor: priority === p.value ? p.color : 'transparent',
+              borderWidth: 2, borderColor: priority === p.value ? p.color : '#9CA3AF',
+            }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: '600', fontSize: 13, color: priority === p.value ? p.color : '#171717' }}>
+                {p.label}
+              </Text>
+              <Text style={{ fontSize: 11, color: colors.gray }}>{p.description}</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+        {priority === 'CRITICAL' && (
+          <View style={{ backgroundColor: '#FEF2F2', padding: 10, borderRadius: 8, marginBottom: 8 }}>
+            <Text style={{ color: '#DC2626', fontSize: 12, marginBottom: 8 }}>
+              ⚠️ Urgente ignora preferências de notificação. Use apenas para comunicados críticos.
+            </Text>
+            <TextInput
+              value={criticalReason}
+              onChangeText={setCriticalReason}
+              placeholder="Justificativa obrigatória (mín. 10 caracteres)"
+              style={{
+                borderWidth: 1, borderColor: '#FCA5A5', borderRadius: 8,
+                padding: 10, backgroundColor: colors.white, fontSize: 13,
+              }}
+            />
+          </View>
+        )}
+
+        {/* Deep Link */}
+        <Text style={styles.label}>Deep Link (opcional)</Text>
+        <TextInput
+          value={deepLink}
+          onChangeText={setDeepLink}
+          placeholder="Ex: /retreats/abc, /vida, /channel/xyz"
+          style={[styles.input, { marginBottom: 16 }]}
+          placeholderTextColor={colors.gray}
+        />
+
+        {/* Action Label */}
+        <Text style={styles.label}>Texto do Botão (opcional)</Text>
+        <TextInput
+          value={actionLabel}
+          onChangeText={setActionLabel}
+          placeholder='Ex: "Inscrever-se", "Ver Programação"'
+          style={[styles.input, { marginBottom: 16 }]}
+          placeholderTextColor={colors.gray}
+        />
 
         {/* Titulo */}
         <Text style={styles.label}>Titulo</Text>
