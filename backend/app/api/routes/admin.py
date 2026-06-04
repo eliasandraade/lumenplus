@@ -64,12 +64,19 @@ async def list_users(
     current_user: CurrentUser,
     db: DBSession,
     search: str = Query(default="", description="Busca por nome ou e-mail"),
+    cidade: str = Query(default="", description="Filtro por cidade"),
+    estado: str = Query(default="", description="Filtro por estado (UF)"),
+    realidade_vocacional: str = Query(default="", description="Code do item de realidade vocacional"),
+    ministerio_id: str = Query(default="", description="UUID da unidade org tipo MINISTRY"),
+    estado_civil: str = Query(default="", description="Code do item de estado civil"),
+    profile_status: str = Query(default="", description="COMPLETE ou INCOMPLETE"),
     limit: int = Query(default=50, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> Any:
     """
     Lista usuários com perfil, e-mail e papéis globais.
     Requer DEV, ADMIN ou SECRETARY.
+    Suporta filtros por: cidade, estado, realidade_vocacional, ministerio_id, estado_civil, profile_status.
     """
     global_roles = get_user_global_roles(db, current_user.id)
     if not any(r in global_roles for r in ["DEV", "ADMIN", "SECRETARY"]):
@@ -97,19 +104,56 @@ async def list_users(
     if search.strip():
         base = _apply_search(base, f"%{search.strip()}%")
 
+    # Filtros adicionais
+    if cidade:
+        base = base.where(UserProfile.city.ilike(f"%{cidade}%"))
+    if estado:
+        base = base.where(UserProfile.state.ilike(f"%{estado}%"))
+    if profile_status:
+        base = base.where(UserProfile.status == profile_status)
+
+    if realidade_vocacional:
+        voc_item = db.execute(
+            select(ProfileCatalogItem)
+            .join(ProfileCatalog)
+            .where(
+                ProfileCatalog.code == "VOCATIONAL_REALITY",
+                ProfileCatalogItem.code == realidade_vocacional,
+            )
+        ).scalar_one_or_none()
+        if voc_item:
+            base = base.where(UserProfile.vocational_reality_item_id == voc_item.id)
+        else:
+            return {"users": [], "total": 0, "limit": limit, "offset": offset}
+
+    if estado_civil:
+        ec_item = db.execute(
+            select(ProfileCatalogItem)
+            .join(ProfileCatalog)
+            .where(
+                ProfileCatalog.code == "MARITAL_STATUS",
+                ProfileCatalogItem.code == estado_civil,
+            )
+        ).scalar_one_or_none()
+        if ec_item:
+            base = base.where(UserProfile.marital_status_item_id == ec_item.id)
+        else:
+            return {"users": [], "total": 0, "limit": limit, "offset": offset}
+
+    if ministerio_id:
+        try:
+            from uuid import UUID as _UUID
+            min_uuid = _UUID(ministerio_id)
+            base = base.where(UserProfile.interested_ministry_id == min_uuid)
+        except ValueError:
+            return {"users": [], "total": 0, "limit": limit, "offset": offset}
+
     # Paginação
     stmt = base.order_by(nullslast(UserProfile.full_name.asc())).offset(offset).limit(limit)
     users = db.execute(stmt).scalars().all()
 
     # Contagem total
-    count_base = (
-        select(func.count(User.id))
-        .join(UserProfile, UserProfile.user_id == User.id, isouter=True)
-        .where(User.is_active == True)  # noqa: E712
-    )
-    if search.strip():
-        count_base = _apply_search(count_base, f"%{search.strip()}%")
-    total = db.execute(count_base).scalar() or 0
+    total = db.execute(select(func.count()).select_from(base.subquery())).scalar() or 0
 
     result = []
     for u in users:
