@@ -30,6 +30,7 @@ from app.db.models import (
     UserGlobalRole,
     UserIdentity,
     UserProfile,
+    ProfileCatalogItem,
 )
 from app.services.organization import get_user_global_roles
 
@@ -39,6 +40,9 @@ SENSITIVE_FIELDS = {"cpf", "rg"}
 ALLOWED_FIELDS = {
     "name", "email", "phone", "city", "state", "birth_date",
     "instagram", "profile_status", "cpf", "rg",
+    "realidade_vocacional", "estado_civil", "estado_de_vida",
+    "acompanhamento_vocacional", "interesse_ministerio",
+    "consagracao_ano", "global_roles",
 }
 EXPORT_TTL_HOURS = 24
 
@@ -55,9 +59,20 @@ def _require_approval_permission(db, user_id: UUID) -> None:
         raise HTTPException(status_code=403, detail={"error": "forbidden"})
 
 
+def _catalog_label(db, item_id) -> str:
+    """Retorna o label de um ProfileCatalogItem pelo ID."""
+    if not item_id:
+        return ""
+    item = db.execute(
+        select(ProfileCatalogItem).where(ProfileCatalogItem.id == item_id)
+    ).scalar_one_or_none()
+    return item.label if item else ""
+
+
 def _generate_csv(db, fields: list[str], filters: dict) -> str:
     """Gera CSV em memória com os usuários."""
     from app.crypto.service import crypto_service
+    from app.services.organization import get_user_global_roles as _get_roles
     crypto = crypto_service
 
     stmt = (
@@ -92,6 +107,27 @@ def _generate_csv(db, fields: list[str], filters: dict) -> str:
                 row["instagram"] = profile.instagram if profile else ""
             elif field == "profile_status":
                 row["profile_status"] = profile.status if profile else "INCOMPLETE"
+            elif field == "realidade_vocacional":
+                row["realidade_vocacional"] = _catalog_label(db, profile.vocational_reality_item_id if profile else None)
+            elif field == "estado_civil":
+                row["estado_civil"] = _catalog_label(db, profile.marital_status_item_id if profile else None)
+            elif field == "estado_de_vida":
+                row["estado_de_vida"] = _catalog_label(db, profile.life_state_item_id if profile else None)
+            elif field == "acompanhamento_vocacional":
+                row["acompanhamento_vocacional"] = (
+                    "Sim" if profile and profile.has_vocational_accompaniment else
+                    "Não" if profile and profile.has_vocational_accompaniment is not None else ""
+                )
+            elif field == "interesse_ministerio":
+                row["interesse_ministerio"] = (
+                    "Sim" if profile and profile.interested_in_ministry else
+                    "Não" if profile and profile.interested_in_ministry is not None else ""
+                )
+            elif field == "consagracao_ano":
+                row["consagracao_ano"] = str(profile.consecration_year) if profile and profile.consecration_year else ""
+            elif field == "global_roles":
+                roles = _get_roles(db, user.id)
+                row["global_roles"] = ", ".join(roles)
             elif field == "cpf":
                 if profile and profile.cpf_encrypted:
                     try:
