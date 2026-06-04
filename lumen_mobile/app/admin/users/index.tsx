@@ -20,6 +20,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { adminUserService, AdminUserItem } from '@/services';
 import api from '@/services/api';
 
@@ -63,6 +64,7 @@ const FILTER_LABELS: Record<string, string> = {
 };
 
 export default function UsersAdminScreen() {
+  const router = useRouter();
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
@@ -161,7 +163,11 @@ export default function UsersAdminScreen() {
     const statusColor = STATUS_COLORS[item.profile_status] ?? colors.gray;
 
     return (
-      <View style={styles.userCard}>
+      <TouchableOpacity
+        style={styles.userCard}
+        onPress={() => router.push(`/admin/users/${item.id}` as any)}
+        activeOpacity={0.7}
+      >
         <View style={styles.avatarBox}>
           <Text style={styles.avatarText}>{initial}</Text>
         </View>
@@ -172,7 +178,7 @@ export default function UsersAdminScreen() {
               {item.name ?? <Text style={{ color: colors.gray, fontStyle: 'italic' }}>Sem nome</Text>}
             </Text>
             {isAdmin && (
-              <TouchableOpacity onPress={() => setEditUser(item)} style={styles.editBtn}>
+              <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); setEditUser(item); }} style={styles.editBtn}>
                 <Ionicons name="pencil-outline" size={16} color={colors.admin} />
               </TouchableOpacity>
             )}
@@ -200,7 +206,7 @@ export default function UsersAdminScreen() {
             })}
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 

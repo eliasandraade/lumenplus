@@ -372,6 +372,39 @@ export const verificationService = {
     ),
 };
 
+// =============================================================================
+// ADMIN USER PROFILE — perfil completo de usuário
+// =============================================================================
+
+export interface UserFullProfile {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  birth_date: string | null;
+  city: string | null;
+  state: string | null;
+  instagram: string | null;
+  cpf: string | null;
+  rg: string | null;
+  profile_status: string;
+  global_roles: string[];
+  created_at: string;
+  audit_entries: Array<{
+    id: string;
+    action: string;
+    actor_user_id: string | null;
+    extra_data: Record<string, any> | null;
+    created_at: string;
+  }>;
+}
+
+export const adminUserProfileService = {
+  getFullProfile: async (userId: string): Promise<UserFullProfile> => {
+    return api.get<UserFullProfile>(`/admin/users/${userId}/profile`);
+  },
+};
+
 // Export all services
 export default {
   health: healthService,
