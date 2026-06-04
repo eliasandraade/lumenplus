@@ -147,6 +147,7 @@ async def create_root_unit(
             is_active=unit.is_active,
             parent_id=unit.parent_id,
             created_at=unit.created_at,
+            channel_post_mode=(unit.channel_post_mode.value if unit.channel_post_mode else "COORDINATOR_ONLY"),
         )
     except OrgServiceError as e:
         handle_org_error(e)
@@ -259,6 +260,7 @@ async def get_organization_tree(
             created_at=unit.created_at,
             children=children,
             member_count=active_member_count,
+            channel_post_mode=(unit.channel_post_mode.value if unit.channel_post_mode else "COORDINATOR_ONLY"),
         )
 
     tree_root = build_tree(root)
@@ -330,6 +332,7 @@ async def create_child_unit(
             is_active=unit.is_active,
             parent_id=unit.parent_id,
             created_at=unit.created_at,
+            channel_post_mode=(unit.channel_post_mode.value if unit.channel_post_mode else "COORDINATOR_ONLY"),
         )
     except OrgServiceError as e:
         handle_org_error(e)
@@ -360,6 +363,7 @@ async def get_org_unit(
         is_active=unit.is_active,
         parent_id=unit.parent_id,
         created_at=unit.created_at,
+        channel_post_mode=(unit.channel_post_mode.value if unit.channel_post_mode else "COORDINATOR_ONLY"),
     )
 
 
