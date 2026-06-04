@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "035_seed_missing_roles_and_export_requests"
+revision: str = "035_seed_roles_exports"
 down_revision: Union[str, None] = "034_pvm_json_fields_revisao_v2"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
