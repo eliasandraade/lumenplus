@@ -170,3 +170,14 @@ def test_assign_avisos_role_persists(roles_session):
         .where(_UserGlobalRole.user_id == user.id)
     ).scalars().all()
     assert "AVISOS" in assigned
+
+
+def test_seed_roles_idempotent(roles_session):
+    """Rodar seed duas vezes não falha (comportamento de ON CONFLICT DO NOTHING)."""
+    _seed_roles(roles_session)
+    _seed_roles(roles_session)  # Segunda rodada — não deve levantar exceção
+    codes = {
+        r[0]
+        for r in roles_session.execute(select(_GlobalRole.code)).all()
+    }
+    assert EXPECTED_ROLES.issubset(codes)

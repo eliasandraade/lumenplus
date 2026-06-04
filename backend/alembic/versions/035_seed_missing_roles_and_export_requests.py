@@ -89,6 +89,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Roles globais não são removidos no downgrade: podem ter sido criados manualmente
+    # antes desta migration (seeds idempotentes), e removê-los poderia revogar
+    # permissões de usuários reais em produção de forma destrutiva.
     op.drop_index("ix_export_requests_status", table_name="data_export_requests")
     op.drop_index("ix_export_requests_requested_by", table_name="data_export_requests")
     op.drop_table("data_export_requests")
