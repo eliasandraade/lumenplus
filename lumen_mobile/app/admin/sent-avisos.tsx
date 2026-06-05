@@ -18,18 +18,10 @@ import { Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { IoniconsName } from '@/types/icons';
 import api from '@/services/api';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
-const colors = {
-  primary: '#1A859B',
-  white: '#ffffff',
-  gray: '#6b7280',
-  lightGray: '#E8E8E8',
-  admin: '#7c3aed',
-  error: '#ef4444',
-  success: '#22c55e',
-  warning: '#f59e0b',
-  info: '#3b82f6',
-};
+const ADMIN_COLOR = '#7c3aed';
 
 interface SentAviso {
   id: string;
@@ -51,6 +43,9 @@ interface SentAvisosResponse {
 }
 
 export default function SentAvisosScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const [avisos, setAvisos] = useState<SentAviso[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -78,10 +73,10 @@ export default function SentAvisosScreen() {
 
   const getTypeConfig = (type: string) => {
     switch (type) {
-      case 'urgent':  return { icon: 'alert-circle',        color: colors.error,   label: 'Urgente' };
-      case 'warning': return { icon: 'warning',             color: colors.warning, label: 'Atenção' };
-      case 'success': return { icon: 'checkmark-circle',    color: colors.success, label: 'Confirmação' };
-      default:        return { icon: 'information-circle',  color: colors.info,    label: 'Informativo' };
+      case 'urgent':  return { icon: 'alert-circle',        color: t.status.error,   label: 'Urgente' };
+      case 'warning': return { icon: 'warning',             color: t.status.warning, label: 'Atenção' };
+      case 'success': return { icon: 'checkmark-circle',    color: t.status.success, label: 'Confirmação' };
+      default:        return { icon: 'information-circle',  color: t.status.info,    label: 'Informativo' };
     }
   };
 
@@ -139,9 +134,9 @@ export default function SentAvisosScreen() {
           <View style={styles.headerInfo}>
             <Text style={styles.avisoTitle} numberOfLines={1}>{item.title}</Text>
             <View style={styles.dateRow}>
-              <Ionicons name="calendar-outline" size={12} color={colors.gray} />
+              <Ionicons name="calendar-outline" size={12} color={t.text.secondary} />
               <Text style={styles.dateMeta}>{formatDate(item.created_at)}</Text>
-              <Ionicons name="time-outline" size={12} color={colors.gray} style={{ marginLeft: 6 }} />
+              <Ionicons name="time-outline" size={12} color={t.text.secondary} style={{ marginLeft: 6 }} />
               <Text style={styles.dateMeta}>{formatTime(item.created_at)}</Text>
             </View>
           </View>
@@ -159,14 +154,14 @@ export default function SentAvisosScreen() {
         {/* Detalhes: quem enviou, para quem */}
         <View style={styles.detailsGrid}>
           <View style={styles.detailRow}>
-            <Ionicons name="person-circle-outline" size={15} color={colors.admin} />
+            <Ionicons name="person-circle-outline" size={15} color={ADMIN_COLOR} />
             <Text style={styles.detailLabel}>Enviado por</Text>
             <Text style={styles.detailValue} numberOfLines={1}>
               {item.created_by_name || 'Você'}
             </Text>
           </View>
           <View style={styles.detailRow}>
-            <Ionicons name={getDestinationIcon(item) as IoniconsName} size={15} color={colors.admin} />
+            <Ionicons name={getDestinationIcon(item) as IoniconsName} size={15} color={ADMIN_COLOR} />
             <Text style={styles.detailLabel}>Para</Text>
             <Text style={styles.detailValue} numberOfLines={2}>
               {getDestinationLabel(item)}
@@ -180,11 +175,11 @@ export default function SentAvisosScreen() {
         {/* Stats de leitura */}
         <View style={styles.statsRow}>
           <View style={styles.stat}>
-            <Ionicons name="people-outline" size={14} color={colors.gray} />
+            <Ionicons name="people-outline" size={14} color={t.text.secondary} />
             <Text style={styles.statText}>{item.recipient_count} destinatários</Text>
           </View>
           <View style={styles.stat}>
-            <Ionicons name="eye-outline" size={14} color={colors.gray} />
+            <Ionicons name="eye-outline" size={14} color={t.text.secondary} />
             <Text style={styles.statText}>{item.read_count} leram ({readPercentage}%)</Text>
           </View>
         </View>
@@ -200,7 +195,7 @@ export default function SentAvisosScreen() {
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
-        <Ionicons name="paper-plane-outline" size={64} color={colors.admin} />
+        <Ionicons name="paper-plane-outline" size={64} color={ADMIN_COLOR} />
       </View>
       <Text style={styles.emptyTitle}>Nenhum aviso enviado</Text>
       <Text style={styles.emptyMessage}>
@@ -214,7 +209,7 @@ export default function SentAvisosScreen() {
       <>
         <Stack.Screen options={{ title: 'Avisos Enviados' }} />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.admin} />
+          <ActivityIndicator size="large" color={ADMIN_COLOR} />
         </View>
       </>
     );
@@ -230,7 +225,7 @@ export default function SentAvisosScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.admin]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ADMIN_COLOR]} />
         }
         ListEmptyComponent={renderEmpty}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -239,47 +234,47 @@ export default function SentAvisosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.lightGray },
-  listContent: { padding: 16, flexGrow: 1, backgroundColor: colors.lightGray },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: t.bg.elevated },
+  listContent: { padding: 16, flexGrow: 1, backgroundColor: t.bg.elevated },
   separator: { height: 12 },
 
-  avisoCard: { backgroundColor: colors.white, borderRadius: 14, padding: 16 },
+  avisoCard: { backgroundColor: t.bg.screen, borderRadius: 14, padding: 16 },
 
   // Header
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   typeIconBadge: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   headerInfo: { flex: 1 },
-  avisoTitle: { fontSize: 15, fontWeight: '700', color: '#171717', marginBottom: 2 },
+  avisoTitle: { fontSize: 15, fontWeight: '700', color: t.text.primary, marginBottom: 2 },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  dateMeta: { fontSize: 12, color: colors.gray },
+  dateMeta: { fontSize: 12, color: t.text.secondary },
   typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   typeBadgeText: { fontSize: 11, fontWeight: '600' },
 
   // Mensagem
-  avisoMessage: { fontSize: 13, color: colors.gray, lineHeight: 19, marginBottom: 12 },
+  avisoMessage: { fontSize: 13, color: t.text.secondary, lineHeight: 19, marginBottom: 12 },
 
   // Divisor
-  divider: { height: 1, backgroundColor: '#f3f4f6', marginBottom: 10 },
+  divider: { height: 1, backgroundColor: t.bg.elevated, marginBottom: 10 },
 
   // Detalhes
   detailsGrid: { gap: 6, marginBottom: 10 },
   detailRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  detailLabel: { fontSize: 12, color: colors.gray, minWidth: 72 },
-  detailValue: { flex: 1, fontSize: 12, color: '#171717', fontWeight: '500' },
+  detailLabel: { fontSize: 12, color: t.text.secondary, minWidth: 72 },
+  detailValue: { flex: 1, fontSize: 12, color: t.text.primary, fontWeight: '500' },
 
   // Stats
   statsRow: { flexDirection: 'row', gap: 16, marginBottom: 8 },
   stat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statText: { fontSize: 12, color: colors.gray },
+  statText: { fontSize: 12, color: t.text.secondary },
 
   // Barra de progresso
-  progressContainer: { height: 4, backgroundColor: '#e5e5e5', borderRadius: 2, overflow: 'hidden' },
-  progressBar: { height: '100%', backgroundColor: colors.success, borderRadius: 2 },
+  progressContainer: { height: 4, backgroundColor: t.border.subtle, borderRadius: 2, overflow: 'hidden' },
+  progressBar: { height: '100%', backgroundColor: t.status.success, borderRadius: 2 },
 
   // Empty state
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, marginTop: 60 },
-  emptyIconContainer: { width: 120, height: 120, borderRadius: 60, backgroundColor: `${colors.admin}15`, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
-  emptyTitle: { fontSize: 20, fontWeight: '600', color: '#171717', marginBottom: 8 },
-  emptyMessage: { fontSize: 14, color: colors.gray, textAlign: 'center' },
+  emptyIconContainer: { width: 120, height: 120, borderRadius: 60, backgroundColor: `${ADMIN_COLOR}15`, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+  emptyTitle: { fontSize: 20, fontWeight: '600', color: t.text.primary, marginBottom: 8 },
+  emptyMessage: { fontSize: 14, color: t.text.secondary, textAlign: 'center' },
 });

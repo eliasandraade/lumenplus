@@ -12,18 +12,23 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { adminExportService, ExportRequest } from '@/services';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
-const colors = { admin: '#7c3aed', white: '#fff', gray: '#6b7280', lightGray: '#E8E8E8', text: '#171717', danger: '#dc2626', success: '#16a34a', warning: '#d97706' };
-
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  PENDING:   { label: 'Pendente',  color: colors.warning },
-  APPROVED:  { label: 'Aprovado',  color: colors.success },
-  REJECTED:  { label: 'Rejeitado', color: colors.danger  },
-  GENERATED: { label: 'Pronto',    color: colors.success },
-  EXPIRED:   { label: 'Expirado',  color: colors.gray    },
-};
+const ADMIN_COLOR = '#7c3aed';
 
 export default function ApprovalsScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
+  const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+    PENDING:   { label: 'Pendente',  color: t.status.warning },
+    APPROVED:  { label: 'Aprovado',  color: t.status.success },
+    REJECTED:  { label: 'Rejeitado', color: t.status.error   },
+    GENERATED: { label: 'Pronto',    color: t.status.success },
+    EXPIRED:   { label: 'Expirado',  color: t.text.secondary },
+  };
+
   const [requests, setRequests] = useState<ExportRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -91,7 +96,7 @@ export default function ApprovalsScreen() {
   };
 
   const renderItem = ({ item }: { item: ExportRequest }) => {
-    const status = STATUS_CONFIG[item.status] ?? { label: item.status, color: colors.gray };
+    const status = STATUS_CONFIG[item.status] ?? { label: item.status, color: t.text.secondary };
     return (
       <View style={styles.card}>
         <View style={styles.cardHeader}>
@@ -100,7 +105,7 @@ export default function ApprovalsScreen() {
           </View>
           {item.has_sensitive && (
             <View style={styles.sensitiveBadge}>
-              <Ionicons name="lock-closed-outline" size={12} color={colors.danger} />
+              <Ionicons name="lock-closed-outline" size={12} color={t.status.error} />
               <Text style={styles.sensitiveText}>Dados sensíveis</Text>
             </View>
           )}
@@ -122,16 +127,16 @@ export default function ApprovalsScreen() {
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={colors.admin} /></View>;
+    return <View style={styles.center}><ActivityIndicator size="large" color={ADMIN_COLOR} /></View>;
   }
 
   const pending = requests.filter((r) => r.status === 'PENDING');
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+    <View style={styles.container}>
       {pending.length > 0 && (
         <View style={styles.banner}>
-          <Ionicons name="alert-circle-outline" size={18} color={colors.warning} />
+          <Ionicons name="alert-circle-outline" size={18} color={t.status.warning} />
           <Text style={styles.bannerText}>
             {pending.length} exportação{pending.length !== 1 ? 'ões' : ''} aguardando aprovação
           </Text>
@@ -145,8 +150,8 @@ export default function ApprovalsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
           <View style={styles.center}>
-            <Ionicons name="checkmark-circle-outline" size={40} color={colors.gray} />
-            <Text style={{ color: colors.gray, marginTop: 8 }}>Nenhuma solicitação</Text>
+            <Ionicons name="checkmark-circle-outline" size={40} color={t.text.secondary} />
+            <Text style={{ color: t.text.secondary, marginTop: 8 }}>Nenhuma solicitação</Text>
           </View>
         }
       />
@@ -154,31 +159,32 @@ export default function ApprovalsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.elevated },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   banner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#fffbeb', padding: 12,
-    borderBottomWidth: 1, borderBottomColor: '#fcd34d',
+    backgroundColor: t.status.warningBg, padding: 12,
+    borderBottomWidth: 1, borderBottomColor: t.border.subtle,
   },
-  bannerText: { fontSize: 13, color: colors.warning, fontWeight: '600' },
-  card: { backgroundColor: colors.white, borderRadius: 12, padding: 14, marginBottom: 10 },
+  bannerText: { fontSize: 13, color: t.status.warning, fontWeight: '600' },
+  card: { backgroundColor: t.bg.screen, borderRadius: 12, padding: 14, marginBottom: 10 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   statusBadge: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
   statusText: { fontSize: 11, fontWeight: '700' },
   sensitiveBadge: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  sensitiveText: { fontSize: 11, color: colors.danger },
-  date: { marginLeft: 'auto', fontSize: 11, color: colors.gray },
-  fields: { fontSize: 13, color: colors.gray, marginBottom: 10 },
+  sensitiveText: { fontSize: 11, color: t.status.error },
+  date: { marginLeft: 'auto', fontSize: 11, color: t.text.secondary },
+  fields: { fontSize: 13, color: t.text.secondary, marginBottom: 10 },
   actions: { flexDirection: 'row', gap: 10 },
   rejectBtn: {
-    flex: 1, borderWidth: 2, borderColor: colors.danger,
+    flex: 1, borderWidth: 2, borderColor: t.status.error,
     borderRadius: 8, paddingVertical: 10, alignItems: 'center',
   },
-  rejectBtnText: { color: colors.danger, fontWeight: '700' },
+  rejectBtnText: { color: t.status.error, fontWeight: '700' },
   approveBtn: {
-    flex: 1, backgroundColor: colors.admin,
+    flex: 1, backgroundColor: ADMIN_COLOR,
     borderRadius: 8, paddingVertical: 10, alignItems: 'center',
   },
-  approveBtnText: { color: colors.white, fontWeight: '700' },
+  approveBtnText: { color: t.text.inverse, fontWeight: '700' },
 });

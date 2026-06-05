@@ -24,18 +24,10 @@ import { Ionicons } from '@expo/vector-icons';
 import type { IoniconsName } from '@/types/icons';
 import { inboxService } from '@/services';
 import type { InboxPreviewResponse, InboxSendResponse, OrgScopeResponse, SendScopesResponse } from '@/types';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
-const colors = {
-  primary: '#1A859B',
-  white: '#ffffff',
-  gray: '#6b7280',
-  lightGray: '#E8E8E8',
-  admin: '#7c3aed',
-  error: '#ef4444',
-  success: '#22c55e',
-  warning: '#f59e0b',
-  info: '#3b82f6',
-};
+const ADMIN_COLOR = '#7c3aed';
 
 interface FilterOptions {
   vocational_realities: { code: string; label: string }[];
@@ -46,13 +38,6 @@ interface FilterOptions {
 }
 
 type MessageType = 'info' | 'warning' | 'success' | 'urgent';
-
-const messageTypes: { type: MessageType; label: string; color: string; icon: string }[] = [
-  { type: 'info', label: 'Informativo', color: colors.info, icon: 'information-circle' },
-  { type: 'warning', label: 'Atencao', color: colors.warning, icon: 'warning' },
-  { type: 'success', label: 'Confirmacao', color: colors.success, icon: 'checkmark-circle' },
-  { type: 'urgent', label: 'Urgente', color: colors.error, icon: 'alert-circle' },
-];
 
 const CATEGORIES = [
   { value: 'GENERAL', label: 'Geral' },
@@ -72,6 +57,16 @@ const PRIORITIES = [
 type DestMode = 'all' | 'scope' | 'filter';
 
 export default function CreateAvisoScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
+  const messageTypes: { type: MessageType; label: string; color: string; icon: string }[] = [
+    { type: 'info', label: 'Informativo', color: t.status.info, icon: 'information-circle' },
+    { type: 'warning', label: 'Atencao', color: t.status.warning, icon: 'warning' },
+    { type: 'success', label: 'Confirmacao', color: t.status.success, icon: 'checkmark-circle' },
+    { type: 'urgent', label: 'Urgente', color: t.status.error, icon: 'alert-circle' },
+  ];
+
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<MessageType>('info');
@@ -265,7 +260,7 @@ export default function CreateAvisoScreen() {
   if (loadingScopes) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.admin} />
+        <ActivityIndicator size="large" color={ADMIN_COLOR} />
       </View>
     );
   }
@@ -275,12 +270,12 @@ export default function CreateAvisoScreen() {
       <>
         <Stack.Screen options={{ title: 'Criar Aviso' }} />
         <View style={styles.loadingContainer}>
-          <Ionicons name="lock-closed-outline" size={48} color={colors.error} />
-          <Text style={[styles.label, { textAlign: 'center', marginTop: 16, color: colors.error }]}>
+          <Ionicons name="lock-closed-outline" size={48} color={t.status.error} />
+          <Text style={[styles.label, { textAlign: 'center', marginTop: 16, color: t.status.error }]}>
             {scopeLoadError}
           </Text>
           <TouchableOpacity
-            style={[styles.sendButton, { backgroundColor: colors.gray, marginTop: 24 }]}
+            style={[styles.sendButton, { backgroundColor: t.text.secondary, marginTop: 24 }]}
             onPress={() => router.back()}
           >
             <Text style={styles.sendButtonText}>Voltar</Text>
@@ -306,7 +301,7 @@ export default function CreateAvisoScreen() {
               onPress={() => setMessageType(mt.type)}
             >
               <Ionicons name={mt.icon as IoniconsName} size={20} color={mt.color} />
-              <Text style={[styles.typeLabel, { color: messageType === mt.type ? mt.color : colors.gray }]}>{mt.label}</Text>
+              <Text style={[styles.typeLabel, { color: messageType === mt.type ? mt.color : t.text.secondary }]}>{mt.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -320,12 +315,12 @@ export default function CreateAvisoScreen() {
               onPress={() => setCategory(cat.value)}
               style={{
                 paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
-                backgroundColor: category === cat.value ? colors.primary : colors.white,
+                backgroundColor: category === cat.value ? t.brand.primary : t.bg.screen,
                 borderWidth: 1,
-                borderColor: category === cat.value ? colors.primary : '#e5e5e5',
+                borderColor: category === cat.value ? t.brand.primary : t.border.subtle,
               }}
             >
-              <Text style={{ color: category === cat.value ? colors.white : colors.gray, fontSize: 13 }}>
+              <Text style={{ color: category === cat.value ? t.text.inverse : t.text.secondary, fontSize: 13 }}>
                 {cat.label}
               </Text>
             </TouchableOpacity>
@@ -341,27 +336,27 @@ export default function CreateAvisoScreen() {
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 10,
               padding: 12, borderRadius: 10, marginBottom: 8,
-              backgroundColor: priority === p.value ? '#F9FAFB' : colors.white,
+              backgroundColor: priority === p.value ? t.bg.elevated : t.bg.screen,
               borderWidth: 1,
-              borderColor: priority === p.value ? p.color : '#e5e5e5',
+              borderColor: priority === p.value ? p.color : t.border.subtle,
             }}
           >
             <View style={{
               width: 16, height: 16, borderRadius: 8,
               backgroundColor: priority === p.value ? p.color : 'transparent',
-              borderWidth: 2, borderColor: priority === p.value ? p.color : '#9CA3AF',
+              borderWidth: 2, borderColor: priority === p.value ? p.color : t.text.tertiary,
             }} />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: '600', fontSize: 13, color: priority === p.value ? p.color : '#171717' }}>
+              <Text style={{ fontWeight: '600', fontSize: 13, color: priority === p.value ? p.color : t.text.primary }}>
                 {p.label}
               </Text>
-              <Text style={{ fontSize: 11, color: colors.gray }}>{p.description}</Text>
+              <Text style={{ fontSize: 11, color: t.text.secondary }}>{p.description}</Text>
             </View>
           </TouchableOpacity>
         ))}
         {priority === 'CRITICAL' && (
-          <View style={{ backgroundColor: '#FEF2F2', padding: 10, borderRadius: 8, marginBottom: 8 }}>
-            <Text style={{ color: '#DC2626', fontSize: 12, marginBottom: 8 }}>
+          <View style={{ backgroundColor: t.status.errorBg, padding: 10, borderRadius: 8, marginBottom: 8 }}>
+            <Text style={{ color: t.status.error, fontSize: 12, marginBottom: 8 }}>
               ⚠️ Urgente ignora preferências de notificação. Use apenas para comunicados críticos.
             </Text>
             <TextInput
@@ -369,8 +364,9 @@ export default function CreateAvisoScreen() {
               onChangeText={setCriticalReason}
               placeholder="Justificativa obrigatória (mín. 10 caracteres)"
               style={{
-                borderWidth: 1, borderColor: '#FCA5A5', borderRadius: 8,
-                padding: 10, backgroundColor: colors.white, fontSize: 13,
+                borderWidth: 1, borderColor: t.border.subtle, borderRadius: 8,
+                padding: 10, backgroundColor: t.bg.screen, fontSize: 13,
+                color: t.text.primary,
               }}
             />
           </View>
@@ -383,7 +379,7 @@ export default function CreateAvisoScreen() {
           onChangeText={setDeepLink}
           placeholder="Ex: /retreats/abc, /vida, /channel/xyz"
           style={[styles.input, { marginBottom: 16 }]}
-          placeholderTextColor={colors.gray}
+          placeholderTextColor={t.text.secondary}
         />
 
         {/* Action Label */}
@@ -393,7 +389,7 @@ export default function CreateAvisoScreen() {
           onChangeText={setActionLabel}
           placeholder='Ex: "Inscrever-se", "Ver Programação"'
           style={[styles.input, { marginBottom: 16 }]}
-          placeholderTextColor={colors.gray}
+          placeholderTextColor={t.text.secondary}
         />
 
         {/* Titulo */}
@@ -404,6 +400,7 @@ export default function CreateAvisoScreen() {
           onChangeText={setTitle}
           placeholder="Ex: Reuniao de Formacao"
           maxLength={200}
+          placeholderTextColor={t.text.secondary}
         />
 
         {/* Mensagem */}
@@ -417,6 +414,7 @@ export default function CreateAvisoScreen() {
           numberOfLines={6}
           textAlignVertical="top"
           maxLength={5000}
+          placeholderTextColor={t.text.secondary}
         />
 
         {/* Destinatarios */}
@@ -432,7 +430,7 @@ export default function CreateAvisoScreen() {
               <Ionicons
                 name={destMode === 'all' ? 'radio-button-on' : 'radio-button-off'}
                 size={20}
-                color={destMode === 'all' ? colors.admin : colors.gray}
+                color={destMode === 'all' ? ADMIN_COLOR : t.text.secondary}
               />
               <View style={styles.destTextBlock}>
                 <Text style={[styles.destText, destMode === 'all' && styles.destTextActive]}>Todos os membros</Text>
@@ -450,7 +448,7 @@ export default function CreateAvisoScreen() {
               <Ionicons
                 name={destMode === 'scope' ? 'radio-button-on' : 'radio-button-off'}
                 size={20}
-                color={destMode === 'scope' ? colors.admin : colors.gray}
+                color={destMode === 'scope' ? ADMIN_COLOR : t.text.secondary}
               />
               <View style={styles.destTextBlock}>
                 <Text style={[styles.destText, destMode === 'scope' && styles.destTextActive]}>
@@ -479,7 +477,7 @@ export default function CreateAvisoScreen() {
               <Ionicons
                 name={destMode === 'filter' ? 'radio-button-on' : 'radio-button-off'}
                 size={20}
-                color={destMode === 'filter' ? colors.admin : colors.gray}
+                color={destMode === 'filter' ? ADMIN_COLOR : t.text.secondary}
               />
               <View style={styles.destTextBlock}>
                 <Text style={[styles.destText, destMode === 'filter' && styles.destTextActive]}>Segmentado por perfil</Text>
@@ -492,9 +490,9 @@ export default function CreateAvisoScreen() {
         {/* Seletor de escopo inline quando só há 1 escopo */}
         {destMode === 'scope' && !selectedScope && hasScopes && (
           <TouchableOpacity style={styles.pickScopeBtn} onPress={() => setShowScopeModal(true)}>
-            <Ionicons name="people" size={20} color={colors.admin} />
+            <Ionicons name="people" size={20} color={ADMIN_COLOR} />
             <Text style={styles.pickScopeText}>Escolher setor/grupo</Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.admin} />
+            <Ionicons name="chevron-forward" size={18} color={ADMIN_COLOR} />
           </TouchableOpacity>
         )}
 
@@ -502,13 +500,13 @@ export default function CreateAvisoScreen() {
         {destMode === 'filter' && (
           <View style={styles.filtersContainer}>
             <Text style={styles.filtersTitle}>Filtros de Segmentacao</Text>
-            {loadingFilters ? <ActivityIndicator color={colors.admin} /> : (
+            {loadingFilters ? <ActivityIndicator color={ADMIN_COLOR} /> : (
               <>
-                <FilterBtn label="Realidade Vocacional" count={selectedVocational.length} onPress={() => openFilter('vocational')} />
-                <FilterBtn label="Estado de Vida" count={selectedLifeState.length} onPress={() => openFilter('lifeState')} />
-                <FilterBtn label="Estado Civil" count={selectedMarital.length} onPress={() => openFilter('marital')} />
-                <FilterBtn label="Estado (UF)" count={selectedStates.length} onPress={() => openFilter('states')} />
-                <FilterBtn label="Cidade" count={selectedCities.length} onPress={() => openFilter('cities')} />
+                <FilterBtn label="Realidade Vocacional" count={selectedVocational.length} onPress={() => openFilter('vocational')} styles={styles} t={t} />
+                <FilterBtn label="Estado de Vida" count={selectedLifeState.length} onPress={() => openFilter('lifeState')} styles={styles} t={t} />
+                <FilterBtn label="Estado Civil" count={selectedMarital.length} onPress={() => openFilter('marital')} styles={styles} t={t} />
+                <FilterBtn label="Estado (UF)" count={selectedStates.length} onPress={() => openFilter('states')} styles={styles} t={t} />
+                <FilterBtn label="Cidade" count={selectedCities.length} onPress={() => openFilter('cities')} styles={styles} t={t} />
               </>
             )}
           </View>
@@ -517,7 +515,7 @@ export default function CreateAvisoScreen() {
         {/* Preview de destinatarios */}
         {previewCount !== null && (
           <View style={styles.previewBox}>
-            <Ionicons name="people" size={20} color={colors.admin} />
+            <Ionicons name="people" size={20} color={ADMIN_COLOR} />
             <Text style={styles.previewText}>{previewCount} membro(s) receberao este aviso</Text>
           </View>
         )}
@@ -525,13 +523,13 @@ export default function CreateAvisoScreen() {
         {/* Erros inline */}
         {validationError && (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={16} color={colors.error} />
+            <Ionicons name="alert-circle" size={16} color={t.status.error} />
             <Text style={styles.errorText}>{validationError}</Text>
           </View>
         )}
         {sendError && (
           <View style={styles.errorBox}>
-            <Ionicons name="close-circle" size={16} color={colors.error} />
+            <Ionicons name="close-circle" size={16} color={t.status.error} />
             <Text style={styles.errorText}>{sendError}</Text>
           </View>
         )}
@@ -542,9 +540,9 @@ export default function CreateAvisoScreen() {
           onPress={handleSend}
           disabled={loading}
         >
-          {loading ? <ActivityIndicator color={colors.white} /> : (
+          {loading ? <ActivityIndicator color={t.text.inverse} /> : (
             <>
-              <Ionicons name="send" size={20} color={colors.white} />
+              <Ionicons name="send" size={20} color={t.text.inverse} />
               <Text style={styles.sendButtonText}>Enviar Aviso</Text>
             </>
           )}
@@ -558,7 +556,7 @@ export default function CreateAvisoScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Selecionar Setor/Grupo</Text>
               <TouchableOpacity onPress={() => setShowScopeModal(false)}>
-                <Ionicons name="close" size={24} color={colors.gray} />
+                <Ionicons name="close" size={24} color={t.text.secondary} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalScroll}>
@@ -573,7 +571,7 @@ export default function CreateAvisoScreen() {
                     <Text style={styles.scopeOptionMeta}>{scope.type} • {scope.member_count} membro(s)</Text>
                   </View>
                   {selectedScope?.id === scope.id && (
-                    <Ionicons name="checkmark-circle" size={22} color={colors.admin} />
+                    <Ionicons name="checkmark-circle" size={22} color={ADMIN_COLOR} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -589,7 +587,7 @@ export default function CreateAvisoScreen() {
       <Modal visible={showConfirmModal} animationType="fade" transparent onRequestClose={() => setShowConfirmModal(false)}>
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmBox}>
-            <Ionicons name="send" size={32} color={colors.admin} style={{ marginBottom: 12 }} />
+            <Ionicons name="send" size={32} color={ADMIN_COLOR} style={{ marginBottom: 12 }} />
             <Text style={styles.confirmTitle}>Confirmar envio</Text>
             <Text style={styles.confirmMessage}>
               Enviar aviso para{' '}
@@ -613,7 +611,7 @@ export default function CreateAvisoScreen() {
                 style={styles.confirmSendBtn}
                 onPress={sendAviso}
               >
-                <Ionicons name="send" size={16} color={colors.white} />
+                <Ionicons name="send" size={16} color={t.text.inverse} />
                 <Text style={styles.confirmSendText}>Enviar</Text>
               </TouchableOpacity>
             </View>
@@ -626,19 +624,19 @@ export default function CreateAvisoScreen() {
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmBox}>
             <View style={styles.successIconCircle}>
-              <Ionicons name="checkmark" size={40} color={colors.white} />
+              <Ionicons name="checkmark" size={40} color={t.text.inverse} />
             </View>
             <Text style={styles.confirmTitle}>Aviso enviado!</Text>
             <Text style={styles.confirmMessage}>
               Seu aviso foi enviado para{' '}
-              <Text style={{ fontWeight: '700', color: '#171717' }}>{sentCount} membro(s)</Text>
+              <Text style={{ fontWeight: '700', color: t.text.primary }}>{sentCount} membro(s)</Text>
               {' '}com sucesso.
             </Text>
             <TouchableOpacity
               style={[styles.confirmSendBtn, { width: '100%' }]}
               onPress={() => { setShowSuccessModal(false); router.back(); }}
             >
-              <Ionicons name="checkmark-circle" size={18} color={colors.white} />
+              <Ionicons name="checkmark-circle" size={18} color={t.text.inverse} />
               <Text style={styles.confirmSendText}>Concluir</Text>
             </TouchableOpacity>
           </View>
@@ -652,7 +650,7 @@ export default function CreateAvisoScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{filterData.title}</Text>
               <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-                <Ionicons name="close" size={24} color={colors.gray} />
+                <Ionicons name="close" size={24} color={t.text.secondary} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalScroll}>
@@ -664,7 +662,7 @@ export default function CreateAvisoScreen() {
                 >
                   <Text style={styles.filterOptionText}>{opt.label}</Text>
                   <View style={[styles.checkbox, filterData.selected.includes(opt.code) && styles.checkboxChecked]}>
-                    {filterData.selected.includes(opt.code) && <Ionicons name="checkmark" size={16} color={colors.white} />}
+                    {filterData.selected.includes(opt.code) && <Ionicons name="checkmark" size={16} color={t.text.inverse} />}
                   </View>
                 </TouchableOpacity>
               ))}
@@ -679,80 +677,80 @@ export default function CreateAvisoScreen() {
   );
 }
 
-function FilterBtn({ label, count, onPress }: { label: string; count: number; onPress: () => void }) {
+function FilterBtn({ label, count, onPress, styles, t }: { label: string; count: number; onPress: () => void; styles: ReturnType<typeof makeStyles>; t: SemanticTokens }) {
   return (
     <TouchableOpacity style={styles.filterButton} onPress={onPress}>
       <Text style={styles.filterButtonText}>{label}</Text>
       <View style={styles.filterButtonRight}>
         {count > 0 && <View style={styles.filterBadge}><Text style={styles.filterBadgeText}>{count}</Text></View>}
-        <Ionicons name="chevron-forward" size={20} color={colors.gray} />
+        <Ionicons name="chevron-forward" size={20} color={t.text.secondary} />
       </View>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.lightGray },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.elevated },
   content: { padding: 16, paddingBottom: 40 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.lightGray },
-  label: { fontSize: 14, fontWeight: '600', color: '#171717', marginBottom: 8, marginTop: 16 },
-  input: { backgroundColor: colors.white, borderRadius: 12, padding: 14, fontSize: 16, borderWidth: 1, borderColor: '#e5e5e5' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: t.bg.elevated },
+  label: { fontSize: 14, fontWeight: '600', color: t.text.primary, marginBottom: 8, marginTop: 16 },
+  input: { backgroundColor: t.bg.surface, borderRadius: 12, padding: 14, fontSize: 16, borderWidth: 1, borderColor: t.border.subtle, color: t.text.primary },
   textArea: { minHeight: 120 },
   typeContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  typeButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 2, borderColor: '#e5e5e5', backgroundColor: colors.white, gap: 6 },
+  typeButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 2, borderColor: t.border.subtle, backgroundColor: t.bg.screen, gap: 6 },
   typeLabel: { fontSize: 13, fontWeight: '500' },
-  destContainer: { backgroundColor: colors.white, borderRadius: 12, overflow: 'hidden' },
-  destOption: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  destOptionActive: { backgroundColor: `${colors.admin}08` },
+  destContainer: { backgroundColor: t.bg.screen, borderRadius: 12, overflow: 'hidden' },
+  destOption: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 10, borderBottomWidth: 1, borderBottomColor: t.bg.elevated },
+  destOptionActive: { backgroundColor: `${ADMIN_COLOR}08` },
   destTextBlock: { flex: 1 },
-  destText: { fontSize: 15, color: colors.gray },
-  destTextActive: { color: '#171717', fontWeight: '500' },
-  destSubtext: { fontSize: 12, color: colors.gray, marginTop: 2 },
-  changeScopeBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: `${colors.admin}15` },
-  changeScopeText: { fontSize: 12, color: colors.admin, fontWeight: '600' },
-  pickScopeBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: `${colors.admin}10`, borderRadius: 12, padding: 14, marginTop: 8 },
-  pickScopeText: { flex: 1, fontSize: 15, color: colors.admin, fontWeight: '500' },
-  filtersContainer: { backgroundColor: colors.white, borderRadius: 12, padding: 16, marginTop: 12 },
-  filtersTitle: { fontSize: 14, fontWeight: '600', color: '#171717', marginBottom: 12 },
-  filterButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  filterButtonText: { fontSize: 15, color: '#171717' },
+  destText: { fontSize: 15, color: t.text.secondary },
+  destTextActive: { color: t.text.primary, fontWeight: '500' },
+  destSubtext: { fontSize: 12, color: t.text.secondary, marginTop: 2 },
+  changeScopeBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: `${ADMIN_COLOR}15` },
+  changeScopeText: { fontSize: 12, color: ADMIN_COLOR, fontWeight: '600' },
+  pickScopeBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: `${ADMIN_COLOR}10`, borderRadius: 12, padding: 14, marginTop: 8 },
+  pickScopeText: { flex: 1, fontSize: 15, color: ADMIN_COLOR, fontWeight: '500' },
+  filtersContainer: { backgroundColor: t.bg.screen, borderRadius: 12, padding: 16, marginTop: 12 },
+  filtersTitle: { fontSize: 14, fontWeight: '600', color: t.text.primary, marginBottom: 12 },
+  filterButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: t.bg.elevated },
+  filterButtonText: { fontSize: 15, color: t.text.primary },
   filterButtonRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  filterBadge: { backgroundColor: colors.admin, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  filterBadgeText: { color: colors.white, fontSize: 12, fontWeight: '600' },
-  previewBox: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, padding: 12, backgroundColor: `${colors.admin}10`, borderRadius: 8 },
-  previewText: { fontSize: 14, color: colors.admin, fontWeight: '500' },
-  sendButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.admin, borderRadius: 12, padding: 16, marginTop: 24 },
+  filterBadge: { backgroundColor: ADMIN_COLOR, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  filterBadgeText: { color: t.text.inverse, fontSize: 12, fontWeight: '600' },
+  previewBox: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, padding: 12, backgroundColor: `${ADMIN_COLOR}10`, borderRadius: 8 },
+  previewText: { fontSize: 14, color: ADMIN_COLOR, fontWeight: '500' },
+  sendButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: ADMIN_COLOR, borderRadius: 12, padding: 16, marginTop: 24 },
   sendButtonDisabled: { opacity: 0.6 },
-  sendButtonText: { color: colors.white, fontSize: 16, fontWeight: '600' },
+  sendButtonText: { color: t.text.inverse, fontSize: 16, fontWeight: '600' },
   // Modais
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: colors.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#e5e5e5' },
-  modalTitle: { fontSize: 18, fontWeight: '600', color: '#171717' },
+  modalOverlay: { flex: 1, backgroundColor: t.bg.overlay, justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: t.bg.screen, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: t.border.subtle },
+  modalTitle: { fontSize: 18, fontWeight: '600', color: t.text.primary },
   modalScroll: { padding: 16 },
-  scopeOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  scopeOptionSelected: { backgroundColor: `${colors.admin}08` },
+  scopeOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: t.bg.elevated },
+  scopeOptionSelected: { backgroundColor: `${ADMIN_COLOR}08` },
   scopeOptionLeft: { flex: 1 },
-  scopeOptionName: { fontSize: 15, fontWeight: '500', color: '#171717' },
-  scopeOptionMeta: { fontSize: 12, color: colors.gray, marginTop: 2 },
-  filterOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  filterOptionText: { fontSize: 15, color: '#171717' },
-  checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center' },
-  checkboxChecked: { backgroundColor: colors.admin, borderColor: colors.admin },
-  modalDoneButton: { margin: 16, padding: 16, backgroundColor: colors.admin, borderRadius: 12, alignItems: 'center' },
-  modalDoneText: { color: colors.white, fontSize: 16, fontWeight: '600' },
+  scopeOptionName: { fontSize: 15, fontWeight: '500', color: t.text.primary },
+  scopeOptionMeta: { fontSize: 12, color: t.text.secondary, marginTop: 2 },
+  filterOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: t.bg.elevated },
+  filterOptionText: { fontSize: 15, color: t.text.primary },
+  checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: t.border.default, alignItems: 'center', justifyContent: 'center' },
+  checkboxChecked: { backgroundColor: ADMIN_COLOR, borderColor: ADMIN_COLOR },
+  modalDoneButton: { margin: 16, padding: 16, backgroundColor: ADMIN_COLOR, borderRadius: 12, alignItems: 'center' },
+  modalDoneText: { color: t.text.inverse, fontSize: 16, fontWeight: '600' },
   // Erros inline
-  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, padding: 12, backgroundColor: '#fef2f2', borderRadius: 10, borderWidth: 1, borderColor: '#fecaca' },
-  errorText: { flex: 1, fontSize: 14, color: colors.error, fontWeight: '500' },
+  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, padding: 12, backgroundColor: t.status.errorBg, borderRadius: 10, borderWidth: 1, borderColor: t.border.subtle },
+  errorText: { flex: 1, fontSize: 14, color: t.status.error, fontWeight: '500' },
   // Modal de confirmação
-  confirmOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  confirmBox: { backgroundColor: colors.white, borderRadius: 20, padding: 28, width: '100%', maxWidth: 380, alignItems: 'center' },
-  confirmTitle: { fontSize: 20, fontWeight: '700', color: '#171717', marginBottom: 10 },
-  confirmMessage: { fontSize: 15, color: colors.gray, textAlign: 'center', marginBottom: 24, lineHeight: 22 },
+  confirmOverlay: { flex: 1, backgroundColor: t.bg.overlay, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  confirmBox: { backgroundColor: t.bg.screen, borderRadius: 20, padding: 28, width: '100%', maxWidth: 380, alignItems: 'center' },
+  confirmTitle: { fontSize: 20, fontWeight: '700', color: t.text.primary, marginBottom: 10 },
+  confirmMessage: { fontSize: 15, color: t.text.secondary, textAlign: 'center', marginBottom: 24, lineHeight: 22 },
   confirmActions: { flexDirection: 'row', gap: 12, width: '100%' },
-  confirmCancelBtn: { flex: 1, padding: 14, borderRadius: 12, borderWidth: 1.5, borderColor: '#e5e5e5', alignItems: 'center' },
-  confirmCancelText: { fontSize: 15, fontWeight: '600', color: colors.gray },
-  confirmSendBtn: { flex: 1, flexDirection: 'row', gap: 8, padding: 14, borderRadius: 12, backgroundColor: colors.admin, alignItems: 'center', justifyContent: 'center' },
-  confirmSendText: { fontSize: 15, fontWeight: '600', color: colors.white },
-  successIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  confirmCancelBtn: { flex: 1, padding: 14, borderRadius: 12, borderWidth: 1.5, borderColor: t.border.subtle, alignItems: 'center' },
+  confirmCancelText: { fontSize: 15, fontWeight: '600', color: t.text.secondary },
+  confirmSendBtn: { flex: 1, flexDirection: 'row', gap: 8, padding: 14, borderRadius: 12, backgroundColor: ADMIN_COLOR, alignItems: 'center', justifyContent: 'center' },
+  confirmSendText: { fontSize: 15, fontWeight: '600', color: t.text.inverse },
+  successIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: t.status.success, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
 });

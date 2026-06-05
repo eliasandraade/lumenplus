@@ -20,6 +20,8 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { IoniconsName } from '@/types/icons';
 import { api } from '@/services/api';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -77,6 +79,8 @@ function buildExtraSummary(extra: Record<string, any> | null): string {
   return parts.join(' · ');
 }
 
+const ADMIN_COLOR = '#7c3aed';
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -84,6 +88,9 @@ function buildExtraSummary(extra: Record<string, any> | null): string {
 const PAGE_SIZE = 25;
 
 export default function AuditLogsScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const [items, setItems]           = useState<AuditLogItem[]>([]);
   const [total, setTotal]           = useState(0);
   const [page, setPage]             = useState(1);
@@ -168,7 +175,7 @@ export default function AuditLogsScreen() {
         {/* Actor */}
         {item.actor_name && (
           <View style={styles.rowMeta}>
-            <Ionicons name="person-outline" size={13} color="#6b7280" />
+            <Ionicons name="person-outline" size={13} color={t.text.secondary} />
             <Text style={styles.metaText}>{item.actor_name}</Text>
           </View>
         )}
@@ -176,7 +183,7 @@ export default function AuditLogsScreen() {
         {/* Entity */}
         {entity && (
           <View style={styles.rowMeta}>
-            <Ionicons name="cube-outline" size={13} color="#6b7280" />
+            <Ionicons name="cube-outline" size={13} color={t.text.secondary} />
             <Text style={styles.metaText}>{entity}</Text>
           </View>
         )}
@@ -184,7 +191,7 @@ export default function AuditLogsScreen() {
         {/* Extra summary */}
         {extra !== '' && (
           <View style={styles.rowMeta}>
-            <Ionicons name="information-circle-outline" size={13} color="#6b7280" />
+            <Ionicons name="information-circle-outline" size={13} color={t.text.secondary} />
             <Text style={styles.metaText}>{extra}</Text>
           </View>
         )}
@@ -195,7 +202,7 @@ export default function AuditLogsScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#7c3aed" />
+        <ActivityIndicator size="large" color={ADMIN_COLOR} />
         <Text style={styles.loadingText}>Carregando logs…</Text>
       </View>
     );
@@ -204,7 +211,7 @@ export default function AuditLogsScreen() {
   if (error) {
     return (
       <View style={styles.center}>
-        <Ionicons name="alert-circle-outline" size={48} color="#dc2626" />
+        <Ionicons name="alert-circle-outline" size={48} color={t.status.error} />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryBtn} onPress={handleRefresh}>
           <Text style={styles.retryBtnText}>Tentar novamente</Text>
@@ -220,7 +227,7 @@ export default function AuditLogsScreen() {
         <TextInput
           style={styles.filterInput}
           placeholder="Filtrar por ação (ex: member_removed)"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={t.text.tertiary}
           value={filterAction}
           onChangeText={setFilterAction}
           onSubmitEditing={handleSearch}
@@ -228,14 +235,14 @@ export default function AuditLogsScreen() {
           autoCapitalize="none"
         />
         <TouchableOpacity style={styles.searchBtn} onPress={handleSearch}>
-          <Ionicons name="search" size={18} color="#fff" />
+          <Ionicons name="search" size={18} color={t.text.inverse} />
         </TouchableOpacity>
         {filterAction !== '' && (
           <TouchableOpacity
             style={styles.clearBtn}
             onPress={() => { setFilterAction(''); handleSearch(); }}
           >
-            <Ionicons name="close" size={18} color="#6b7280" />
+            <Ionicons name="close" size={18} color={t.text.secondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -254,22 +261,22 @@ export default function AuditLogsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#7c3aed']}
-            tintColor="#7c3aed"
+            colors={[ADMIN_COLOR]}
+            tintColor={ADMIN_COLOR}
           />
         }
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.3}
         ListFooterComponent={
           loadingMore
-            ? <ActivityIndicator style={{ marginVertical: 16 }} color="#7c3aed" />
+            ? <ActivityIndicator style={{ marginVertical: 16 }} color={ADMIN_COLOR} />
             : items.length >= total && items.length > 0
               ? <Text style={styles.endText}>Todos os registros carregados</Text>
               : null
         }
         ListEmptyComponent={
           <View style={styles.center}>
-            <Ionicons name="document-text-outline" size={48} color="#d1d5db" />
+            <Ionicons name="document-text-outline" size={48} color={t.border.default} />
             <Text style={styles.emptyText}>Nenhum log encontrado</Text>
           </View>
         }
@@ -282,10 +289,10 @@ export default function AuditLogsScreen() {
 // Styles
 // ---------------------------------------------------------------------------
 
-const styles = StyleSheet.create({
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: t.bg.elevated,
   },
   center: {
     flex: 1,
@@ -295,11 +302,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingText: {
-    color: '#6b7280',
+    color: t.text.secondary,
     marginTop: 8,
   },
   errorText: {
-    color: '#dc2626',
+    color: t.status.error,
     textAlign: 'center',
     fontSize: 14,
   },
@@ -307,31 +314,31 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 24,
     paddingVertical: 10,
-    backgroundColor: '#7c3aed',
+    backgroundColor: ADMIN_COLOR,
     borderRadius: 8,
   },
   retryBtnText: {
-    color: '#fff',
+    color: t.text.inverse,
     fontWeight: '600',
   },
   filterBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: t.bg.screen,
     margin: 12,
     borderRadius: 10,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: t.border.subtle,
   },
   filterInput: {
     flex: 1,
     height: 42,
     fontSize: 13,
-    color: '#111827',
+    color: t.text.primary,
   },
   searchBtn: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: ADMIN_COLOR,
     borderRadius: 6,
     padding: 6,
     marginLeft: 6,
@@ -342,7 +349,7 @@ const styles = StyleSheet.create({
   },
   totalText: {
     fontSize: 12,
-    color: '#6b7280',
+    color: t.text.secondary,
     marginLeft: 16,
     marginBottom: 4,
   },
@@ -351,7 +358,7 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: t.bg.screen,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
@@ -384,7 +391,7 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 11,
-    color: '#9ca3af',
+    color: t.text.tertiary,
     marginTop: 1,
   },
   rowMeta: {
@@ -394,17 +401,17 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
-    color: '#6b7280',
+    color: t.text.secondary,
     flexShrink: 1,
   },
   endText: {
     textAlign: 'center',
-    color: '#9ca3af',
+    color: t.text.tertiary,
     fontSize: 12,
     marginVertical: 16,
   },
   emptyText: {
-    color: '#9ca3af',
+    color: t.text.tertiary,
     fontSize: 14,
     marginTop: 8,
   },
