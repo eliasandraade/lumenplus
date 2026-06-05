@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import { router, Stack, useLocalSearchParams, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 import { getLivro, getTodosOsLivros, type Livro } from '@/services/bible';
 import { BreadcrumbHeader } from '@/components/ui/BreadcrumbHeader';
 
@@ -25,6 +27,8 @@ const GRAY = '#6b7280';
 const BG = '#f9fafb';
 
 export default function ReaderScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   const params = useLocalSearchParams<{
     livroIndex: string;
     capitulo: string;
@@ -108,12 +112,12 @@ export default function ReaderScreen() {
         <View style={styles.navBar}>
           <TouchableOpacity style={styles.navPill} onPress={() => setModalLivros(true)}>
             <Text style={styles.navPillText} numberOfLines={1}>{livro.nome}</Text>
-            <Ionicons name="chevron-down" size={14} color={PRIMARY} />
+            <Ionicons name="chevron-down" size={14} color={t.brand.primary} />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.navPill} onPress={() => setModalCaps(true)}>
             <Text style={styles.navPillText}>Cap. {capNum}</Text>
-            <Ionicons name="chevron-down" size={14} color={PRIMARY} />
+            <Ionicons name="chevron-down" size={14} color={t.brand.primary} />
           </TouchableOpacity>
         </View>
 
@@ -142,8 +146,8 @@ export default function ReaderScreen() {
             onPress={anterior}
             disabled={!temAnterior}
           >
-            <Ionicons name="chevron-back" size={20} color={temAnterior ? PRIMARY : GRAY} />
-            <Text style={[styles.navBtnText, !temAnterior && { color: GRAY }]}>Anterior</Text>
+            <Ionicons name="chevron-back" size={20} color={temAnterior ? t.brand.primary : t.text.tertiary} />
+            <Text style={[styles.navBtnText, !temAnterior && { color: t.text.secondary }]}>Anterior</Text>
           </TouchableOpacity>
 
           <Text style={styles.progressText}>{capNum} / {totalCaps}</Text>
@@ -153,8 +157,8 @@ export default function ReaderScreen() {
             onPress={proximo}
             disabled={!temProximo}
           >
-            <Text style={[styles.navBtnText, !temProximo && { color: GRAY }]}>Próximo</Text>
-            <Ionicons name="chevron-forward" size={20} color={temProximo ? PRIMARY : GRAY} />
+            <Text style={[styles.navBtnText, !temProximo && { color: t.text.secondary }]}>Próximo</Text>
+            <Ionicons name="chevron-forward" size={20} color={temProximo ? t.brand.primary : t.text.tertiary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -184,7 +188,7 @@ export default function ReaderScreen() {
                   {item.nome}
                 </Text>
                 {item.index === livroIndex && (
-                  <Ionicons name="checkmark" size={18} color={PRIMARY} />
+                  <Ionicons name="checkmark" size={18} color={t.brand.primary} />
                 )}
               </TouchableOpacity>
             )}
@@ -226,40 +230,40 @@ export default function ReaderScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.screen },
 
   headerActions: { flexDirection: 'row', gap: 4 },
   headerBtn: { padding: 6 },
-  headerBtnText: { fontSize: 14, color: PRIMARY, fontWeight: '600' },
-  headerBtnTextBig: { fontSize: 16, color: PRIMARY, fontWeight: '700' },
+  headerBtnText: { fontSize: 14, color: t.brand.primary, fontWeight: '600' },
+  headerBtnTextBig: { fontSize: 16, color: t.brand.primary, fontWeight: '700' },
 
   navBar: {
     flexDirection: 'row',
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: WHITE,
+    backgroundColor: t.bg.elevated,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: t.border.subtle,
   },
   navPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: `${PRIMARY}15`,
+    backgroundColor: t.brand.primaryDim,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
   },
-  navPillText: { fontSize: 14, color: PRIMARY, fontWeight: '600', maxWidth: 160 },
+  navPillText: { fontSize: 14, color: t.brand.primary, fontWeight: '600', maxWidth: 160 },
 
   scroll: { flex: 1 },
   scrollContent: { padding: 20 },
   capHeader: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#171717',
+    color: t.text.primary,
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -270,14 +274,14 @@ const styles = StyleSheet.create({
   },
   versNum: {
     fontSize: 11,
-    color: PRIMARY,
+    color: t.brand.primary,
     fontWeight: '700',
     width: 28,
     marginTop: 3,
   },
   versText: {
     flex: 1,
-    color: '#374151',
+    color: t.text.primary,
     lineHeight: 26,
   },
 
@@ -287,25 +291,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: WHITE,
+    backgroundColor: t.bg.elevated,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: t.border.subtle,
   },
   navBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 8 },
   navBtnDisabled: { opacity: 0.4 },
-  navBtnText: { fontSize: 14, color: PRIMARY, fontWeight: '600' },
-  progressText: { fontSize: 13, color: GRAY },
+  navBtnText: { fontSize: 14, color: t.brand.primary, fontWeight: '600' },
+  progressText: { fontSize: 13, color: t.text.secondary },
 
-  modal: { flex: 1, backgroundColor: WHITE },
+  modal: { flex: 1, backgroundColor: t.bg.elevated },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: t.border.subtle,
   },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#171717' },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: t.text.primary },
   modalItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -313,11 +317,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: t.border.subtle,
   },
-  modalItemActive: { backgroundColor: `${PRIMARY}10` },
-  modalItemText: { fontSize: 16, color: '#374151' },
-  modalItemTextActive: { color: PRIMARY, fontWeight: '600' },
+  modalItemActive: { backgroundColor: t.brand.primaryDim },
+  modalItemText: { fontSize: 16, color: t.text.primary },
+  modalItemTextActive: { color: t.brand.primary, fontWeight: '600' },
 
   capsGrid: { padding: 16, gap: 8 },
   capPill: {
@@ -326,10 +330,10 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: t.bg.surface,
     borderRadius: 8,
   },
   capPillActive: { backgroundColor: PRIMARY },
-  capPillText: { fontSize: 15, color: '#374151', fontWeight: '500' },
-  capPillTextActive: { color: WHITE, fontWeight: '700' },
+  capPillText: { fontSize: 15, color: t.text.primary, fontWeight: '500' },
+  capPillTextActive: { color: t.text.inverse, fontWeight: '700' },
 });

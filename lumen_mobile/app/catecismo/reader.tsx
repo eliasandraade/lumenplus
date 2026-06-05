@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { router, Stack, useLocalSearchParams, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 import { BreadcrumbHeader } from '@/components/ui/BreadcrumbHeader';
 import {
   getParagrafo,
@@ -32,6 +34,8 @@ const BG = '#f9fafb';
 const CONTEXT_SIZE = 6; // parágrafos antes e depois
 
 export default function CatecismoReaderScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   const params = useLocalSearchParams<{ num: string }>();
   const [num, setNum] = useState(parseInt(params.num ?? '1', 10));
   const [fontSize, setFontSize] = useState(16);
@@ -148,9 +152,9 @@ export default function CatecismoReaderScreen() {
             <Ionicons
               name="chevron-back"
               size={20}
-              color={anterior ? PRIMARY : GRAY}
+              color={anterior ? t.brand.admin : t.text.tertiary}
             />
-            <Text style={[styles.navBtnText, !anterior && { color: GRAY }]}>
+            <Text style={[styles.navBtnText, !anterior && { color: t.text.secondary }]}>
               §{anterior?.num ?? '—'}
             </Text>
           </TouchableOpacity>
@@ -167,13 +171,13 @@ export default function CatecismoReaderScreen() {
             onPress={() => proximo && irPara(proximo.num)}
             disabled={!proximo}
           >
-            <Text style={[styles.navBtnText, !proximo && { color: GRAY }]}>
+            <Text style={[styles.navBtnText, !proximo && { color: t.text.secondary }]}>
               §{proximo?.num ?? '—'}
             </Text>
             <Ionicons
               name="chevron-forward"
               size={20}
-              color={proximo ? PRIMARY : GRAY}
+              color={proximo ? t.brand.admin : t.text.tertiary}
             />
           </TouchableOpacity>
         </View>
@@ -182,16 +186,16 @@ export default function CatecismoReaderScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.screen },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  notFoundText: { fontSize: 16, color: GRAY, marginBottom: 12 },
-  backLink: { fontSize: 15, color: PRIMARY, fontWeight: '600' },
+  notFoundText: { fontSize: 16, color: t.text.secondary, marginBottom: 12 },
+  backLink: { fontSize: 15, color: t.brand.admin, fontWeight: '600' },
 
   headerActions: { flexDirection: 'row', gap: 4 },
   headerBtn: { padding: 6 },
-  headerBtnTextSm: { fontSize: 13, color: WHITE, fontWeight: '600' },
-  headerBtnTextLg: { fontSize: 15, color: WHITE, fontWeight: '700' },
+  headerBtnTextSm: { fontSize: 13, color: t.text.inverse, fontWeight: '600' },
+  headerBtnTextLg: { fontSize: 15, color: t.text.inverse, fontWeight: '700' },
 
   breadcrumb: {
     backgroundColor: `${PRIMARY}12`,
@@ -200,7 +204,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: `${PRIMARY}20`,
   },
-  breadcrumbText: { fontSize: 11, color: PRIMARY, fontWeight: '500' },
+  breadcrumbText: { fontSize: 11, color: t.brand.admin, fontWeight: '500' },
 
   scroll: { flex: 1 },
   scrollContent: { padding: 16 },
@@ -210,27 +214,27 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     padding: 12,
     borderRadius: 10,
-    backgroundColor: WHITE,
+    backgroundColor: t.bg.elevated,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: t.border.subtle,
   },
   paragrafoCardActive: {
-    borderColor: PRIMARY,
+    borderColor: t.brand.admin,
     borderWidth: 2,
     backgroundColor: '#faf5ff',
   },
   paraNum: {
     fontSize: 11,
-    color: GRAY,
+    color: t.text.secondary,
     fontWeight: '700',
     width: 36,
     marginTop: 2,
     flexShrink: 0,
   },
-  paraNumActive: { color: PRIMARY },
+  paraNumActive: { color: t.brand.admin },
   paraTexto: {
     flex: 1,
-    color: '#374151',
+    color: t.text.primary,
     lineHeight: 26,
   },
   paraTextoActive: { color: '#1f1f1f' },
@@ -241,9 +245,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: WHITE,
+    backgroundColor: t.bg.elevated,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: t.border.subtle,
   },
   navBtn: {
     flexDirection: 'row',
@@ -253,12 +257,12 @@ const styles = StyleSheet.create({
     minWidth: 70,
   },
   navBtnDisabled: { opacity: 0.35 },
-  navBtnText: { fontSize: 13, color: PRIMARY, fontWeight: '600' },
+  navBtnText: { fontSize: 13, color: t.brand.admin, fontWeight: '600' },
   numPill: {
-    backgroundColor: PRIMARY,
+    backgroundColor: t.brand.admin,
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 8,
   },
-  numPillText: { fontSize: 14, color: WHITE, fontWeight: '700' },
+  numPillText: { fontSize: 14, color: t.text.inverse, fontWeight: '700' },
 });

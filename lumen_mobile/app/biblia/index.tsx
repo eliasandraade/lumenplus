@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 import {
   getTodosOsLivros,
   GRUPOS_AT,
@@ -31,6 +33,8 @@ const BG = '#f5f5f5';
 const TODOS = getTodosOsLivros();
 
 export default function BibliaScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   const [busca, setBusca] = useState('');
 
   const livrosFiltrados = busca.trim()
@@ -51,17 +55,17 @@ export default function BibliaScreen() {
 
         {/* Busca */}
         <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color={GRAY} style={styles.searchIcon} />
+          <Ionicons name="search" size={18} color={t.text.secondary} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Buscar livro..."
-            placeholderTextColor={GRAY}
+            placeholderTextColor={t.text.tertiary}
             value={busca}
             onChangeText={setBusca}
           />
           {busca ? (
             <TouchableOpacity onPress={() => setBusca('')}>
-              <Ionicons name="close-circle" size={18} color={GRAY} />
+              <Ionicons name="close-circle" size={18} color={t.text.secondary} />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -116,6 +120,8 @@ function SecaoTestamento({
   livros: Livro[];
   onSelect: (l: Livro) => void;
 }) {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
 
   const toggle = (g: string) =>
@@ -147,7 +153,7 @@ function SecaoTestamento({
                 <Ionicons
                   name={aberto ? 'chevron-up' : 'chevron-down'}
                   size={16}
-                  color={GRAY}
+                  color={t.text.secondary}
                 />
               </View>
             </TouchableOpacity>
@@ -170,6 +176,8 @@ function SecaoTestamento({
 // ─── Linha de livro ──────────────────────────────────────────────────────────
 
 function LivroRow({ livro, onPress }: { livro: Livro; onPress: (l: Livro) => void }) {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   return (
     <TouchableOpacity
       style={styles.livroRow}
@@ -179,7 +187,7 @@ function LivroRow({ livro, onPress }: { livro: Livro; onPress: (l: Livro) => voi
       <Text style={styles.livroNome}>{livro.nome}</Text>
       <View style={styles.livroRight}>
         <Text style={styles.livroChapters}>{livro.capitulos.length} cap.</Text>
-        <Ionicons name="chevron-forward" size={16} color={GRAY} />
+        <Ionicons name="chevron-forward" size={16} color={t.text.secondary} />
       </View>
     </TouchableOpacity>
   );
@@ -187,25 +195,25 @@ function LivroRow({ livro, onPress }: { livro: Livro; onPress: (l: Livro) => voi
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.screen },
   content: { padding: 16 },
 
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: WHITE,
+    backgroundColor: t.bg.elevated,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: t.border.subtle,
   },
   searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 15, color: '#171717' },
+  searchInput: { flex: 1, fontSize: 15, color: t.text.primary },
 
-  emptyText: { textAlign: 'center', color: GRAY, marginTop: 20 },
+  emptyText: { textAlign: 'center', color: t.text.secondary, marginTop: 20 },
 
   secao: { marginBottom: 24 },
   secaoHeader: {
@@ -219,12 +227,12 @@ const styles = StyleSheet.create({
   secaoLabel: { fontSize: 18, fontWeight: '700' },
 
   grupo: {
-    backgroundColor: WHITE,
+    backgroundColor: t.bg.elevated,
     borderRadius: 12,
     marginBottom: 8,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: t.border.subtle,
   },
   grupoHeader: {
     flexDirection: 'row',
@@ -232,11 +240,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 14,
   },
-  grupoLabel: { fontSize: 15, fontWeight: '600', color: '#171717' },
+  grupoLabel: { fontSize: 15, fontWeight: '600', color: t.text.primary },
   grupoRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  grupoCount: { fontSize: 12, color: GRAY },
+  grupoCount: { fontSize: 12, color: t.text.secondary },
 
-  livrosList: { borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  livrosList: { borderTopWidth: 1, borderTopColor: t.border.subtle },
   livroRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -244,9 +252,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: t.border.subtle,
   },
-  livroNome: { fontSize: 15, color: '#374151' },
+  livroNome: { fontSize: 15, color: t.text.primary },
   livroRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  livroChapters: { fontSize: 12, color: GRAY },
+  livroChapters: { fontSize: 12, color: t.text.secondary },
 });

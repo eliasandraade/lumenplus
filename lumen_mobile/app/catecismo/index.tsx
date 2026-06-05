@@ -20,6 +20,8 @@ import {
 } from 'react-native';
 import { router, Stack, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 import type { IoniconsName } from '@/types/icons';
 import { buscar, getMeta, getTodosParagrafos } from '@/services/catecismo';
 
@@ -37,6 +39,8 @@ const PAGE_SIZE = 30;
 // =============================================================================
 
 function ModoLer() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   const todos = useMemo(() => getTodosParagrafos(), []);
   const totalPaginas = Math.ceil(todos.length / PAGE_SIZE);
   const [pagina, setPagina] = useState(0);
@@ -78,8 +82,8 @@ function ModoLer() {
               onPress={() => irPagina(pagina - 1)}
               disabled={pagina === 0}
             >
-              <Ionicons name="chevron-back" size={18} color={pagina === 0 ? GRAY : PRIMARY} />
-              <Text style={[styles.pageBtnText, pagina === 0 && { color: GRAY }]}>Anterior</Text>
+              <Ionicons name="chevron-back" size={18} color={pagina === 0 ? t.text.tertiary : t.brand.admin} />
+              <Text style={[styles.pageBtnText, pagina === 0 && { color: t.text.secondary }]}>Anterior</Text>
             </TouchableOpacity>
 
             <Text style={styles.pageInfo}>
@@ -91,13 +95,13 @@ function ModoLer() {
               onPress={() => irPagina(pagina + 1)}
               disabled={pagina >= totalPaginas - 1}
             >
-              <Text style={[styles.pageBtnText, pagina >= totalPaginas - 1 && { color: GRAY }]}>
+              <Text style={[styles.pageBtnText, pagina >= totalPaginas - 1 && { color: t.text.secondary }]}>
                 Próxima
               </Text>
               <Ionicons
                 name="chevron-forward"
                 size={18}
-                color={pagina >= totalPaginas - 1 ? GRAY : PRIMARY}
+                color={pagina >= totalPaginas - 1 ? t.text.tertiary : t.brand.admin}
               />
             </TouchableOpacity>
           </View>
@@ -112,6 +116,8 @@ function ModoLer() {
 // =============================================================================
 
 function ModoBusca() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   const [query, setQuery] = useState('');
   const resultados = useMemo(
     () => (query.trim().length >= 3 ? buscar(query, 40) : []),
@@ -121,11 +127,11 @@ function ModoBusca() {
   return (
     <View style={{ flex: 1, padding: 16 }}>
       <View style={styles.searchBox}>
-        <Ionicons name="search" size={18} color={GRAY} style={styles.searchIcon} />
+        <Ionicons name="search" size={18} color={t.text.secondary} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar no Catecismo..."
-          placeholderTextColor={GRAY}
+          placeholderTextColor={t.text.tertiary}
           value={query}
           onChangeText={setQuery}
           returnKeyType="search"
@@ -133,7 +139,7 @@ function ModoBusca() {
         />
         {query.length > 0 && (
           <TouchableOpacity onPress={() => setQuery('')}>
-            <Ionicons name="close-circle" size={18} color={GRAY} />
+            <Ionicons name="close-circle" size={18} color={t.text.secondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -184,6 +190,8 @@ function ModoBusca() {
 // =============================================================================
 
 function ModoNumero() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   const meta = getMeta();
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
@@ -200,7 +208,7 @@ function ModoNumero() {
 
   return (
     <View style={styles.numeroContainer}>
-      <Ionicons name="bookmark" size={48} color={PRIMARY} style={{ marginBottom: 16 }} />
+      <Ionicons name="bookmark" size={48} color={t.brand.admin} style={{ marginBottom: 16 }} />
       <Text style={styles.numeroTitle}>Ir ao Parágrafo</Text>
       <Text style={styles.numeroSubtitle}>
         §{meta.num_inicio} — §{meta.num_fim}
@@ -212,7 +220,7 @@ function ModoNumero() {
           style={styles.numeroInput}
           keyboardType="number-pad"
           placeholder="Ex.: 27"
-          placeholderTextColor={GRAY}
+          placeholderTextColor={t.text.tertiary}
           value={input}
           onChangeText={v => { setInput(v); setError(''); }}
           onSubmitEditing={ir}
@@ -229,7 +237,7 @@ function ModoNumero() {
         disabled={!input}
       >
         <Text style={styles.irBtnText}>Ir</Text>
-        <Ionicons name="arrow-forward" size={18} color={WHITE} />
+        <Ionicons name="arrow-forward" size={18} color={t.text.inverse} />
       </TouchableOpacity>
     </View>
   );
@@ -242,6 +250,8 @@ function ModoNumero() {
 type Modo = 'ler' | 'busca' | 'numero';
 
 export default function CatecismoScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   const [modo, setModo] = useState<Modo>('ler');
 
   const tabs: { key: Modo; label: string; icon: string }[] = [
@@ -252,7 +262,7 @@ export default function CatecismoScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: BG }}
+      style={{ flex: 1, backgroundColor: t.bg.screen }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Stack.Screen options={{ title: 'Catecismo da Igreja Católica' }} />
@@ -267,7 +277,7 @@ export default function CatecismoScreen() {
             <Ionicons
               name={tab.icon as IoniconsName}
               size={18}
-              color={modo === tab.key ? PRIMARY : GRAY}
+              color={modo === tab.key ? t.brand.admin : t.text.secondary}
             />
             <Text style={[styles.tabLabel, modo === tab.key && styles.tabLabelActive]}>
               {tab.label}
@@ -291,12 +301,12 @@ export default function CatecismoScreen() {
 // ESTILOS
 // =============================================================================
 
-const styles = StyleSheet.create({
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: WHITE,
+    backgroundColor: t.bg.elevated,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: t.border.subtle,
   },
   tab: {
     flex: 1,
@@ -308,31 +318,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabActive: { borderBottomColor: PRIMARY },
-  tabLabel: { fontSize: 13, color: GRAY, fontWeight: '500' },
-  tabLabelActive: { color: PRIMARY, fontWeight: '700' },
+  tabActive: { borderBottomColor: t.brand.admin },
+  tabLabel: { fontSize: 13, color: t.text.secondary, fontWeight: '500' },
+  tabLabelActive: { color: t.brand.admin, fontWeight: '700' },
 
   // Leitura
   lerContent: { padding: 16, paddingBottom: 8 },
   paraCard: {
-    backgroundColor: WHITE,
+    backgroundColor: t.bg.elevated,
     borderRadius: 10,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: t.border.subtle,
     flexDirection: 'row',
     gap: 10,
   },
   paraNum: {
     fontSize: 11,
-    color: PRIMARY,
+    color: t.brand.admin,
     fontWeight: '700',
     width: 34,
     marginTop: 2,
     flexShrink: 0,
   },
-  paraTexto: { flex: 1, fontSize: 15, color: '#374151', lineHeight: 23 },
+  paraTexto: { flex: 1, fontSize: 15, color: t.text.primary, lineHeight: 23 },
 
   paginacao: {
     flexDirection: 'row',
@@ -349,46 +359,46 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 10,
-    backgroundColor: PRIMARY_LIGHT,
+    backgroundColor: t.brand.adminDim,
   },
   pageBtnDisabled: { opacity: 0.35 },
-  pageBtnText: { fontSize: 14, color: PRIMARY, fontWeight: '600' },
-  pageInfo: { fontSize: 14, color: GRAY, fontWeight: '500' },
+  pageBtnText: { fontSize: 14, color: t.brand.admin, fontWeight: '600' },
+  pageInfo: { fontSize: 14, color: t.text.secondary, fontWeight: '500' },
 
   // Busca
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: WHITE,
+    backgroundColor: t.bg.elevated,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: t.border.subtle,
   },
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, fontSize: 15, color: DARK },
-  hintText: { fontSize: 13, color: GRAY, textAlign: 'center', marginTop: 8 },
-  emptyText: { fontSize: 14, color: GRAY, textAlign: 'center', marginTop: 24 },
+  hintText: { fontSize: 13, color: t.text.secondary, textAlign: 'center', marginTop: 8 },
+  emptyText: { fontSize: 14, color: t.text.secondary, textAlign: 'center', marginTop: 24 },
   resultCard: {
-    backgroundColor: WHITE,
+    backgroundColor: t.bg.elevated,
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: t.border.subtle,
   },
   resultHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   numBadge: {
-    backgroundColor: PRIMARY_LIGHT,
+    backgroundColor: t.brand.adminDim,
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  numBadgeText: { fontSize: 12, color: PRIMARY, fontWeight: '700' },
-  resultCtx: { flex: 1, fontSize: 12, color: GRAY },
-  resultTexto: { fontSize: 14, color: '#374151', lineHeight: 20 },
+  numBadgeText: { fontSize: 12, color: t.brand.admin, fontWeight: '700' },
+  resultCtx: { flex: 1, fontSize: 12, color: t.text.secondary },
+  resultTexto: { fontSize: 14, color: t.text.primary, lineHeight: 20 },
 
   // Número
   numeroContainer: {
@@ -398,30 +408,30 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   numeroTitle: { fontSize: 22, fontWeight: '700', color: DARK, marginBottom: 4 },
-  numeroSubtitle: { fontSize: 14, color: GRAY, marginBottom: 32 },
+  numeroSubtitle: { fontSize: 14, color: t.text.secondary, marginBottom: 32 },
   numeroInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: WHITE,
+    backgroundColor: t.bg.elevated,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: PRIMARY,
+    borderColor: t.brand.admin,
     paddingHorizontal: 16,
     paddingVertical: 4,
     marginBottom: 12,
   },
-  paragSymbol: { fontSize: 28, color: PRIMARY, fontWeight: '700', marginRight: 8 },
+  paragSymbol: { fontSize: 28, color: t.brand.admin, fontWeight: '700', marginRight: 8 },
   numeroInput: { fontSize: 28, color: DARK, minWidth: 80, fontWeight: '600' },
   errorText: { fontSize: 13, color: '#ef4444', marginBottom: 12 },
   irBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: PRIMARY,
+    backgroundColor: t.brand.admin,
     borderRadius: 12,
     paddingHorizontal: 32,
     paddingVertical: 14,
   },
   irBtnDisabled: { opacity: 0.4 },
-  irBtnText: { fontSize: 16, color: WHITE, fontWeight: '700' },
+  irBtnText: { fontSize: 16, color: t.text.inverse, fontWeight: '700' },
 });
