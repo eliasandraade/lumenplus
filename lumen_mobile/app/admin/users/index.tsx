@@ -23,6 +23,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { adminUserService, adminFilterService, AdminUserItem, FilterOptions } from '@/services';
 import api from '@/services/api';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
 interface PermissionsResponse {
   permissions: string[];
@@ -30,28 +32,14 @@ interface PermissionsResponse {
   is_global_admin: boolean;
 }
 
-const colors = {
-  admin: '#7c3aed',
-  adminLight: '#ede9fe',
-  white: '#ffffff',
-  gray: '#6b7280',
-  lightGray: '#E8E8E8',
-  danger: '#dc2626',
-  success: '#16a34a',
-  warning: '#d97706',
-  text: '#171717',
-};
+const ADMIN_COLOR = '#7c3aed';
+const ADMIN_COLOR_DIM = '#ede9fe';
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   DEV:       { label: 'Dev',       color: '#1d4ed8' },
-  ADMIN:     { label: 'Admin',     color: '#7c3aed' },
+  ADMIN:     { label: 'Admin',     color: ADMIN_COLOR },
   SECRETARY: { label: 'Secretário', color: '#0891b2' },
   AVISOS:    { label: 'Avisos',    color: '#d97706' },
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  COMPLETE:   colors.success,
-  INCOMPLETE: colors.warning,
 };
 
 const FILTER_LABELS: Record<string, string> = {
@@ -65,6 +53,9 @@ const FILTER_LABELS: Record<string, string> = {
 
 export default function UsersAdminScreen() {
   const router = useRouter();
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
@@ -160,7 +151,7 @@ export default function UsersAdminScreen() {
   // ──────────────────────────────────────────────────────────────────────────
   const renderUser = ({ item }: { item: AdminUserItem }) => {
     const initial = (item.name ?? item.email ?? '?')[0].toUpperCase();
-    const statusColor = STATUS_COLORS[item.profile_status] ?? colors.gray;
+    const statusColor = item.profile_status === 'COMPLETE' ? t.status.success : t.status.warning;
 
     return (
       <TouchableOpacity
@@ -175,11 +166,11 @@ export default function UsersAdminScreen() {
         <View style={styles.userInfo}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
             <Text style={[styles.userName, { flex: 1 }]} numberOfLines={1}>
-              {item.name ?? <Text style={{ color: colors.gray, fontStyle: 'italic' }}>Sem nome</Text>}
+              {item.name ?? <Text style={{ color: t.text.secondary, fontStyle: 'italic' }}>Sem nome</Text>}
             </Text>
             {isAdmin && (
               <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); setEditUser(item); }} style={styles.editBtn}>
-                <Ionicons name="pencil-outline" size={16} color={colors.admin} />
+                <Ionicons name="pencil-outline" size={16} color={ADMIN_COLOR} />
               </TouchableOpacity>
             )}
           </View>
@@ -214,7 +205,7 @@ export default function UsersAdminScreen() {
     if (!loadingMore) return null;
     return (
       <View style={{ padding: 16, alignItems: 'center' }}>
-        <ActivityIndicator size="small" color={colors.admin} />
+        <ActivityIndicator size="small" color={ADMIN_COLOR} />
       </View>
     );
   };
@@ -226,25 +217,25 @@ export default function UsersAdminScreen() {
       <View style={styles.container}>
         {/* Barra de busca */}
         <View style={styles.searchBar}>
-          <Ionicons name="search-outline" size={18} color={colors.gray} style={{ marginRight: 8 }} />
+          <Ionicons name="search-outline" size={18} color={t.text.secondary} style={{ marginRight: 8 }} />
           <TextInput
             style={styles.searchInput}
             value={search}
             onChangeText={handleSearch}
             placeholder="Buscar por nome ou e-mail..."
-            placeholderTextColor={colors.gray}
+            placeholderTextColor={t.text.secondary}
             returnKeyType="search"
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => handleSearch('')}>
-              <Ionicons name="close-circle" size={18} color={colors.gray} />
+              <Ionicons name="close-circle" size={18} color={t.text.secondary} />
             </TouchableOpacity>
           )}
           <TouchableOpacity
             style={[styles.filterBtn, activeFilterCount > 0 && styles.filterBtnActive]}
             onPress={() => setFiltersVisible(true)}
           >
-            <Ionicons name="options-outline" size={18} color={activeFilterCount > 0 ? colors.white : colors.admin} />
+            <Ionicons name="options-outline" size={18} color={activeFilterCount > 0 ? t.text.inverse : ADMIN_COLOR} />
             {activeFilterCount > 0 && (
               <Text style={styles.filterBtnCount}>{activeFilterCount}</Text>
             )}
@@ -253,7 +244,7 @@ export default function UsersAdminScreen() {
             style={styles.exportHeaderBtn}
             onPress={() => router.push('/admin/users/export' as any)}
           >
-            <Ionicons name="download-outline" size={18} color={colors.admin} />
+            <Ionicons name="download-outline" size={18} color={ADMIN_COLOR} />
           </TouchableOpacity>
         </View>
 
@@ -269,7 +260,7 @@ export default function UsersAdminScreen() {
                   }}
                 >
                   <Text style={styles.pillText}>{FILTER_LABELS[key]}: {val}</Text>
-                  <Ionicons name="close-circle" size={14} color={colors.admin} />
+                  <Ionicons name="close-circle" size={14} color={ADMIN_COLOR} />
                 </TouchableOpacity>
               ) : null
             )}
@@ -285,11 +276,11 @@ export default function UsersAdminScreen() {
 
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color={colors.admin} />
+            <ActivityIndicator size="large" color={ADMIN_COLOR} />
           </View>
         ) : error ? (
           <View style={styles.errorCard}>
-            <Ionicons name="alert-circle-outline" size={32} color={colors.danger} />
+            <Ionicons name="alert-circle-outline" size={32} color={t.status.error} />
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity
               style={styles.retryBtn}
@@ -310,7 +301,7 @@ export default function UsersAdminScreen() {
             ListFooterComponent={renderFooter}
             ListEmptyComponent={
               <View style={styles.emptyBox}>
-                <Ionicons name="people-outline" size={40} color={colors.gray} />
+                <Ionicons name="people-outline" size={40} color={t.text.secondary} />
                 <Text style={styles.emptyText}>
                   {search ? 'Nenhum usuário encontrado' : 'Nenhum usuário cadastrado'}
                 </Text>
@@ -349,7 +340,7 @@ export default function UsersAdminScreen() {
 // Cargos visíveis apenas para admins globais (DEV/ADMIN)
 const GLOBAL_ADMIN_ROLES = [
   { code: 'DEV',       label: 'Dev',        color: '#1d4ed8' },
-  { code: 'ADMIN',     label: 'Admin',      color: '#7c3aed' },
+  { code: 'ADMIN',     label: 'Admin',      color: ADMIN_COLOR },
   { code: 'ANALISTA',  label: 'Analista',   color: '#059669' },
   { code: 'SECRETARY', label: 'Secretário', color: '#0891b2' },
   { code: 'AVISOS',    label: 'Avisos',     color: '#d97706' },
@@ -371,6 +362,9 @@ function EditUserModal({
   onClose: () => void;
   onSuccess: (updated: AdminUserItem) => void;
 }) {
+  const { t } = useTheme();
+  const modalStyles = makeModalStyles(t);
+
   const [fullName, setFullName] = useState('');
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -424,7 +418,7 @@ function EditUserModal({
         <View style={modalStyles.header}>
           <Text style={modalStyles.title}>Editar Usuário</Text>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color={colors.text} />
+            <Ionicons name="close" size={24} color={t.text.primary} />
           </TouchableOpacity>
         </View>
 
@@ -448,9 +442,9 @@ function EditUserModal({
               <TextInput
                 style={modalStyles.input}
                 value={fullName}
-                onChangeText={(t) => { setFullName(t); setError(null); }}
+                onChangeText={(txt) => { setFullName(txt); setError(null); }}
                 placeholder="Nome completo do usuário"
-                placeholderTextColor={colors.gray}
+                placeholderTextColor={t.text.secondary}
                 maxLength={120}
               />
             </>
@@ -471,7 +465,7 @@ function EditUserModal({
                   ]}
                   onPress={() => toggleRole(r.code)}
                 >
-                  <Text style={[modalStyles.roleChipText, active && { color: colors.white }]}>
+                  <Text style={[modalStyles.roleChipText, active && { color: t.text.inverse }]}>
                     {r.label}
                   </Text>
                 </TouchableOpacity>
@@ -489,7 +483,7 @@ function EditUserModal({
           </TouchableOpacity>
           <TouchableOpacity style={modalStyles.saveBtn} onPress={handleSave} disabled={loading}>
             {loading ? (
-              <ActivityIndicator size="small" color={colors.white} />
+              <ActivityIndicator size="small" color={t.text.inverse} />
             ) : (
               <Text style={modalStyles.saveBtnText}>Salvar</Text>
             )}
@@ -513,6 +507,7 @@ function FilterModal({
   onClose: () => void;
   onApply: () => void;
 }) {
+  const { t } = useTheme();
   const [options, setOptions] = React.useState<FilterOptions | null>(null);
 
   React.useEffect(() => {
@@ -530,12 +525,12 @@ function FilterModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <View style={{ flex: 1, backgroundColor: t.bg.screen }}>
         {/* Header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E8E8E8' }}>
-          <Text style={{ fontSize: 16, fontWeight: '700' }}>Filtros</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: t.border.subtle }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: t.text.primary }}>Filtros</Text>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color="#171717" />
+            <Ionicons name="close" size={24} color={t.text.primary} />
           </TouchableOpacity>
         </View>
 
@@ -545,7 +540,7 @@ function FilterModal({
             {options?.cidades.map((c) => (
               <OptionChip key={c} label={c} active={filters.cidade === c}
                 onPress={() => onChange('cidade', filters.cidade === c ? '' : c)} />
-            )) ?? <Text style={{ color: '#6b7280', fontSize: 13 }}>Carregando...</Text>}
+            )) ?? <Text style={{ color: t.text.secondary, fontSize: 13 }}>Carregando...</Text>}
           </FilterSection>
 
           {/* Estado */}
@@ -554,7 +549,7 @@ function FilterModal({
               {options?.estados.map((e) => (
                 <OptionChip key={e} label={e} active={filters.estado === e}
                   onPress={() => onChange('estado', filters.estado === e ? '' : e)} />
-              )) ?? <Text style={{ color: '#6b7280', fontSize: 13 }}>Carregando...</Text>}
+              )) ?? <Text style={{ color: t.text.secondary, fontSize: 13 }}>Carregando...</Text>}
             </View>
           </FilterSection>
 
@@ -563,7 +558,7 @@ function FilterModal({
             {options?.realidades_vocacionais.map((r) => (
               <OptionChip key={r.code} label={r.label} active={filters.realidade_vocacional === r.code}
                 onPress={() => onChange('realidade_vocacional', filters.realidade_vocacional === r.code ? '' : r.code)} />
-            )) ?? <Text style={{ color: '#6b7280', fontSize: 13 }}>Carregando...</Text>}
+            )) ?? <Text style={{ color: t.text.secondary, fontSize: 13 }}>Carregando...</Text>}
           </FilterSection>
 
           {/* Estado Civil */}
@@ -572,7 +567,7 @@ function FilterModal({
               {options?.estados_civis.map((e) => (
                 <OptionChip key={e.code} label={e.label} active={filters.estado_civil === e.code}
                   onPress={() => onChange('estado_civil', filters.estado_civil === e.code ? '' : e.code)} />
-              )) ?? <Text style={{ color: '#6b7280', fontSize: 13 }}>Carregando...</Text>}
+              )) ?? <Text style={{ color: t.text.secondary, fontSize: 13 }}>Carregando...</Text>}
             </View>
           </FilterSection>
 
@@ -588,15 +583,15 @@ function FilterModal({
         </ScrollView>
 
         {/* Footer */}
-        <View style={{ flexDirection: 'row', gap: 12, padding: 16, borderTopWidth: 1, borderTopColor: '#E8E8E8' }}>
+        <View style={{ flexDirection: 'row', gap: 12, padding: 16, borderTopWidth: 1, borderTopColor: t.border.subtle }}>
           <TouchableOpacity
-            style={{ flex: 1, borderWidth: 2, borderColor: '#7c3aed', borderRadius: 10, paddingVertical: 14, alignItems: 'center' }}
+            style={{ flex: 1, borderWidth: 2, borderColor: ADMIN_COLOR, borderRadius: 10, paddingVertical: 14, alignItems: 'center' }}
             onPress={clearAll}
           >
-            <Text style={{ color: '#7c3aed', fontWeight: '700' }}>Limpar</Text>
+            <Text style={{ color: ADMIN_COLOR, fontWeight: '700' }}>Limpar</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={{ flex: 1, backgroundColor: '#7c3aed', borderRadius: 10, paddingVertical: 14, alignItems: 'center' }}
+            style={{ flex: 1, backgroundColor: ADMIN_COLOR, borderRadius: 10, paddingVertical: 14, alignItems: 'center' }}
             onPress={() => { onApply(); onClose(); }}
           >
             <Text style={{ color: '#fff', fontWeight: '700' }}>Aplicar</Text>
@@ -615,13 +610,14 @@ function FilterSection({
   onClear: () => void;
   children: React.ReactNode;
 }) {
+  const { t } = useTheme();
   return (
     <View style={{ marginBottom: 20 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <Text style={{ fontSize: 13, fontWeight: '700', color: '#171717' }}>{label}</Text>
+        <Text style={{ fontSize: 13, fontWeight: '700', color: t.text.primary }}>{label}</Text>
         {selected ? (
           <TouchableOpacity onPress={onClear}>
-            <Text style={{ fontSize: 12, color: '#7c3aed' }}>Limpar</Text>
+            <Text style={{ fontSize: 12, color: ADMIN_COLOR }}>Limpar</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -631,98 +627,99 @@ function FilterSection({
 }
 
 function OptionChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const { t } = useTheme();
   return (
     <TouchableOpacity
       onPress={onPress}
       style={{
         paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, marginBottom: 6,
         borderWidth: 1.5,
-        borderColor: active ? '#7c3aed' : '#E8E8E8',
-        backgroundColor: active ? '#7c3aed' : '#fafafa',
+        borderColor: active ? ADMIN_COLOR : t.border.subtle,
+        backgroundColor: active ? ADMIN_COLOR : t.bg.elevated,
       }}
     >
-      <Text style={{ fontSize: 13, fontWeight: active ? '700' : '400', color: active ? '#fff' : '#171717' }}>
+      <Text style={{ fontSize: 13, fontWeight: active ? '700' : '400', color: active ? '#fff' : t.text.primary }}>
         {label}
       </Text>
     </TouchableOpacity>
   );
 }
 
-const modalStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.white },
+const makeModalStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.screen },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 16, borderBottomWidth: 1, borderBottomColor: colors.lightGray,
+    padding: 16, borderBottomWidth: 1, borderBottomColor: t.border.subtle,
   },
-  title: { fontSize: 16, fontWeight: '700', color: colors.text },
+  title: { fontSize: 16, fontWeight: '700', color: t.text.primary },
   body: { flex: 1, padding: 16 },
   footer: {
     flexDirection: 'row', gap: 12, padding: 16,
-    borderTopWidth: 1, borderTopColor: colors.lightGray,
+    borderTopWidth: 1, borderTopColor: t.border.subtle,
   },
   userRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
   avatar: {
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: colors.admin, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: ADMIN_COLOR, alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { color: colors.white, fontWeight: '700', fontSize: 18 },
-  email: { fontSize: 13, color: colors.gray, flex: 1 },
-  label: { fontSize: 13, fontWeight: '600', color: colors.text, marginTop: 16, marginBottom: 6 },
+  avatarText: { color: '#ffffff', fontWeight: '700', fontSize: 18 },
+  email: { fontSize: 13, color: t.text.secondary, flex: 1 },
+  label: { fontSize: 13, fontWeight: '600', color: t.text.primary, marginTop: 16, marginBottom: 6 },
   input: {
-    borderWidth: 1, borderColor: colors.lightGray, borderRadius: 10,
-    padding: 12, fontSize: 15, color: colors.text, backgroundColor: '#fafafa',
+    borderWidth: 1, borderColor: t.border.subtle, borderRadius: 10,
+    padding: 12, fontSize: 15, color: t.text.primary, backgroundColor: t.bg.elevated,
   },
   rolesRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   roleChip: {
     borderWidth: 2, borderRadius: 20,
     paddingHorizontal: 16, paddingVertical: 8,
   },
-  roleChipText: { fontSize: 13, fontWeight: '700', color: colors.text },
-  hint: { fontSize: 11, color: colors.gray, marginTop: 6 },
-  errorText: { color: colors.danger, fontSize: 13, marginTop: 12 },
+  roleChipText: { fontSize: 13, fontWeight: '700', color: t.text.primary },
+  hint: { fontSize: 11, color: t.text.secondary, marginTop: 6 },
+  errorText: { color: t.status.error, fontSize: 13, marginTop: 12 },
   cancelBtn: {
-    flex: 1, borderWidth: 2, borderColor: colors.admin,
+    flex: 1, borderWidth: 2, borderColor: ADMIN_COLOR,
     borderRadius: 10, paddingVertical: 14, alignItems: 'center',
   },
-  cancelBtnText: { color: colors.admin, fontWeight: '700', fontSize: 15 },
+  cancelBtnText: { color: ADMIN_COLOR, fontWeight: '700', fontSize: 15 },
   saveBtn: {
-    flex: 1, backgroundColor: colors.admin,
+    flex: 1, backgroundColor: ADMIN_COLOR,
     borderRadius: 10, paddingVertical: 14, alignItems: 'center',
   },
-  saveBtnText: { color: colors.white, fontWeight: '700', fontSize: 15 },
+  saveBtnText: { color: '#ffffff', fontWeight: '700', fontSize: 15 },
 });
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.lightGray },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.elevated },
 
   searchBar: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.white, margin: 12,
+    backgroundColor: t.bg.screen, margin: 12,
     borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
-  searchInput: { flex: 1, fontSize: 15, color: colors.text },
+  searchInput: { flex: 1, fontSize: 15, color: t.text.primary },
 
-  totalText: { paddingHorizontal: 16, paddingBottom: 4, fontSize: 12, color: colors.gray },
+  totalText: { paddingHorizontal: 16, paddingBottom: 4, fontSize: 12, color: t.text.secondary },
 
   listContent: { paddingHorizontal: 12, paddingBottom: 32 },
 
   userCard: {
     flexDirection: 'row', alignItems: 'flex-start',
-    backgroundColor: colors.white, borderRadius: 12,
+    backgroundColor: t.bg.screen, borderRadius: 12,
     padding: 14, marginBottom: 8, gap: 12,
   },
   avatarBox: {
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: colors.admin,
+    backgroundColor: ADMIN_COLOR,
     alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
   },
-  avatarText: { color: colors.white, fontWeight: '700', fontSize: 18 },
+  avatarText: { color: '#ffffff', fontWeight: '700', fontSize: 18 },
 
   userInfo: { flex: 1, minWidth: 0 },
-  userName: { fontSize: 15, fontWeight: '600', color: colors.text, marginBottom: 2 },
-  userEmail: { fontSize: 13, color: colors.gray, marginBottom: 6 },
+  userName: { fontSize: 15, fontWeight: '600', color: t.text.primary, marginBottom: 2 },
+  userEmail: { fontSize: 13, color: t.text.secondary, marginBottom: 6 },
 
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   badge: {
@@ -741,21 +738,21 @@ const styles = StyleSheet.create({
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   errorCard: {
-    margin: 16, backgroundColor: colors.white, borderRadius: 12,
+    margin: 16, backgroundColor: t.bg.screen, borderRadius: 12,
     padding: 24, alignItems: 'center', gap: 12,
   },
-  errorText: { color: colors.danger, fontSize: 14, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.admin, borderRadius: 8, paddingHorizontal: 20, paddingVertical: 10 },
-  retryBtnText: { color: colors.white, fontWeight: '600' },
+  errorText: { color: t.status.error, fontSize: 14, textAlign: 'center' },
+  retryBtn: { backgroundColor: ADMIN_COLOR, borderRadius: 8, paddingHorizontal: 20, paddingVertical: 10 },
+  retryBtnText: { color: '#ffffff', fontWeight: '600' },
 
   emptyBox: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 12 },
-  emptyText: { color: colors.gray, fontSize: 15 },
+  emptyText: { color: t.text.secondary, fontSize: 15 },
   editBtn: { padding: 4, marginLeft: 4 },
-  filterBtn: { padding: 6, marginLeft: 4, borderRadius: 8, borderWidth: 1, borderColor: colors.admin, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  filterBtn: { padding: 6, marginLeft: 4, borderRadius: 8, borderWidth: 1, borderColor: ADMIN_COLOR, flexDirection: 'row', alignItems: 'center', gap: 4 },
   exportHeaderBtn: { padding: 6, marginLeft: 4 },
-  filterBtnActive: { backgroundColor: colors.admin },
-  filterBtnCount: { color: colors.white, fontSize: 12, fontWeight: '700' },
+  filterBtnActive: { backgroundColor: ADMIN_COLOR },
+  filterBtnCount: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 12, paddingBottom: 6 },
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ede9fe', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  pillText: { color: colors.admin, fontSize: 12, fontWeight: '600' },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: ADMIN_COLOR_DIM, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  pillText: { color: ADMIN_COLOR, fontSize: 12, fontWeight: '600' },
 });

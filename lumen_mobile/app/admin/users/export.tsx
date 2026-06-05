@@ -14,6 +14,10 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { adminExportService } from '@/services';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
+
+const ADMIN_COLOR = '#7c3aed';
 
 const FIELD_GROUPS = [
   {
@@ -58,17 +62,6 @@ const FIELD_GROUPS = [
 
 const SENSITIVE = new Set(['cpf', 'rg']);
 
-const colors = {
-  admin: '#7c3aed',
-  white: '#fff',
-  gray: '#6b7280',
-  lightGray: '#E8E8E8',
-  text: '#171717',
-  danger: '#dc2626',
-  warning: '#d97706',
-  success: '#16a34a',
-};
-
 /** Dispara download de um Blob CSV no browser (web) ou alerta no native */
 function downloadBlob(blob: Blob, filename: string) {
   if (Platform.OS === 'web') {
@@ -85,6 +78,9 @@ function downloadBlob(blob: Blob, filename: string) {
 
 export default function ExportScreen() {
   const router = useRouter();
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const [selected, setSelected] = useState<Set<string>>(new Set(['name', 'email']));
   const [format, setFormat] = useState<'csv' | 'xlsx'>('xlsx');
   const [loading, setLoading] = useState(false);
@@ -164,7 +160,7 @@ export default function ExportScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         {hasSensitive && (
           <View style={styles.warningBox}>
-            <Ionicons name="lock-closed-outline" size={16} color={colors.warning} />
+            <Ionicons name="lock-closed-outline" size={16} color={t.status.warning} />
             <Text style={styles.warningText}>
               CPF/RG selecionados — requer aprovação do Conselho Geral
             </Text>
@@ -178,7 +174,7 @@ export default function ExportScreen() {
             style={[styles.formatChip, format === 'xlsx' && styles.formatChipActive]}
             onPress={() => setFormat('xlsx')}
           >
-            <Ionicons name="grid-outline" size={14} color={format === 'xlsx' ? colors.white : colors.admin} />
+            <Ionicons name="grid-outline" size={14} color={format === 'xlsx' ? '#ffffff' : ADMIN_COLOR} />
             <Text style={[styles.formatChipText, format === 'xlsx' && styles.formatChipTextActive]}>
               Excel (.xlsx)
             </Text>
@@ -187,7 +183,7 @@ export default function ExportScreen() {
             style={[styles.formatChip, format === 'csv' && styles.formatChipActive]}
             onPress={() => setFormat('csv')}
           >
-            <Ionicons name="document-text-outline" size={14} color={format === 'csv' ? colors.white : colors.admin} />
+            <Ionicons name="document-text-outline" size={14} color={format === 'csv' ? '#ffffff' : ADMIN_COLOR} />
             <Text style={[styles.formatChipText, format === 'csv' && styles.formatChipTextActive]}>
               CSV (.csv)
             </Text>
@@ -219,16 +215,16 @@ export default function ExportScreen() {
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                   {group.sensitive && (
-                    <Ionicons name="lock-closed-outline" size={14} color={colors.warning} />
+                    <Ionicons name="lock-closed-outline" size={14} color={t.status.warning} />
                   )}
-                  <Text style={[styles.groupLabel, group.sensitive && { color: colors.warning }]}>
+                  <Text style={[styles.groupLabel, group.sensitive && { color: t.status.warning }]}>
                     {group.label}
                   </Text>
                 </View>
                 <Ionicons
                   name={allActive ? 'checkbox' : someActive ? 'remove-circle-outline' : 'square-outline'}
                   size={20}
-                  color={allActive || someActive ? colors.admin : colors.gray}
+                  color={allActive || someActive ? ADMIN_COLOR : t.text.secondary}
                 />
               </TouchableOpacity>
 
@@ -244,7 +240,7 @@ export default function ExportScreen() {
                     <Ionicons
                       name={active ? 'checkbox' : 'square-outline'}
                       size={20}
-                      color={active ? colors.admin : colors.gray}
+                      color={active ? ADMIN_COLOR : t.text.secondary}
                     />
                     <Text style={[styles.fieldLabel, active && styles.fieldLabelActive]}>
                       {field.label}
@@ -267,10 +263,10 @@ export default function ExportScreen() {
           activeOpacity={0.8}
         >
           {loading ? (
-            <ActivityIndicator size="small" color={colors.white} />
+            <ActivityIndicator size="small" color="#ffffff" />
           ) : (
             <>
-              <Ionicons name="download-outline" size={18} color={colors.white} />
+              <Ionicons name="download-outline" size={18} color="#ffffff" />
               <Text style={styles.exportBtnText}>
                 {hasSensitive
                   ? 'Solicitar aprovação'
@@ -284,72 +280,72 @@ export default function ExportScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f5f5f5' },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: t.bg.elevated },
   scroll: { padding: 16 },
 
   warningBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: '#fffbeb', borderRadius: 10, padding: 12,
+    backgroundColor: t.status.warningBg, borderRadius: 10, padding: 12,
     borderWidth: 1, borderColor: '#fcd34d', marginBottom: 12,
   },
-  warningText: { flex: 1, fontSize: 13, color: colors.warning, lineHeight: 18 },
+  warningText: { flex: 1, fontSize: 13, color: t.status.warning, lineHeight: 18 },
 
   formatRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16,
   },
-  formatLabel: { fontSize: 13, color: colors.gray, fontWeight: '600', marginRight: 4 },
+  formatLabel: { fontSize: 13, color: t.text.secondary, fontWeight: '600', marginRight: 4 },
   formatChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    borderWidth: 1.5, borderColor: colors.admin, backgroundColor: colors.white,
+    borderWidth: 1.5, borderColor: ADMIN_COLOR, backgroundColor: t.bg.screen,
   },
-  formatChipActive: { backgroundColor: colors.admin },
-  formatChipText: { fontSize: 13, fontWeight: '600', color: colors.admin },
-  formatChipTextActive: { color: colors.white },
+  formatChipActive: { backgroundColor: ADMIN_COLOR },
+  formatChipText: { fontSize: 13, fontWeight: '600', color: ADMIN_COLOR },
+  formatChipTextActive: { color: '#ffffff' },
 
   counterRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: 12,
   },
-  counterText: { fontSize: 13, color: colors.gray, fontWeight: '500' },
-  clearText: { fontSize: 13, color: colors.admin, fontWeight: '600' },
+  counterText: { fontSize: 13, color: t.text.secondary, fontWeight: '500' },
+  clearText: { fontSize: 13, color: ADMIN_COLOR, fontWeight: '600' },
 
   group: {
-    backgroundColor: colors.white, borderRadius: 12, marginBottom: 12,
+    backgroundColor: t.bg.screen, borderRadius: 12, marginBottom: 12,
     overflow: 'hidden',
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
   groupHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
-    backgroundColor: '#fafafa',
+    borderBottomWidth: 1, borderBottomColor: t.border.subtle,
+    backgroundColor: t.bg.elevated,
   },
-  groupHeaderSensitive: { backgroundColor: '#fffbeb' },
+  groupHeaderSensitive: { backgroundColor: t.status.warningBg },
   groupLabel: {
-    fontSize: 12, fontWeight: '700', color: colors.gray,
+    fontSize: 12, fontWeight: '700', color: t.text.secondary,
     textTransform: 'uppercase', letterSpacing: 0.5,
   },
 
   fieldRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 16, paddingVertical: 13,
-    borderTopWidth: 1, borderTopColor: '#f3f4f6',
+    borderTopWidth: 1, borderTopColor: t.border.subtle,
   },
-  fieldLabel: { fontSize: 15, color: colors.gray, flex: 1 },
-  fieldLabelActive: { color: colors.text, fontWeight: '600' },
+  fieldLabel: { fontSize: 15, color: t.text.secondary, flex: 1 },
+  fieldLabelActive: { color: t.text.primary, fontWeight: '600' },
 
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    padding: 16, backgroundColor: colors.white,
-    borderTopWidth: 1, borderTopColor: colors.lightGray,
+    padding: 16, backgroundColor: t.bg.screen,
+    borderTopWidth: 1, borderTopColor: t.border.subtle,
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 4,
   },
   exportBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, backgroundColor: colors.admin, borderRadius: 12, paddingVertical: 16,
+    gap: 8, backgroundColor: ADMIN_COLOR, borderRadius: 12, paddingVertical: 16,
   },
   exportBtnDisabled: { opacity: 0.5 },
-  exportBtnText: { color: colors.white, fontWeight: '700', fontSize: 16 },
+  exportBtnText: { color: '#ffffff', fontWeight: '700', fontSize: 16 },
 });
