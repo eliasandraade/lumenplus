@@ -77,3 +77,4 @@ strapi/node_modules/
 
 # Git worktrees
 .worktrees/
+.gstack/

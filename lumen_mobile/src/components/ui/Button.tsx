@@ -1,29 +1,34 @@
 /**
- * Button Component
- * ================
+ * Button Component — redesenhado com Nunito + spring press + dark mode
+ * =====================================================================
+ * API 100% retrocompatível com a versão anterior.
+ * SOMENTE visual — nenhuma lógica alterada.
  */
 
 import React from 'react';
 import {
-  TouchableOpacity,
+  Pressable,
   Text,
-  StyleSheet,
   ActivityIndicator,
   ViewStyle,
   TextStyle,
+  StyleSheet,
 } from 'react-native';
-import theme from '@/theme';
+import Animated from 'react-native-reanimated';
+import { useTheme } from '@/theme';
+import { usePressableScale } from '@/hooks/useAnimations';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   loading?: boolean;
   fullWidth?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  icon?: React.ReactNode;
 }
 
 export function Button({
@@ -36,115 +41,110 @@ export function Button({
   fullWidth = false,
   style,
   textStyle,
+  icon,
 }: ButtonProps) {
+  const { t } = useTheme();
   const isDisabled = disabled || loading;
+  const { animatedStyle, onPressIn, onPressOut } = usePressableScale(0.96);
+
+  // Cores dinâmicas por variante
+  const variantStyles = {
+    primary: {
+      bg:           t.brand.primary,
+      bgPressed:    t.brand.primary,
+      text:         '#ffffff',
+      border:       'transparent',
+    },
+    secondary: {
+      bg:           t.brand.secondaryDim,
+      bgPressed:    t.brand.secondaryDim,
+      text:         t.brand.secondary,
+      border:       'transparent',
+    },
+    outline: {
+      bg:           'transparent',
+      bgPressed:    t.brand.primaryDim,
+      text:         t.brand.primary,
+      border:       t.brand.primary,
+    },
+    ghost: {
+      bg:           'transparent',
+      bgPressed:    t.brand.primaryDim,
+      text:         t.brand.primary,
+      border:       'transparent',
+    },
+    danger: {
+      bg:           t.status.errorBg,
+      bgPressed:    t.status.errorBg,
+      text:         t.status.error,
+      border:       'transparent',
+    },
+  }[variant];
+
+  const sizeStyles = {
+    sm: { paddingVertical: 8,  paddingHorizontal: 14, fontSize: 13, minHeight: 36 },
+    md: { paddingVertical: 13, paddingHorizontal: 20, fontSize: 15, minHeight: 48 },
+    lg: { paddingVertical: 16, paddingHorizontal: 28, fontSize: 17, minHeight: 56 },
+  }[size];
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={isDisabled}
-      style={[
-        styles.base,
-        styles[variant],
-        styles[size],
-        fullWidth && styles.fullWidth,
-        isDisabled && styles.disabled,
-        style,
-      ]}
-      activeOpacity={0.7}
-    >
-      {loading ? (
-        <ActivityIndicator
-          color={variant === 'primary' ? theme.colors.white : theme.colors.primary[800]}
-          size="small"
-        />
-      ) : (
-        <Text
-          style={[
-            styles.text,
-            styles[`${variant}Text`],
-            styles[`${size}Text`],
-            textStyle,
-          ]}
-        >
-          {title}
-        </Text>
-      )}
-    </TouchableOpacity>
+    <Animated.View style={[animatedStyle, fullWidth && { width: '100%' }, style]}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        disabled={isDisabled}
+        style={[
+          styles.base,
+          {
+            backgroundColor:  variantStyles.bg,
+            borderColor:      variantStyles.border,
+            borderWidth:      variant === 'outline' ? 1.5 : 0,
+            paddingVertical:  sizeStyles.paddingVertical,
+            paddingHorizontal: sizeStyles.paddingHorizontal,
+            minHeight:        sizeStyles.minHeight,
+            opacity:          isDisabled ? 0.48 : 1,
+          },
+        ]}
+      >
+        {loading ? (
+          <ActivityIndicator
+            color={variant === 'primary' || variant === 'danger' ? '#ffffff' : t.brand.primary}
+            size="small"
+          />
+        ) : (
+          <>
+            {icon && <>{icon}</>}
+            <Text
+              style={[
+                styles.text,
+                {
+                  color:      variantStyles.text,
+                  fontSize:   sizeStyles.fontSize,
+                  fontFamily: 'Nunito-SemiBold',
+                  marginLeft: icon ? 6 : 0,
+                },
+                textStyle,
+              ]}
+            >
+              {title}
+            </Text>
+          </>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection:  'row',
+    alignItems:     'center',
     justifyContent: 'center',
-    borderRadius: theme.borderRadius.lg,
+    borderRadius:   14,
+    overflow:       'hidden',
   },
-
-  // Variants
-  primary: {
-    backgroundColor: theme.colors.primary[800],
-  },
-  secondary: {
-    backgroundColor: theme.colors.secondary[500],
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: theme.colors.primary[800],
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-  },
-
-  // Sizes
-  sm: {
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-  },
-  md: {
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-  },
-  lg: {
-    paddingVertical: theme.spacing.lg,
-    paddingHorizontal: theme.spacing.xl,
-  },
-
-  // States
-  disabled: {
-    opacity: 0.5,
-  },
-  fullWidth: {
-    width: '100%',
-  },
-
-  // Text
   text: {
-    fontWeight: theme.fontWeight.semibold,
-  },
-  primaryText: {
-    color: theme.colors.white,
-  },
-  secondaryText: {
-    color: theme.colors.text.primary,
-  },
-  outlineText: {
-    color: theme.colors.primary[800],
-  },
-  ghostText: {
-    color: theme.colors.primary[800],
-  },
-
-  // Text sizes
-  smText: {
-    fontSize: theme.fontSize.sm,
-  },
-  mdText: {
-    fontSize: theme.fontSize.md,
-  },
-  lgText: {
-    fontSize: theme.fontSize.lg,
+    letterSpacing: 0.1,
   },
 });

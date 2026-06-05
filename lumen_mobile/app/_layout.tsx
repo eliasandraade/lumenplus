@@ -12,6 +12,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import { VercelAnalytics } from '@/components/VercelAnalytics';
+import { useFonts } from 'expo-font';
+import {
+  Nunito_400Regular,
+  Nunito_400Regular_Italic,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+  Nunito_800ExtraBold,
+} from '@expo-google-fonts/nunito';
+import * as SplashScreen from 'expo-splash-screen';
+import { ThemeProvider, useTheme } from '@/theme';
 
 // Sentry — inicializa antes de qualquer render
 Sentry.init({
@@ -64,40 +74,71 @@ const eb = StyleSheet.create({
   stack: { fontSize: 11, color: '#6b7280', fontFamily: 'monospace', lineHeight: 18 },
 });
 
+// Mantém splash screen até fontes carregarem
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+function AppStack() {
+  const { isDark, t } = useTheme();
+
+  return (
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: t.bg.elevated },
+          headerTintColor: t.text.primary,
+          headerTitleStyle: {
+            fontFamily: 'Nunito-Bold',
+            fontSize: 17,
+          },
+          contentStyle: { backgroundColor: t.bg.screen },
+          animation: 'fade_from_bottom',
+        }}
+      >
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
+        <Stack.Screen name="biblia" options={{ headerShown: false }} />
+        <Stack.Screen name="catecismo" options={{ headerShown: false }} />
+        <Stack.Screen name="retreats" options={{ headerShown: false }} />
+        <Stack.Screen name="coordinator" options={{ headerShown: false }} />
+        <Stack.Screen name="vida" options={{ headerShown: false }} />
+        <Stack.Screen name="channel" options={{ headerShown: false }} />
+      </Stack>
+      <VercelAnalytics />
+    </>
+  );
+}
+
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    'Nunito-Regular':   Nunito_400Regular,
+    'Nunito-Italic':    Nunito_400Regular_Italic,
+    'Nunito-SemiBold':  Nunito_600SemiBold,
+    'Nunito-Bold':      Nunito_700Bold,
+    'Nunito-ExtraBold': Nunito_800ExtraBold,
+  });
+
+  // Esconde splash quando fontes estiverem prontas (ou com erro — usa fallback)
+  React.useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded, fontError]);
+
+  // Aguarda fontes antes de renderizar para evitar flash de fonte incorreta
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <Sentry.ErrorBoundary fallback={({ error }) => <CrashFallback error={error as Error} />}>
       <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <StatusBar style="auto" />
-          <Stack
-            screenOptions={{
-              headerStyle: {
-                backgroundColor: '#1a365d',
-              },
-              headerTintColor: '#ffffff',
-              headerTitleStyle: {
-                fontWeight: '600',
-              },
-              contentStyle: {
-                backgroundColor: '#ffffff',
-              },
-            }}
-          >
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="admin" options={{ headerShown: false }} />
-            <Stack.Screen name="biblia" options={{ headerShown: false }} />
-            <Stack.Screen name="catecismo" options={{ headerShown: false }} />
-            <Stack.Screen name="retreats" options={{ headerShown: false }} />
-            <Stack.Screen name="coordinator" options={{ headerShown: false }} />
-            <Stack.Screen name="vida" options={{ headerShown: false }} />
-            <Stack.Screen name="channel" options={{ headerShown: false }} />
-          </Stack>
-          <VercelAnalytics />
-        </SafeAreaProvider>
+        <ThemeProvider>
+          <SafeAreaProvider>
+            <AppStack />
+          </SafeAreaProvider>
+        </ThemeProvider>
       </QueryClientProvider>
     </Sentry.ErrorBoundary>
   );

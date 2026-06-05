@@ -1,6 +1,6 @@
 /**
- * Input Component
- * ================
+ * Input Component — redesenhado com dark mode + Nunito
+ * API 100% retrocompatível.
  */
 
 import React, { useState } from 'react';
@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import theme from '@/theme';
+import { useTheme } from '@/theme';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -35,41 +35,55 @@ export function Input({
   style,
   ...props
 }: InputProps) {
+  const { t, r } = useTheme();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
   const showPasswordToggle = secureTextEntry !== undefined;
   const actualSecureEntry = secureTextEntry && !isPasswordVisible;
 
+  const borderColor = error
+    ? t.status.error
+    : isFocused
+    ? t.border.focus
+    : t.border.subtle;
+
   return (
     <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
-      
+      {label && (
+        <Text style={[styles.label, { color: t.text.primary }]}>
+          {label}
+        </Text>
+      )}
+
       <View
         style={[
           styles.inputContainer,
-          isFocused && styles.inputFocused,
-          error && styles.inputError,
+          {
+            backgroundColor: isFocused ? t.bg.elevated : t.bg.surface,
+            borderRadius: r.lg,
+            borderColor,
+          },
         ]}
       >
         {leftIcon && (
           <Ionicons
             name={leftIcon}
             size={20}
-            color={theme.colors.neutral[400]}
+            color={t.text.tertiary}
             style={styles.leftIcon}
           />
         )}
-        
+
         <TextInput
-          style={[styles.input, style]}
-          placeholderTextColor={theme.colors.neutral[400]}
+          style={[styles.input, { color: t.text.primary }, style]}
+          placeholderTextColor={t.text.tertiary}
           secureTextEntry={actualSecureEntry}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           {...props}
         />
-        
+
         {showPasswordToggle && (
           <TouchableOpacity
             onPress={() => setIsPasswordVisible(!isPasswordVisible)}
@@ -78,11 +92,11 @@ export function Input({
             <Ionicons
               name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
               size={20}
-              color={theme.colors.neutral[400]}
+              color={t.text.tertiary}
             />
           </TouchableOpacity>
         )}
-        
+
         {rightIcon && !showPasswordToggle && (
           <TouchableOpacity
             onPress={onRightIconPress}
@@ -92,64 +106,56 @@ export function Input({
             <Ionicons
               name={rightIcon}
               size={20}
-              color={theme.colors.neutral[400]}
+              color={t.text.tertiary}
             />
           </TouchableOpacity>
         )}
       </View>
-      
-      {error && <Text style={styles.error}>{error}</Text>}
-      {hint && !error && <Text style={styles.hint}>{hint}</Text>}
+
+      {error && (
+        <Text style={[styles.hint, { color: t.status.error }]}>
+          {error}
+        </Text>
+      )}
+      {hint && !error && (
+        <Text style={[styles.hint, { color: t.text.tertiary }]}>
+          {hint}
+        </Text>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: theme.spacing.md,
+    marginBottom: 16,
   },
   label: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xs,
+    fontSize: 13,
+    fontFamily: 'Nunito-SemiBold',
+    marginBottom: 4,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.neutral[100],
-    borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
-    borderColor: theme.colors.neutral[200],
-  },
-  inputFocused: {
-    borderColor: theme.colors.primary[500],
-    backgroundColor: theme.colors.white,
-  },
-  inputError: {
-    borderColor: theme.colors.error.main,
   },
   input: {
     flex: 1,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
-    fontSize: theme.fontSize.md,
-    color: theme.colors.text.primary,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    fontFamily: 'Nunito-Regular',
   },
   leftIcon: {
-    marginLeft: theme.spacing.md,
+    marginLeft: 14,
   },
   rightIcon: {
-    padding: theme.spacing.md,
-  },
-  error: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.error.main,
-    marginTop: theme.spacing.xs,
+    padding: 14,
   },
   hint: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.tertiary,
-    marginTop: theme.spacing.xs,
+    fontSize: 12,
+    fontFamily: 'Nunito-Regular',
+    marginTop: 4,
   },
 });

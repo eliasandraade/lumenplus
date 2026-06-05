@@ -1,11 +1,11 @@
 /**
- * Card Component
- * ==============
+ * Card Component — redesenhado com dark mode
+ * API 100% retrocompatível.
  */
 
 import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
-import theme from '@/theme';
+import { View, ViewStyle } from 'react-native';
+import { useTheme } from '@/theme';
 
 interface CardProps {
   children: React.ReactNode;
@@ -14,28 +14,40 @@ interface CardProps {
 }
 
 export function Card({ children, style, variant = 'elevated' }: CardProps) {
+  const { t, r } = useTheme();
+
+  const variantStyle: ViewStyle = (() => {
+    switch (variant) {
+      case 'elevated':
+        return {
+          backgroundColor: t.bg.elevated,
+          ...t.shadow.md,
+        };
+      case 'outlined':
+        return {
+          backgroundColor: t.bg.elevated,
+          borderWidth: 1,
+          borderColor: t.border.subtle,
+        };
+      case 'filled':
+        return {
+          backgroundColor: t.bg.surface,
+        };
+    }
+  })();
+
   return (
-    <View style={[styles.base, styles[variant], style]}>
+    <View
+      style={[
+        {
+          borderRadius: r.lg,
+          padding: 16,
+        },
+        variantStyle,
+        style,
+      ]}
+    >
       {children}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
-  },
-  elevated: {
-    backgroundColor: theme.colors.white,
-    ...theme.shadow.md,
-  },
-  outlined: {
-    backgroundColor: theme.colors.white,
-    borderWidth: 1,
-    borderColor: theme.colors.neutral[200],
-  },
-  filled: {
-    backgroundColor: theme.colors.neutral[100],
-  },
-});
