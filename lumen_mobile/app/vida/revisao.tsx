@@ -13,12 +13,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { IoniconsName } from '@/types/icons';
 import projetoVidaMensalApi from '@/services/projetoVidaMensal';
-
-const colors = {
-  primary: '#1A859B', primaryLight: '#E8F4F7',
-  white: '#ffffff', gray: '#6b7280',
-  dark: '#171717', border: '#e5e7eb', error: '#ef4444',
-};
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
 const STEP_TITLES = ['Revisão Mensal', 'Ato de Contrição', 'Revisão Salva'];
 
@@ -71,6 +67,7 @@ export default function RevisaoScreen() {
   const [state, setState] = useState<RevisaoState>(defaultState());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t, r } = useTheme();
 
   const update = (key: keyof RevisaoState, val: string) =>
     setState(s => ({ ...s, [key]: val }));
@@ -98,31 +95,49 @@ export default function RevisaoScreen() {
       // ── Passo 0: Revisão ─────────────────────────────────────────────────
       case 0:
         return (
-          <View style={styles.stepContent}>
-            <Text style={styles.sectionLabel}>Revisão do Ciclo</Text>
-            <Text style={styles.intro}>
+          <View style={{ padding: 20 }}>
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Bold', color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+              Revisão do Ciclo
+            </Text>
+            <Text style={{ fontSize: 14, fontFamily: 'Nunito-Italic', color: t.text.secondary, lineHeight: 22, marginBottom: 20 }}>
               Responda com sinceridade diante de Deus. Não é preciso responder a todas as questões.
             </Text>
             {QUESTOES.map(({ key, q, description, placeholder }) => (
-              <View key={key} style={styles.questionCard}>
-                <Text style={styles.questionText}>{q}</Text>
+              <View key={key} style={{ backgroundColor: t.bg.elevated, borderRadius: r.lg, padding: 16, marginBottom: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: t.border.subtle, ...t.shadow.sm }}>
+                <Text style={{ fontSize: 15, fontFamily: 'Nunito-SemiBold', color: t.text.primary, lineHeight: 24, marginBottom: 8 }}>
+                  {q}
+                </Text>
                 {description && (
-                  <Text style={styles.questionDescription}>{description}</Text>
+                  <Text style={{ fontSize: 13, fontFamily: 'Nunito-Italic', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
+                    {description}
+                  </Text>
                 )}
                 <TextInput
-                  style={styles.textarea}
+                  style={{
+                    minHeight: 120,
+                    textAlignVertical: 'top',
+                    backgroundColor: t.bg.surface,
+                    borderRadius: r.md,
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderColor: t.border.subtle,
+                    padding: 14,
+                    fontSize: 15,
+                    fontFamily: 'Nunito-Regular',
+                    color: t.text.primary,
+                  }}
                   value={state[key]}
                   onChangeText={v => update(key, v)}
                   multiline
                   numberOfLines={4}
-                  placeholderTextColor={colors.gray}
+                  placeholderTextColor={t.text.tertiary}
                   placeholder={placeholder}
                 />
               </View>
             ))}
             {error && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: t.status.errorBg, borderRadius: r.md, padding: 12, marginBottom: 12 }}>
+                <Ionicons name={'alert-circle' as IoniconsName} size={15} color={t.status.error} />
+                <Text style={{ flex: 1, fontSize: 13, fontFamily: 'Nunito-Regular', color: t.status.error }}>{error}</Text>
               </View>
             )}
           </View>
@@ -131,19 +146,38 @@ export default function RevisaoScreen() {
       // ── Passo 1: Ato de Contrição ────────────────────────────────────────
       case 1:
         return (
-          <View style={styles.stepContent}>
-            <Text style={styles.sectionLabel}>Ato de Contrição</Text>
-            <Text style={styles.intro}>
+          <View style={{ padding: 20 }}>
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Bold', color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+              Ato de Contrição
+            </Text>
+            <Text style={{ fontSize: 14, fontFamily: 'Nunito-Italic', color: t.text.secondary, lineHeight: 22, marginBottom: 24 }}>
               Antes de concluir, ore o Ato de Contrição em comunhão com seus irmãos.
             </Text>
-            <View style={styles.prayerCard}>
+
+            {/* Bloco espiritual especial */}
+            <View style={{
+              borderLeftWidth: 3,
+              borderLeftColor: t.accent.spiritual,
+              backgroundColor: t.bg.spiritual,
+              borderRadius: r.md,
+              padding: 20,
+              marginVertical: 8,
+            }}>
               <Ionicons
                 name={'heart' as IoniconsName}
-                size={28}
-                color={colors.primary}
-                style={{ marginBottom: 14, alignSelf: 'center' }}
+                size={22}
+                color={t.accent.spiritual}
+                style={{ marginBottom: 16, alignSelf: 'center' }}
               />
-              <Text style={styles.prayerText}>{CONTRICAO_TEXT}</Text>
+              <Text style={{
+                fontSize: 15,
+                fontFamily: 'Nunito-Italic',
+                color: t.text.spiritual,
+                lineHeight: 26,
+                textAlign: 'center',
+              }}>
+                {CONTRICAO_TEXT}
+              </Text>
             </View>
           </View>
         );
@@ -151,38 +185,61 @@ export default function RevisaoScreen() {
       // ── Passo 2: Concluído ───────────────────────────────────────────────
       case 2:
         return (
-          <View style={[styles.stepContent, { alignItems: 'center', paddingTop: 40 }]}>
-            <View style={styles.successIcon}>
-              <Ionicons name={'checkmark-circle' as IoniconsName} size={64} color={colors.primary} />
-            </View>
-            <Text style={styles.successTitle}>Revisão concluída!</Text>
-            <Text style={styles.successSubtitle}>
-              Que Deus abençoe o seu próximo ciclo de vida.
+          <View style={{ flex: 1, alignItems: 'center', paddingTop: 48, padding: 24 }}>
+            <Ionicons name={'checkmark-circle' as IoniconsName} size={64} color={t.status.success} />
+            <Text style={{ fontSize: 20, fontFamily: 'Nunito-Bold', color: t.text.primary, marginTop: 20, textAlign: 'center' }}>
+              Que Deus abençoe o seu próximo ciclo.
+            </Text>
+            <Text style={{ fontSize: 14, fontFamily: 'Nunito-Italic', color: t.text.secondary, marginTop: 8, textAlign: 'center', lineHeight: 22 }}>
+              Sua revisão foi salva com cuidado.
             </Text>
 
-            <View style={styles.choiceSection}>
-              <Text style={styles.choiceLabel}>O que você deseja fazer agora?</Text>
+            <View style={{ width: '100%', gap: 12, marginTop: 32 }}>
+              <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary, textAlign: 'center', marginBottom: 4 }}>
+                O que você deseja fazer agora?
+              </Text>
 
               <TouchableOpacity
-                style={styles.primaryBtn}
+                style={{
+                  backgroundColor: t.brand.primary,
+                  borderRadius: r.lg,
+                  padding: 16,
+                  alignItems: 'center',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}
                 onPress={() => router.replace({ pathname: '/vida/ciclo', params: { projetoId } })}
                 activeOpacity={0.8}
               >
-                <Ionicons name={'book-outline' as IoniconsName} size={18} color={colors.white} />
-                <Text style={styles.primaryBtnText}>Ver ciclo atual</Text>
+                <Ionicons name={'book-outline' as IoniconsName} size={18} color="#ffffff" />
+                <Text style={{ color: '#ffffff', fontFamily: 'Nunito-Bold', fontSize: 16 }}>Ver ciclo atual</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.secondaryBtn}
+                style={{
+                  borderWidth: 1,
+                  borderColor: t.border.default,
+                  borderRadius: r.lg,
+                  padding: 14,
+                  alignItems: 'center',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}
                 onPress={() => router.replace('/vida/wizard')}
                 activeOpacity={0.8}
               >
-                <Ionicons name={'add-circle-outline' as IoniconsName} size={18} color={colors.primary} />
-                <Text style={styles.secondaryBtnText}>Iniciar novo ciclo</Text>
+                <Ionicons name={'add-circle-outline' as IoniconsName} size={18} color={t.brand.primary} />
+                <Text style={{ color: t.brand.primary, fontFamily: 'Nunito-Bold', fontSize: 16 }}>Iniciar novo ciclo</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.ghostBtn} onPress={() => router.replace('/vida')} activeOpacity={0.8}>
-                <Text style={styles.ghostBtnText}>Voltar ao início</Text>
+              <TouchableOpacity
+                style={{ padding: 12, alignItems: 'center' }}
+                onPress={() => router.replace('/vida')}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: t.text.tertiary, fontFamily: 'Nunito-Regular', fontSize: 14 }}>Voltar ao início</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -196,65 +253,88 @@ export default function RevisaoScreen() {
   const isLastContentStep = step === 1;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.bg.screen }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Indicador de passos */}
       {step < 2 && (
-        <>
-          <View style={styles.stepBar}>
-            {[0, 1].map(i => (
-              <View
-                key={i}
-                style={[
-                  styles.stepDot,
-                  i === step && styles.stepDotActive,
-                  i < step && styles.stepDotDone,
-                ]}
-              />
-            ))}
+        <View style={{ paddingHorizontal: 20, paddingVertical: 12, backgroundColor: t.bg.elevated, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.border.subtle }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={{ fontSize: 18, fontFamily: 'Nunito-Bold', color: t.text.primary }}>
+              {STEP_TITLES[step]}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {[0, 1].map(i => (
+                <View
+                  key={i}
+                  style={{
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: i === step ? t.brand.primary : i < step ? t.brand.primary + '60' : t.border.subtle,
+                    width: i === step ? 24 : 8,
+                  }}
+                />
+              ))}
+              <Text style={{ fontSize: 12, fontFamily: 'Nunito-Regular', color: t.text.tertiary, marginLeft: 4 }}>
+                {step + 1} / 2
+              </Text>
+            </View>
           </View>
-          <View style={styles.stepHeader}>
-            <Text style={styles.stepTitle}>{STEP_TITLES[step]}</Text>
-            <Text style={styles.stepCounter}>{step + 1} / 2</Text>
-          </View>
-        </>
+        </View>
       )}
 
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 48 }}>
         {renderStep()}
       </ScrollView>
 
       {/* Navegação (não mostrar no passo final) */}
       {step < 2 && (
-        <View style={styles.navRow}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: t.bg.elevated, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.border.subtle }}>
           <TouchableOpacity
-            style={[styles.navBtn, styles.navBtnBack]}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 20, borderRadius: r.md, borderWidth: StyleSheet.hairlineWidth, borderColor: t.border.subtle }}
             onPress={() => (step === 0 ? router.back() : setStep(s => s - 1))}
           >
-            <Ionicons name={'chevron-back' as IoniconsName} size={20} color={colors.primary} />
-            <Text style={styles.navBtnBackText}>{step === 0 ? 'Cancelar' : 'Voltar'}</Text>
+            <Ionicons name={'chevron-back' as IoniconsName} size={20} color={t.brand.primary} />
+            <Text style={{ fontSize: 15, fontFamily: 'Nunito-SemiBold', color: t.brand.primary }}>{step === 0 ? 'Cancelar' : 'Voltar'}</Text>
           </TouchableOpacity>
 
           {isLastContentStep ? (
             <TouchableOpacity
-              style={[styles.navBtn, styles.navBtnNext]}
+              style={{
+                backgroundColor: t.brand.primary,
+                borderRadius: r.lg,
+                padding: 16,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: 8,
+              }}
               onPress={handleSave}
               disabled={saving}
+              activeOpacity={0.8}
             >
               {saving
-                ? <ActivityIndicator color={colors.white} size="small" />
+                ? <ActivityIndicator color="#ffffff" size="small" />
                 : <>
-                    <Text style={styles.navBtnNextText}>Salvar Revisão</Text>
-                    <Ionicons name={'checkmark' as IoniconsName} size={20} color={colors.white} />
+                    <Text style={{ color: '#ffffff', fontFamily: 'Nunito-Bold', fontSize: 16 }}>Salvar Revisão</Text>
+                    <Ionicons name={'checkmark' as IoniconsName} size={20} color="#ffffff" />
                   </>
               }
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={[styles.navBtn, styles.navBtnNext]}
+              style={{
+                backgroundColor: t.brand.primary,
+                borderRadius: r.lg,
+                padding: 16,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: 8,
+              }}
               onPress={() => setStep(s => s + 1)}
+              activeOpacity={0.8}
             >
-              <Text style={styles.navBtnNextText}>Próximo</Text>
-              <Ionicons name={'chevron-forward' as IoniconsName} size={20} color={colors.white} />
+              <Text style={{ color: '#ffffff', fontFamily: 'Nunito-Bold', fontSize: 16 }}>Próximo</Text>
+              <Ionicons name={'chevron-forward' as IoniconsName} size={20} color="#ffffff" />
             </TouchableOpacity>
           )}
         </View>
@@ -262,76 +342,3 @@ export default function RevisaoScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  stepBar: {
-    flexDirection: 'row', justifyContent: 'center', gap: 8,
-    paddingVertical: 12, backgroundColor: colors.white,
-    borderBottomWidth: 1, borderColor: colors.border,
-  },
-  stepDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
-  stepDotActive: { backgroundColor: colors.primary, width: 24, borderRadius: 4 },
-  stepDotDone: { backgroundColor: colors.primaryLight },
-  stepHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 12, backgroundColor: colors.white,
-  },
-  stepTitle: { fontSize: 18, fontWeight: '700', color: colors.dark },
-  stepCounter: { fontSize: 13, color: colors.gray },
-  stepContent: { padding: 20 },
-  sectionLabel: {
-    fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase',
-    color: colors.primary, fontWeight: '700', marginBottom: 8,
-  },
-  intro: { fontSize: 14, color: colors.gray, lineHeight: 21, marginBottom: 20 },
-  questionCard: {
-    backgroundColor: colors.white, borderRadius: 12, padding: 16,
-    marginBottom: 14, borderWidth: 1, borderColor: colors.border,
-  },
-  questionText: { fontSize: 15, fontWeight: '600', color: colors.dark, marginBottom: 6, lineHeight: 22 },
-  questionDescription: { fontSize: 13, color: colors.gray, lineHeight: 19, marginBottom: 10, fontStyle: 'italic' },
-  textarea: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: 8,
-    padding: 10, fontSize: 14, color: colors.dark,
-    textAlignVertical: 'top', minHeight: 90, backgroundColor: '#f9fafb',
-  },
-  prayerCard: {
-    backgroundColor: colors.primaryLight, borderRadius: 14, padding: 24,
-    borderWidth: 1, borderColor: colors.primary + '40',
-  },
-  prayerText: { fontSize: 16, color: colors.dark, lineHeight: 28, textAlign: 'center', fontStyle: 'italic' },
-  errorBox: {
-    backgroundColor: '#fef2f2', borderColor: '#fecaca',
-    borderWidth: 1, borderRadius: 10, padding: 12, marginTop: 8,
-  },
-  errorText: { color: '#dc2626', fontSize: 14 },
-  successIcon: { marginBottom: 16 },
-  successTitle: { fontSize: 24, fontWeight: '700', color: colors.dark, marginBottom: 8 },
-  successSubtitle: { fontSize: 15, color: colors.gray, textAlign: 'center', marginBottom: 32, lineHeight: 22 },
-  choiceSection: { width: '100%', gap: 12 },
-  choiceLabel: { fontSize: 14, fontWeight: '600', color: colors.dark, textAlign: 'center', marginBottom: 4 },
-  primaryBtn: {
-    backgroundColor: colors.primary, borderRadius: 12,
-    paddingVertical: 14, paddingHorizontal: 24,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-  },
-  primaryBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
-  secondaryBtn: {
-    borderWidth: 2, borderColor: colors.primary, borderRadius: 12,
-    paddingVertical: 14, paddingHorizontal: 24,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-  },
-  secondaryBtnText: { color: colors.primary, fontSize: 16, fontWeight: '700' },
-  ghostBtn: { padding: 12, alignItems: 'center' },
-  ghostBtnText: { color: colors.gray, fontSize: 14 },
-  navRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 16, backgroundColor: colors.white, borderTopWidth: 1, borderColor: colors.border,
-  },
-  navBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10 },
-  navBtnBack: { borderWidth: 1, borderColor: colors.border },
-  navBtnBackText: { fontSize: 15, color: colors.primary, fontWeight: '600' },
-  navBtnNext: { backgroundColor: colors.primary },
-  navBtnNextText: { fontSize: 15, color: colors.white, fontWeight: '600' },
-});
