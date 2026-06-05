@@ -126,7 +126,7 @@ export default function LoginScreen() {
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
       {/* Glow radial suave — camada decorativa */}
-      <View style={styles.glow} pointerEvents="none" />
+      <View style={[styles.glow, { pointerEvents: 'none' }]} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -267,6 +267,7 @@ export default function LoginScreen() {
             <TouchableOpacity
               onPress={() => router.push('/(auth)/register')}
               accessibilityLabel="Criar conta"
+              accessibilityRole="button"
             >
               <Text style={styles.footerLink}>Crie agora.</Text>
             </TouchableOpacity>
@@ -284,7 +285,7 @@ const styles = StyleSheet.create({
   },
   glow: {
     position: 'absolute',
-    top: '10%',
+    top: 60,
     alignSelf: 'center',
     width: 320,
     height: 320,
@@ -391,9 +392,10 @@ const styles = StyleSheet.create({
   },
   forgotBtn: {
     alignSelf: 'flex-end',
-    paddingVertical: 4,
-    marginBottom: 20,
-    marginTop: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginBottom: 12,
+    marginTop: 4,
   },
   forgotText: {
     fontSize: 13,
