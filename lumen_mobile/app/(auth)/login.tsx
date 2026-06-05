@@ -1,8 +1,7 @@
 /**
- * Login Screen
- * ============
- * Autenticação via Firebase (email + senha).
- * Recuperação de senha via Firebase sendPasswordResetEmail.
+ * Login Screen — "Vela em Catedral"
+ * ==================================
+ * Visual redesenhado. Lógica Firebase 100% intacta.
  */
 
 import { useState } from 'react';
@@ -27,22 +26,30 @@ import {
 import { auth, IS_DEV_AUTH } from '@/config/firebase';
 import api, { setDevToken } from '@/services/api';
 
-const colors = {
-  primary: '#1A859B',
-  white: '#ffffff',
-  orange: '#F5A623',
-  gray: '#6b7280',
-  inputBg: 'rgba(255, 255, 255, 0.9)',
+// ── Paleta "Vela em Catedral" ──────────────────────────────────────────────
+const C = {
+  bg:          '#0d1a2e',
+  teal:        '#2da8c0',
+  tealFocus:   '#5cc8de',
+  white:       '#ffffff',
+  offWhite:    '#e8f0f8',
+  placeholder: 'rgba(255,255,255,0.40)',
+  inputBg:     'rgba(255,255,255,0.07)',
+  inputBorder: 'rgba(255,255,255,0.14)',
+  errorText:   '#fca5a5',
+  successText: '#86efac',
 };
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [authError, setAuthError] = useState('');
-  const [resetMessage, setResetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  // ── Lógica intacta ──────────────────────────────────────────────────────
+  const [email,          setEmail]          = useState('');
+  const [password,       setPassword]       = useState('');
+  const [errors,         setErrors]         = useState<Record<string, string>>({});
+  const [isLoading,      setIsLoading]      = useState(false);
+  const [authError,      setAuthError]      = useState('');
+  const [resetMessage,   setResetMessage]   = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isSendingReset, setIsSendingReset] = useState(false);
+  const [showPassword,   setShowPassword]   = useState(false);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -57,9 +64,7 @@ export default function LoginScreen() {
     try {
       setIsLoading(true);
       setResetMessage(null);
-
       if (IS_DEV_AUTH) {
-        // Modo DEV: autentica diretamente no backend (sem Firebase)
         const res = await fetch(`${api.baseUrl}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -76,14 +81,13 @@ export default function LoginScreen() {
         router.replace('/(tabs)/home');
         return;
       }
-
       await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
       router.replace('/(tabs)/home');
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? '';
       let message = 'Email ou senha inválidos.';
-      if (code === 'auth/user-not-found') message = 'Usuário não encontrado.';
-      if (code === 'auth/wrong-password') message = 'Senha incorreta.';
+      if (code === 'auth/user-not-found')    message = 'Usuário não encontrado.';
+      if (code === 'auth/wrong-password')    message = 'Senha incorreta.';
       if (code === 'auth/too-many-requests') message = 'Muitas tentativas. Aguarde e tente novamente.';
       if (code === 'auth/invalid-credential') message = 'Email ou senha inválidos.';
       setAuthError(message);
@@ -93,10 +97,6 @@ export default function LoginScreen() {
   };
 
   const handleForgotPassword = async () => {
-    // Para customizar o e-mail enviado pelo Firebase (idioma, template, link):
-    // Firebase Console → Authentication → Templates → Password reset
-    // Assunto sugerido: "Redefinição de senha — Lumen+"
-    // Corpo: saudação acolhedora em português, botão com cor #1A859B, assinatura "Equipe Lumen+"
     if (IS_DEV_AUTH) {
       setResetMessage({ type: 'error', text: 'Recuperação de senha não disponível em modo de desenvolvimento.' });
       return;
@@ -119,114 +119,155 @@ export default function LoginScreen() {
       setIsSendingReset(false);
     }
   };
+  // ── Fim da lógica intacta ───────────────────────────────────────────────
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+
+      {/* Glow radial suave — camada decorativa */}
+      <View style={styles.glow} pointerEvents="none" />
 
       <KeyboardAvoidingView
-        style={styles.keyboardView}
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Logo Section */}
-          <View style={styles.logoSection}>
-            <View style={styles.compassContainer}>
-              <Ionicons name="compass-outline" size={80} color={colors.white} />
+          {/* ── Hero ─────────────────────────────────────────── */}
+          <View style={styles.hero}>
+            <View style={styles.compassHalo} />
+            <View style={styles.compassWrapper}>
+              <Ionicons name="compass-outline" size={72} color={C.teal} />
             </View>
             <Text style={styles.logoText}>
               LUMEN<Text style={styles.logoPlus}>+</Text>
             </Text>
             <Text style={styles.slogan}>
-              Mais <Text style={styles.sloganBold}>Luz</Text> | Mais{' '}
-              <Text style={styles.sloganBold}>Encontro</Text>
+              Mais <Text style={styles.sloganBold}>Luz</Text>
+              {'  '}·{'  '}
+              Mais <Text style={styles.sloganBold}>Encontro</Text>
             </Text>
           </View>
 
-          {/* Form */}
+          {/* ── Formulário ───────────────────────────────────── */}
           <View style={styles.form}>
-            <TextInput
-              style={[styles.input, errors.email && styles.inputError]}
-              placeholder="E-mail"
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                setErrors({ ...errors, email: '' });
-                setAuthError('');
-              }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              placeholderTextColor={colors.gray}
-            />
+
+            {/* E-mail */}
+            <View style={[styles.inputWrapper, errors.email ? styles.inputWrapperError : null]}>
+              <Ionicons name="mail-outline" size={18} color={C.placeholder} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="E-mail"
+                value={email}
+                onChangeText={(t) => { setEmail(t); setErrors({ ...errors, email: '' }); setAuthError(''); }}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                placeholderTextColor={C.placeholder}
+                accessibilityLabel="Campo de e-mail"
+              />
+              {errors.email ? (
+                <Ionicons name="alert-circle" size={18} color={C.errorText} />
+              ) : null}
+            </View>
             {errors.email ? (
-              <Text style={styles.errorText}>{errors.email}</Text>
+              <View style={styles.fieldError}>
+                <Ionicons name="alert-circle-outline" size={13} color={C.errorText} />
+                <Text style={styles.fieldErrorText}>{errors.email}</Text>
+              </View>
             ) : null}
 
-            <TextInput
-              style={[styles.input, errors.password && styles.inputError]}
-              placeholder="Senha"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                setErrors({ ...errors, password: '' });
-                setAuthError('');
-              }}
-              secureTextEntry
-              placeholderTextColor={colors.gray}
-            />
+            {/* Senha */}
+            <View style={[styles.inputWrapper, errors.password ? styles.inputWrapperError : null]}>
+              <Ionicons name="lock-closed-outline" size={18} color={C.placeholder} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Senha"
+                value={password}
+                onChangeText={(t) => { setPassword(t); setErrors({ ...errors, password: '' }); setAuthError(''); }}
+                secureTextEntry={!showPassword}
+                placeholderTextColor={C.placeholder}
+                accessibilityLabel="Campo de senha"
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={18}
+                  color={C.placeholder}
+                />
+              </TouchableOpacity>
+            </View>
             {errors.password ? (
-              <Text style={styles.errorText}>{errors.password}</Text>
+              <View style={styles.fieldError}>
+                <Ionicons name="alert-circle-outline" size={13} color={C.errorText} />
+                <Text style={styles.fieldErrorText}>{errors.password}</Text>
+              </View>
             ) : null}
 
+            {/* Erro de auth */}
             {authError ? (
-              <Text style={styles.authErrorText}>{authError}</Text>
+              <View style={styles.authError}>
+                <Ionicons name="close-circle" size={16} color={C.errorText} />
+                <Text style={styles.authErrorText}>{authError}</Text>
+              </View>
             ) : null}
 
+            {/* Esqueci a senha */}
             <TouchableOpacity
-              style={[styles.forgotPassword, isSendingReset && { opacity: 0.5 }]}
+              style={[styles.forgotBtn, isSendingReset ? { opacity: 0.5 } : null]}
               onPress={handleForgotPassword}
               disabled={isSendingReset}
+              accessibilityLabel="Recuperar senha"
             >
-              {isSendingReset ? (
-                <ActivityIndicator size="small" color={colors.white} />
-              ) : (
-                <Text style={styles.forgotPasswordText}>Esqueci a senha</Text>
-              )}
+              {isSendingReset
+                ? <ActivityIndicator size="small" color={C.teal} />
+                : <Text style={styles.forgotText}>Esqueci a senha</Text>
+              }
             </TouchableOpacity>
 
+            {/* Mensagem reset */}
             {resetMessage ? (
-              <Text
-                style={[
-                  styles.resetMessageText,
-                  resetMessage.type === 'success' ? styles.resetSuccess : styles.resetError,
-                ]}
-              >
-                {resetMessage.text}
-              </Text>
+              <View style={[styles.resetMsg, resetMessage.type === 'success' ? styles.resetSuccess : styles.resetError]}>
+                <Ionicons
+                  name={resetMessage.type === 'success' ? 'checkmark-circle' : 'close-circle'}
+                  size={15}
+                  color={resetMessage.type === 'success' ? C.successText : C.errorText}
+                />
+                <Text style={[styles.resetMsgText, { color: resetMessage.type === 'success' ? C.successText : C.errorText }]}>
+                  {resetMessage.text}
+                </Text>
+              </View>
             ) : null}
 
+            {/* Botão Entrar */}
             <TouchableOpacity
-              style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+              style={[styles.btn, isLoading ? { opacity: 0.6 } : null]}
               onPress={handleLogin}
               disabled={isLoading}
+              accessibilityLabel="Entrar na conta"
+              accessibilityRole="button"
             >
-              {isLoading ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.primaryButtonText}>Entrar</Text>
-              )}
+              {isLoading
+                ? <ActivityIndicator color={C.white} />
+                : <Text style={styles.btnText}>Entrar</Text>
+              }
             </TouchableOpacity>
           </View>
 
-          {/* Footer */}
+          {/* ── Footer ───────────────────────────────────────── */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Não tem uma conta? </Text>
-            <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+            <TouchableOpacity
+              onPress={() => router.push('/(auth)/register')}
+              accessibilityLabel="Criar conta"
+            >
               <Text style={styles.footerLink}>Crie agora.</Text>
             </TouchableOpacity>
           </View>
@@ -239,126 +280,173 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: C.bg,
   },
-  keyboardView: {
-    flex: 1,
+  glow: {
+    position: 'absolute',
+    top: '10%',
+    alignSelf: 'center',
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: 'rgba(26,133,155,0.10)',
   },
-  scrollContent: {
+  scroll: {
     flexGrow: 1,
-    paddingHorizontal: 32,
-    paddingTop: 60,
-    paddingBottom: 40,
+    paddingHorizontal: 28,
+    paddingTop: 72,
+    paddingBottom: 48,
   },
-  logoSection: {
+  hero: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 44,
   },
-  compassContainer: {
-    marginBottom: 16,
+  compassHalo: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(45,168,192,0.10)',
+    top: -8,
   },
-  logoText: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: colors.white,
-    letterSpacing: 2,
-  },
-  logoPlus: {
-    fontSize: 36,
-    fontWeight: 'normal',
-  },
-  slogan: {
-    fontSize: 16,
-    color: colors.white,
-    opacity: 0.9,
-    marginTop: 8,
-  },
-  sloganBold: {
-    fontWeight: 'bold',
-  },
-  form: {
-    flex: 1,
-  },
-  input: {
-    backgroundColor: colors.inputBg,
-    borderRadius: 25,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    fontSize: 16,
-    marginBottom: 12,
-    color: '#333',
-  },
-  inputError: {
-    borderWidth: 2,
-    borderColor: '#ef4444',
-    marginBottom: 4,
-  },
-  errorText: {
-    color: '#fecaca',
-    fontSize: 13,
-    marginBottom: 10,
-    marginLeft: 16,
-  },
-  authErrorText: {
-    color: '#fecaca',
-    fontSize: 14,
-    marginBottom: 12,
-    marginLeft: 4,
-    textAlign: 'center',
-  },
-  forgotPassword: {
-    alignSelf: 'flex-end',
+  compassWrapper: {
     marginBottom: 20,
   },
-  forgotPasswordText: {
-    fontSize: 14,
-    color: colors.white,
-    textDecorationLine: 'underline',
+  logoText: {
+    fontSize: 34,
+    fontFamily: 'Nunito-ExtraBold',
+    color: C.white,
+    letterSpacing: 3,
   },
-  resetMessageText: {
-    fontSize: 13,
-    marginBottom: 12,
+  logoPlus: {
+    color: C.teal,
+    fontFamily: 'Nunito-Regular',
+  },
+  slogan: {
+    fontSize: 14,
+    fontFamily: 'Nunito-Regular',
+    color: 'rgba(255,255,255,0.60)',
+    marginTop: 6,
+    letterSpacing: 0.3,
+  },
+  sloganBold: {
+    fontFamily: 'Nunito-SemiBold',
+    color: 'rgba(255,255,255,0.85)',
+  },
+  form: {
+    gap: 0,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.inputBg,
+    borderWidth: 1,
+    borderColor: C.inputBorder,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    minHeight: 52,
+    marginBottom: 4,
+  },
+  inputWrapperError: {
+    borderColor: 'rgba(252,165,165,0.60)',
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: 'Nunito-Regular',
+    color: C.white,
+    paddingVertical: 14,
+  },
+  fieldError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 10,
     marginLeft: 4,
+  },
+  fieldErrorText: {
+    fontSize: 12,
+    fontFamily: 'Nunito-Regular',
+    color: C.errorText,
+  },
+  authError: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: 'rgba(252,165,165,0.10)',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  authErrorText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Nunito-Regular',
+    color: C.errorText,
     lineHeight: 18,
   },
+  forgotBtn: {
+    alignSelf: 'flex-end',
+    paddingVertical: 4,
+    marginBottom: 20,
+    marginTop: 8,
+  },
+  forgotText: {
+    fontSize: 13,
+    fontFamily: 'Nunito-SemiBold',
+    color: C.teal,
+  },
+  resetMsg: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
   resetSuccess: {
-    color: '#bbf7d0',
+    backgroundColor: 'rgba(134,239,172,0.10)',
   },
   resetError: {
-    color: '#fecaca',
+    backgroundColor: 'rgba(252,165,165,0.10)',
   },
-  primaryButton: {
-    backgroundColor: colors.orange,
-    borderRadius: 25,
-    paddingVertical: 16,
+  resetMsgText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Nunito-Regular',
+    lineHeight: 18,
+  },
+  btn: {
+    backgroundColor: '#1A859B',
+    borderRadius: 14,
+    minHeight: 52,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    justifyContent: 'center',
+    marginTop: 4,
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  primaryButtonText: {
-    color: colors.white,
-    fontSize: 18,
-    fontWeight: '600',
+  btnText: {
+    fontSize: 16,
+    fontFamily: 'Nunito-Bold',
+    color: C.white,
+    letterSpacing: 0.3,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    paddingTop: 32,
+    marginTop: 36,
   },
   footerText: {
     fontSize: 14,
-    color: colors.white,
+    fontFamily: 'Nunito-Regular',
+    color: 'rgba(255,255,255,0.55)',
   },
   footerLink: {
     fontSize: 14,
-    color: colors.white,
-    fontWeight: 'bold',
-    textDecorationLine: 'underline',
+    fontFamily: 'Nunito-Bold',
+    color: C.teal,
   },
 });
