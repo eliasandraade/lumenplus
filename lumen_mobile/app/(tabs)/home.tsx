@@ -18,7 +18,7 @@ import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
 import { radius } from '@/theme/tokens';
 
-type R = typeof radius;
+type RadiusTokens = typeof radius;
 
 interface Aviso {
   id: string;
@@ -228,7 +228,7 @@ function HeroSection({
 }: {
   userName: string;
   t: SemanticTokens;
-  r: R;
+  r: RadiusTokens;
   loading: boolean;
 }) {
   const v = getVersiculoDoDia();
@@ -336,7 +336,7 @@ function AttentionSection({
 }: {
   avisosNaoLidos: Aviso[];
   t: SemanticTokens;
-  r: R;
+  r: RadiusTokens;
   onOpenAviso: (a: Aviso) => void;
   formatDate: (d: string) => string;
   getAvisoIcon: (type: string) => { name: string; color: string };
@@ -498,6 +498,7 @@ function AttentionSection({
       {avisosNaoLidos.length > 5 && (
         <TouchableOpacity
           onPress={() => router.push('/(tabs)/invites')}
+          accessibilityLabel="Ver todos os avisos"
           style={{ alignItems: 'center', paddingVertical: 10 }}
         >
           <Text
@@ -516,7 +517,7 @@ function AttentionSection({
 }
 
 // ── 3. Vida Comunitária ───────────────────────────────────────
-function CommunitySection({ t, r }: { t: SemanticTokens; r: R }) {
+function CommunitySection({ t, r }: { t: SemanticTokens; r: RadiusTokens }) {
   const items: {
     label: string;
     icon: React.ComponentProps<typeof Ionicons>['name'];
@@ -567,7 +568,7 @@ function CommunitySection({ t, r }: { t: SemanticTokens; r: R }) {
         {items.map((item) => (
           <TouchableOpacity
             key={item.label}
-            onPress={() => router.push(item.route as any)}
+            onPress={() => router.push(item.route as Href)}
             accessibilityLabel={item.label}
             style={{
               flex: 1,
@@ -621,7 +622,7 @@ function ServiceSection({
   isCoordinator: boolean;
   hasRetreatAccess: boolean;
   t: SemanticTokens;
-  r: R;
+  r: RadiusTokens;
 }) {
   const items = (
     [
@@ -674,7 +675,7 @@ function ServiceSection({
       {items.map((item) => (
         <TouchableOpacity
           key={item.label}
-          onPress={() => router.push(item.route as any)}
+          onPress={() => router.push(item.route as Href)}
           accessibilityLabel={item.label}
           style={{
             backgroundColor: t.bg.elevated,
