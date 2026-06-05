@@ -26,6 +26,8 @@ import type { IoniconsName } from '@/types/icons';
 import { auth } from '@/config/firebase';
 import { inboxService } from '@/services';
 import type { InboxListResponse, PendingApproval, AuditEntry } from '@/types';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
 const colors = {
   primary: '#1A859B',
@@ -54,6 +56,9 @@ interface Aviso {
 type TabType = 'recebidos' | 'pendentes';
 
 export default function InboxScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>('recebidos');
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
@@ -286,7 +291,7 @@ export default function InboxScreen() {
           <Text style={styles.avisoMessage} numberOfLines={2}>{item.message}</Text>
           <Text style={styles.avisoDate}>{formatRelativeDate(item.created_at)}</Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color={colors.gray} />
+        <Ionicons name="chevron-forward" size={20} color={t.text.secondary} />
       </TouchableOpacity>
     );
   };
@@ -298,8 +303,8 @@ export default function InboxScreen() {
         onPress={() => handleOpenPendente(item)}
         activeOpacity={0.7}
       >
-        <View style={[styles.avisoIconContainer, { backgroundColor: `${colors.warning}15` }]}>
-          <Ionicons name="time-outline" size={24} color={colors.warning} />
+        <View style={[styles.avisoIconContainer, { backgroundColor: t.status.warningBg }]}>
+          <Ionicons name="time-outline" size={24} color={t.status.warning} />
         </View>
         <View style={styles.avisoContent}>
           <Text style={styles.avisoTitle} numberOfLines={1}>{item.title}</Text>
@@ -312,7 +317,7 @@ export default function InboxScreen() {
             {formatRelativeDate(item.created_at)}
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color={colors.gray} />
+        <Ionicons name="chevron-forward" size={20} color={t.text.secondary} />
       </TouchableOpacity>
     );
   };
@@ -320,7 +325,7 @@ export default function InboxScreen() {
   const renderEmpty = (message: string) => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
-        <Ionicons name="mail-open-outline" size={64} color={colors.primary} />
+        <Ionicons name="mail-open-outline" size={64} color={t.brand.primary} />
       </View>
       <Text style={styles.emptyTitle}>Nenhum item</Text>
       <Text style={styles.emptyMessage}>{message}</Text>
@@ -330,7 +335,7 @@ export default function InboxScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={t.brand.primary} />
       </View>
     );
   }
@@ -401,7 +406,7 @@ export default function InboxScreen() {
         <>
           {loadingPendentes ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.warning} />
+              <ActivityIndicator size="large" color={t.status.warning} />
             </View>
           ) : (
             <FlatList
@@ -457,7 +462,7 @@ export default function InboxScreen() {
                     </Text>
                   </View>
                   <TouchableOpacity style={styles.modalCloseButton} onPress={() => setAvisoModalVisible(false)}>
-                    <Ionicons name="close" size={24} color={colors.gray} />
+                    <Ionicons name="close" size={24} color={t.text.secondary} />
                   </TouchableOpacity>
                 </View>
                 <ScrollView style={styles.modalBody}>
@@ -502,12 +507,12 @@ export default function InboxScreen() {
             {selectedPendente && (
               <>
                 <View style={styles.modalHeader}>
-                  <View style={[styles.modalTypeChip, { backgroundColor: `${colors.warning}15` }]}>
-                    <Ionicons name="time-outline" size={16} color={colors.warning} />
+                  <View style={[styles.modalTypeChip, { backgroundColor: t.status.warningBg }]}>
+                    <Ionicons name="time-outline" size={16} color={t.status.warning} />
                     <Text style={[styles.modalTypeText, { color: colors.warning }]}>Aguardando Aprovação</Text>
                   </View>
                   <TouchableOpacity style={styles.modalCloseButton} onPress={() => setPendenteModalVisible(false)}>
-                    <Ionicons name="close" size={24} color={colors.gray} />
+                    <Ionicons name="close" size={24} color={t.text.secondary} />
                   </TouchableOpacity>
                 </View>
                 <ScrollView style={styles.modalBody}>
@@ -538,7 +543,7 @@ export default function InboxScreen() {
                     onPress={handleReject}
                     disabled={processingApproval}
                   >
-                    <Ionicons name="close-circle-outline" size={18} color={colors.error} />
+                    <Ionicons name="close-circle-outline" size={18} color={t.status.error} />
                     <Text style={[styles.approvalBtnText, { color: colors.error }]}>Reprovar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -547,9 +552,9 @@ export default function InboxScreen() {
                     disabled={processingApproval}
                   >
                     {processingApproval
-                      ? <ActivityIndicator size="small" color={colors.white} />
+                      ? <ActivityIndicator size="small" color={t.text.inverse} />
                       : <>
-                          <Ionicons name="checkmark-circle-outline" size={18} color={colors.white} />
+                          <Ionicons name="checkmark-circle-outline" size={18} color={t.text.inverse} />
                           <Text style={[styles.approvalBtnText, { color: colors.white }]}>Aprovar</Text>
                         </>
                     }
@@ -573,12 +578,12 @@ export default function InboxScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Auditoria do Aviso</Text>
               <TouchableOpacity style={styles.modalCloseButton} onPress={() => setAuditModalVisible(false)}>
-                <Ionicons name="close" size={24} color={colors.gray} />
+                <Ionicons name="close" size={24} color={t.text.secondary} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalBody}>
               {loadingAudit ? (
-                <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
+                <ActivityIndicator color={t.brand.primary} style={{ marginTop: 32 }} />
               ) : auditEntries.length === 0 ? (
                 <Text style={styles.modalDate}>Nenhum registro de auditoria.</Text>
               ) : (
@@ -614,16 +619,16 @@ export default function InboxScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.lightGray },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.lightGray },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.screen },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: t.bg.screen },
 
   // Tab bar
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: colors.white,
+    backgroundColor: t.bg.elevated,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
+    borderBottomColor: t.border.subtle,
   },
   tab: {
     flex: 1,
@@ -633,70 +638,70 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     gap: 6,
   },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: colors.primary },
-  tabText: { fontSize: 14, fontWeight: '500', color: colors.gray },
-  tabTextActive: { color: colors.primary, fontWeight: '600' },
+  tabActive: { borderBottomWidth: 2, borderBottomColor: t.brand.primary },
+  tabText: { fontSize: 14, fontWeight: '500', color: t.text.secondary },
+  tabTextActive: { color: t.brand.primary, fontWeight: '600' },
   tabBadge: {
-    backgroundColor: colors.primary,
+    backgroundColor: t.brand.primary,
     borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 1,
     minWidth: 20,
     alignItems: 'center',
   },
-  tabBadgeText: { color: colors.white, fontSize: 11, fontWeight: '700' },
+  tabBadgeText: { color: t.text.inverse, fontSize: 11, fontWeight: '700' },
 
   headerInfo: {
-    backgroundColor: colors.white,
+    backgroundColor: t.bg.elevated,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
+    borderBottomColor: t.border.subtle,
   },
-  headerText: { fontSize: 15, fontWeight: '600', color: '#171717' },
-  headerSubtext: { fontSize: 12, color: colors.gray, marginTop: 2 },
+  headerText: { fontSize: 15, fontWeight: '600', color: t.text.primary },
+  headerSubtext: { fontSize: 12, color: t.text.secondary, marginTop: 2 },
 
   listContent: { padding: 16, flexGrow: 1 },
   separator: { height: 10 },
 
   avisoCard: {
-    backgroundColor: colors.white,
+    backgroundColor: t.bg.elevated,
     borderRadius: 12,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  avisoUnread: { borderLeftWidth: 3, borderLeftColor: colors.primary },
+  avisoUnread: { borderLeftWidth: 3, borderLeftColor: t.brand.primary },
   avisoIconContainer: {
     width: 44, height: 44, borderRadius: 22,
     alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
   avisoContent: { flex: 1 },
   avisoHeader: { flexDirection: 'row', alignItems: 'center' },
-  avisoTitle: { fontSize: 15, fontWeight: '500', color: '#171717', flex: 1 },
+  avisoTitle: { fontSize: 15, fontWeight: '500', color: t.text.primary, flex: 1 },
   avisoTitleUnread: { fontWeight: '600' },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary, marginLeft: 8 },
-  avisoMessage: { fontSize: 13, color: colors.gray, lineHeight: 18, marginTop: 2 },
-  avisoDate: { fontSize: 11, color: colors.gray, marginTop: 4 },
-  orgUnitTag: { fontSize: 12, color: colors.primary, fontWeight: '500', marginTop: 2 },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: t.brand.primary, marginLeft: 8 },
+  avisoMessage: { fontSize: 13, color: t.text.secondary, lineHeight: 18, marginTop: 2 },
+  avisoDate: { fontSize: 11, color: t.text.tertiary, marginTop: 4 },
+  orgUnitTag: { fontSize: 12, color: t.brand.primary, fontWeight: '500', marginTop: 2 },
 
   emptyContainer: {
     flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, marginTop: 60,
   },
   emptyIconContainer: {
     width: 120, height: 120, borderRadius: 60,
-    backgroundColor: 'rgba(26, 133, 155, 0.1)',
+    backgroundColor: t.brand.primaryDim,
     alignItems: 'center', justifyContent: 'center', marginBottom: 24,
   },
-  emptyTitle: { fontSize: 20, fontWeight: '600', color: '#171717', marginBottom: 8 },
-  emptyMessage: { fontSize: 14, color: colors.gray, textAlign: 'center', lineHeight: 20 },
+  emptyTitle: { fontSize: 20, fontWeight: '600', color: t.text.primary, marginBottom: 8 },
+  emptyMessage: { fontSize: 14, color: t.text.secondary, textAlign: 'center', lineHeight: 20 },
 
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: colors.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%' },
+  modalOverlay: { flex: 1, backgroundColor: t.bg.overlay, justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: t.bg.elevated, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%' },
   modalHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 16, borderBottomWidth: 1, borderBottomColor: '#e5e5e5',
+    padding: 16, borderBottomWidth: 1, borderBottomColor: t.border.subtle,
   },
   modalTypeChip: {
     flexDirection: 'row', alignItems: 'center',
@@ -705,49 +710,50 @@ const styles = StyleSheet.create({
   modalTypeText: { fontSize: 13, fontWeight: '600' },
   modalCloseButton: { padding: 4 },
   modalBody: { padding: 20 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#171717', marginBottom: 6 },
-  modalDate: { fontSize: 13, color: colors.gray, marginBottom: 12 },
-  modalMessage: { fontSize: 15, color: '#374151', lineHeight: 24 },
-  modalSender: { fontSize: 13, color: colors.gray, marginTop: 12, fontStyle: 'italic' },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: t.text.primary, marginBottom: 6 },
+  modalDate: { fontSize: 13, color: t.text.secondary, marginBottom: 12 },
+  modalMessage: { fontSize: 15, color: t.text.primary, lineHeight: 24 },
+  modalSender: { fontSize: 13, color: t.text.secondary, marginTop: 12, fontStyle: 'italic' },
   modalFooterRow: { flexDirection: 'row', gap: 12, margin: 16 },
   modalButton: {
-    flex: 1, padding: 14, backgroundColor: colors.primary, borderRadius: 12, alignItems: 'center',
+    flex: 1, padding: 14, backgroundColor: t.brand.primary, borderRadius: 12, alignItems: 'center',
   },
-  modalButtonSecondary: { backgroundColor: '#e0f2fe' },
-  modalButtonText: { color: colors.white, fontSize: 15, fontWeight: '600' },
+  modalButtonSecondary: { backgroundColor: t.brand.primaryDim },
+  modalButtonText: { color: t.text.inverse, fontSize: 15, fontWeight: '600' },
 
   // Approval
-  noteLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginTop: 16, marginBottom: 6 },
+  noteLabel: { fontSize: 13, fontWeight: '600', color: t.text.primary, marginTop: 16, marginBottom: 6 },
   noteInput: {
-    borderWidth: 1, borderColor: '#e5e5e5', borderRadius: 8,
-    padding: 10, fontSize: 14, color: '#171717', minHeight: 72, textAlignVertical: 'top',
+    borderWidth: 1, borderColor: t.border.subtle, borderRadius: 8,
+    padding: 10, fontSize: 14, color: t.text.primary, minHeight: 72, textAlignVertical: 'top',
+    backgroundColor: t.bg.surface,
   },
   approvalFooter: { flexDirection: 'row', padding: 16, gap: 12 },
   approvalBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 14, borderRadius: 12, gap: 6,
   },
-  approvalBtnReject: { backgroundColor: '#fef2f2', borderWidth: 1, borderColor: colors.error },
-  approvalBtnApprove: { backgroundColor: colors.success },
+  approvalBtnReject: { backgroundColor: t.status.errorBg, borderWidth: 1, borderColor: t.status.error },
+  approvalBtnApprove: { backgroundColor: t.status.success },
   approvalBtnText: { fontSize: 15, fontWeight: '600' },
   btnDisabled: { opacity: 0.5 },
 
   // Audit
   auditEntry: {
-    borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingVertical: 10, marginBottom: 4,
+    borderBottomWidth: 1, borderBottomColor: t.border.subtle, paddingVertical: 10, marginBottom: 4,
   },
   auditEntryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  auditAction: { fontSize: 13, fontWeight: '700', color: '#171717' },
-  auditDate: { fontSize: 11, color: colors.gray },
-  auditActor: { fontSize: 12, color: colors.gray, marginTop: 2 },
-  auditNote: { fontSize: 12, color: colors.primary, marginTop: 2, fontStyle: 'italic' },
-  auditOld: { fontSize: 12, color: colors.error, marginTop: 2 },
-  auditNew: { fontSize: 12, color: colors.success, marginTop: 2 },
+  auditAction: { fontSize: 13, fontWeight: '700', color: t.text.primary },
+  auditDate: { fontSize: 11, color: t.text.tertiary },
+  auditActor: { fontSize: 12, color: t.text.secondary, marginTop: 2 },
+  auditNote: { fontSize: 12, color: t.brand.primary, marginTop: 2, fontStyle: 'italic' },
+  auditOld: { fontSize: 12, color: t.status.error, marginTop: 2 },
+  auditNew: { fontSize: 12, color: t.status.success, marginTop: 2 },
 
   fab: {
     position: 'absolute', bottom: 24, right: 20,
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.purple,
+    backgroundColor: '#7C3AED',
     paddingHorizontal: 20, paddingVertical: 14, borderRadius: 28,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,

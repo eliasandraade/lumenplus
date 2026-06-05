@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import { router, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 import {
   GOZOSOS, LUMINOSOS, DOLOROSOS, GLORIOSOS,
   MISTERIO_POR_DIA, DIAS_SEMANA,
@@ -48,6 +50,8 @@ type ExpandableCardProps = {
 };
 
 function ExpandableCard(props: ExpandableCardProps) {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   const { id, titulo, subtitulo, children, expanded, onToggle, accentColor } = props;
   const isOpen = expanded === id;
 
@@ -69,7 +73,7 @@ function ExpandableCard(props: ExpandableCardProps) {
             </Text>
           ) : null}
         </View>
-        <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color={GRAY} />
+        <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color={t.text.secondary} />
       </TouchableOpacity>
       {isOpen ? <View style={styles.cardBody}>{children}</View> : null}
     </View>
@@ -98,6 +102,9 @@ interface LiturgiaData {
 // =============================================================================
 
 export default function OracoesScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const [expanded, setExpanded] = useState<string | null>(null);
   const [liturgia, setLiturgia] = useState<LiturgiaData | null>(null);
   const [liturgiaLoading, setLiturgiaLoading] = useState(true);
@@ -209,7 +216,7 @@ export default function OracoesScreen() {
 
       {liturgiaLoading ? (
         <View style={styles.loadingCard}>
-          <ActivityIndicator size="large" color={PRIMARY} />
+          <ActivityIndicator size="large" color={t.brand.primary} />
           <Text style={styles.loadingText}>Carregando leituras do dia...</Text>
         </View>
       ) : null}
@@ -325,13 +332,13 @@ export default function OracoesScreen() {
         activeOpacity={0.7}
       >
         <View style={styles.escriturasIconContainer}>
-          <Ionicons name="book" size={28} color={WHITE} />
+          <Ionicons name="book" size={28} color={t.text.inverse} />
         </View>
         <View style={styles.escriturasTextContainer}>
           <Text style={styles.escriturasTitle}>Bíblia Ave Maria</Text>
           <Text style={styles.escriturasSubtitle}>73 livros • Edição Católica</Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color={PRIMARY} />
+        <Ionicons name="chevron-forward" size={20} color={t.brand.primary} />
       </TouchableOpacity>
 
       {/* ── CATECISMO ───────────────────────────────────────────────── */}
@@ -341,7 +348,7 @@ export default function OracoesScreen() {
         activeOpacity={0.7}
       >
         <View style={styles.catecismoIconContainer}>
-          <Ionicons name="library" size={28} color={WHITE} />
+          <Ionicons name="library" size={28} color={t.text.inverse} />
         </View>
         <View style={styles.escriturasTextContainer}>
           <Text style={styles.catecismoTitle}>Catecismo da Igreja Católica</Text>
@@ -422,245 +429,90 @@ export default function OracoesScreen() {
 // ESTILOS
 // =============================================================================
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: BG,
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 40,
-  },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.screen },
+  content: { padding: 16, paddingBottom: 40 },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#171717',
-    marginBottom: 12,
+    fontSize: 17, fontWeight: '700', color: t.text.primary, marginBottom: 12,
   },
-  sectionTitleSpaced: {
-    marginTop: 24,
-  },
+  sectionTitleSpaced: { marginTop: 24 },
   loadingCard: {
-    backgroundColor: WHITE,
-    borderRadius: 12,
-    padding: 32,
-    alignItems: 'center',
-    marginBottom: 12,
+    backgroundColor: t.bg.elevated, borderRadius: 12, padding: 32,
+    alignItems: 'center', marginBottom: 12,
   },
-  loadingText: {
-    fontSize: 14,
-    color: GRAY,
-    marginTop: 12,
-  },
+  loadingText: { fontSize: 14, color: t.text.secondary, marginTop: 12 },
   errorCard: {
-    backgroundColor: '#fef2f2',
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#fecaca',
+    backgroundColor: t.status.errorBg, borderRadius: 12, padding: 24,
+    alignItems: 'center', marginBottom: 12,
+    borderWidth: 1, borderColor: t.status.error,
   },
   errorText: {
-    fontSize: 14,
-    color: ERROR_COLOR,
-    textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 8,
+    fontSize: 14, color: t.status.error,
+    textAlign: 'center', marginTop: 8, marginBottom: 8,
   },
   retryButton: {
-    backgroundColor: PRIMARY,
-    borderRadius: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    marginTop: 8,
+    backgroundColor: t.brand.primary, borderRadius: 8,
+    paddingHorizontal: 20, paddingVertical: 10, marginTop: 8,
   },
-  retryText: {
-    color: WHITE,
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  retryText: { color: t.text.inverse, fontSize: 14, fontWeight: '600' },
   liturgiaHeader: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
-    borderLeftWidth: 4,
+    borderRadius: 12, padding: 16, marginBottom: 8, borderLeftWidth: 4,
   },
-  liturgiaHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  corChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-    marginRight: 10,
-  },
-  corChipText: {
-    color: WHITE,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  liturgiaData: {
-    fontSize: 13,
-    color: GRAY,
-  },
-  liturgiaTitulo: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#171717',
-    lineHeight: 22,
-  },
+  liturgiaHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  corChip: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, marginRight: 10 },
+  corChipText: { color: '#ffffff', fontSize: 11, fontWeight: '700' },
+  liturgiaData: { fontSize: 13, color: t.text.secondary },
+  liturgiaTitulo: { fontSize: 15, fontWeight: '600', color: t.text.primary, lineHeight: 22 },
   card: {
-    backgroundColor: WHITE,
-    borderRadius: 12,
-    marginBottom: 8,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    backgroundColor: t.bg.elevated, borderRadius: 12, marginBottom: 8,
+    overflow: 'hidden', borderWidth: 1, borderColor: t.border.subtle,
   },
-  cardOpen: {
-    borderColor: PRIMARY,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-  },
-  cardAccent: {
-    width: 4,
-    alignSelf: 'stretch',
-    borderRadius: 2,
-    minHeight: 32,
-    marginRight: 10,
-  },
-  cardHeaderText: {
-    flex: 1,
-    marginRight: 8,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#171717',
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    color: GRAY,
-    marginTop: 2,
-  },
+  cardOpen: { borderColor: t.brand.primary },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 14 },
+  cardAccent: { width: 4, alignSelf: 'stretch', borderRadius: 2, minHeight: 32, marginRight: 10 },
+  cardHeaderText: { flex: 1, marginRight: 8 },
+  cardTitle: { fontSize: 15, fontWeight: '600', color: t.text.primary },
+  cardSubtitle: { fontSize: 12, color: t.text.secondary, marginTop: 2 },
   cardBody: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    paddingHorizontal: 16, paddingBottom: 16, paddingTop: 4,
+    borderTopWidth: 1, borderTopColor: t.border.subtle,
   },
-  leituraRef: {
-    fontSize: 13,
-    color: PRIMARY,
-    fontWeight: '600',
-    marginBottom: 10,
-  },
-  leituraTexto: {
-    fontSize: 15,
-    color: '#374151',
-    lineHeight: 24,
-  },
+  leituraRef: { fontSize: 13, color: t.brand.primary, fontWeight: '600', marginBottom: 10 },
+  leituraTexto: { fontSize: 15, color: t.text.primary, lineHeight: 24 },
   salmoResposta: {
-    fontSize: 14,
-    color: PRIMARY,
-    fontWeight: '600',
-    marginBottom: 10,
-    fontStyle: 'italic',
+    fontSize: 14, color: t.brand.primary, fontWeight: '600',
+    marginBottom: 10, fontStyle: 'italic',
   },
-  salmoVerso: {
-    fontSize: 15,
-    color: '#374151',
-    lineHeight: 24,
-    marginBottom: 4,
-  },
+  salmoVerso: { fontSize: 15, color: t.text.primary, lineHeight: 24, marginBottom: 4 },
   misterioHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: WHITE,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    flexDirection: 'row', alignItems: 'center', backgroundColor: t.bg.elevated,
+    borderRadius: 12, padding: 16, marginBottom: 8,
+    borderWidth: 1, borderColor: t.border.subtle,
   },
-  misterioEmoji: {
-    fontSize: 36,
-    marginRight: 14,
-  },
-  misterioLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#171717',
-  },
-  misterioDia: {
-    fontSize: 13,
-    color: GRAY,
-    marginTop: 2,
-  },
+  misterioEmoji: { fontSize: 36, marginRight: 14 },
+  misterioLabel: { fontSize: 16, fontWeight: '700', color: t.text.primary },
+  misterioDia: { fontSize: 13, color: t.text.secondary, marginTop: 2 },
   catecismoCard: {
-    backgroundColor: WHITE,
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(124,58,237,0.3)',
+    backgroundColor: t.bg.elevated, borderRadius: 12, padding: 16,
+    flexDirection: 'row', alignItems: 'center', marginBottom: 8,
+    borderWidth: 1, borderColor: 'rgba(124,58,237,0.3)',
   },
   catecismoIconContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#7c3aed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
+    width: 52, height: 52, borderRadius: 26, backgroundColor: '#7c3aed',
+    alignItems: 'center', justifyContent: 'center', marginRight: 14,
   },
-  catecismoTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#171717',
-  },
+  catecismoTitle: { fontSize: 15, fontWeight: '700', color: t.text.primary },
   escriturasCard: {
-    backgroundColor: WHITE,
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: `${PRIMARY}40`,
+    backgroundColor: t.bg.elevated, borderRadius: 12, padding: 16,
+    flexDirection: 'row', alignItems: 'center', marginBottom: 8,
+    borderWidth: 1, borderColor: t.brand.primaryDim,
   },
   escriturasIconContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: PRIMARY,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
+    width: 52, height: 52, borderRadius: 26, backgroundColor: t.brand.primary,
+    alignItems: 'center', justifyContent: 'center', marginRight: 14,
   },
-  escriturasTextContainer: {
-    flex: 1,
-  },
-  escriturasTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#171717',
-  },
-  escriturasSubtitle: {
-    fontSize: 13,
-    color: GRAY,
-    marginTop: 2,
-  },
-  spacer: {
-    height: 20,
-  },
+  escriturasTextContainer: { flex: 1 },
+  escriturasTitle: { fontSize: 16, fontWeight: '700', color: t.text.primary },
+  escriturasSubtitle: { fontSize: 13, color: t.text.secondary, marginTop: 2 },
+  spacer: { height: 20 },
 });
