@@ -10,6 +10,7 @@ import { router, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { IoniconsName } from '@/types/icons';
 import { auth } from '@/config/firebase';
+import { signOut } from 'firebase/auth';
 import api from '@/services/api';
 import { getVersiculoDoDia } from '@/services/bible';
 import { PushPermissionCard } from '@/components/PushPermissionCard';
@@ -120,7 +121,6 @@ export default function HomeScreen() {
   }, []);
 
   const handleLogout = async () => {
-    const { signOut } = await import('firebase/auth');
     await signOut(auth);
     router.replace('/(auth)/login');
   };
