@@ -19,25 +19,13 @@ import { router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '@/services/api';
 import { useAuthStore } from '@/stores';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
 // -------------------------------------------------------------------------
-// Colors
+// Admin-specific constant (not in the token system)
 // -------------------------------------------------------------------------
-const colors = {
-  admin: '#7c3aed',
-  primary: '#1A859B',
-  white: '#ffffff',
-  gray: '#6b7280',
-  lightGray: '#E8E8E8',
-  background: '#f3f4f6',
-  border: '#e5e7eb',
-  success: '#22c55e',
-  warning: '#f59e0b',
-  error: '#ef4444',
-  text: '#171717',
-  textMuted: '#6b7280',
-  barBg: '#e5e7eb',
-};
+const ADMIN_COLOR = '#7c3aed';
 
 // -------------------------------------------------------------------------
 // Types
@@ -106,10 +94,15 @@ interface DashboardData {
 }
 
 // -------------------------------------------------------------------------
+// Helper sub-component types
+// -------------------------------------------------------------------------
+type Styles = ReturnType<typeof makeStyles>;
+
+// -------------------------------------------------------------------------
 // Helper components
 // -------------------------------------------------------------------------
 
-function SectionHeader({ title }: { title: string }) {
+function SectionHeader({ title, styles }: { title: string; styles: Styles }) {
   return <Text style={styles.sectionTitle}>{title}</Text>;
 }
 
@@ -117,10 +110,12 @@ function MetricCard({
   label,
   value,
   color,
+  styles,
 }: {
   label: string;
   value: number | string;
   color?: string;
+  styles: Styles;
 }) {
   return (
     <View style={styles.metricCard}>
@@ -134,10 +129,12 @@ function BarRow({
   label,
   count,
   total,
+  styles,
 }: {
   label: string;
   count: number;
   total: number;
+  styles: Styles;
 }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
   return (
@@ -157,10 +154,12 @@ function RankedRow({
   rank,
   label,
   count,
+  styles,
 }: {
   rank: number;
   label: string;
   count: number;
+  styles: Styles;
 }) {
   return (
     <View style={styles.rankedRow}>
@@ -180,6 +179,9 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { t } = useTheme();
+  const styles = makeStyles(t);
 
   const fetchData = async () => {
     try {
@@ -213,12 +215,12 @@ export default function DashboardScreen() {
         <Stack.Screen
           options={{
             title: 'Dashboard',
-            headerStyle: { backgroundColor: colors.admin },
-            headerTintColor: colors.white,
+            headerStyle: { backgroundColor: ADMIN_COLOR },
+            headerTintColor: t.text.inverse,
           }}
         />
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.admin} />
+          <ActivityIndicator size="large" color={ADMIN_COLOR} />
           <Text style={styles.loadingText}>Carregando...</Text>
         </View>
       </>
@@ -232,12 +234,12 @@ export default function DashboardScreen() {
         <Stack.Screen
           options={{
             title: 'Dashboard',
-            headerStyle: { backgroundColor: colors.admin },
-            headerTintColor: colors.white,
+            headerStyle: { backgroundColor: ADMIN_COLOR },
+            headerTintColor: t.text.inverse,
           }}
         />
         <View style={styles.centered}>
-          <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
+          <Ionicons name="alert-circle-outline" size={48} color={t.status.error} />
           <Text style={styles.errorTitle}>Erro ao carregar</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
@@ -263,8 +265,8 @@ export default function DashboardScreen() {
       <Stack.Screen
         options={{
           title: 'Dashboard',
-          headerStyle: { backgroundColor: colors.admin },
-          headerTintColor: colors.white,
+          headerStyle: { backgroundColor: ADMIN_COLOR },
+          headerTintColor: t.text.inverse,
         }}
       />
       <ScrollView
@@ -274,33 +276,34 @@ export default function DashboardScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[colors.admin]}
-            tintColor={colors.admin}
+            colors={[ADMIN_COLOR]}
+            tintColor={ADMIN_COLOR}
           />
         }
       >
         {/* Header */}
         <View style={styles.header}>
-          <Ionicons name="bar-chart" size={32} color={colors.white} />
+          <Ionicons name="bar-chart" size={32} color={t.text.inverse} />
           <Text style={styles.headerTitle}>Dashboard</Text>
           <Text style={styles.headerSubtitle}>Visão geral do aplicativo</Text>
         </View>
 
         {/* ---- Usuários ---- */}
-        <SectionHeader title="Usuários" />
+        <SectionHeader title="Usuários" styles={styles} />
         <View style={styles.grid2}>
-          <MetricCard label="Total" value={data.users.total} color={colors.admin} />
+          <MetricCard label="Total" value={data.users.total} color={ADMIN_COLOR} styles={styles} />
           <MetricCard
             label="Perfis Completos"
             value={data.users.complete_profiles}
-            color={colors.success}
+            color={t.status.success}
+            styles={styles}
           />
-          <MetricCard label="Novos (7d)" value={data.users.new_last_7d} />
-          <MetricCard label="Novos (30d)" value={data.users.new_last_30d} />
+          <MetricCard label="Novos (7d)" value={data.users.new_last_7d} styles={styles} />
+          <MetricCard label="Novos (30d)" value={data.users.new_last_30d} styles={styles} />
         </View>
 
         {/* ---- Faixas Etárias ---- */}
-        <SectionHeader title="Faixas Etárias" />
+        <SectionHeader title="Faixas Etárias" styles={styles} />
         <View style={styles.card}>
           {data.age_ranges.map((r) => (
             <BarRow
@@ -308,12 +311,13 @@ export default function DashboardScreen() {
               label={r.range}
               count={r.count}
               total={totalAgeCount}
+              styles={styles}
             />
           ))}
         </View>
 
         {/* ---- Geografia ---- */}
-        <SectionHeader title="Geografia" />
+        <SectionHeader title="Geografia" styles={styles} />
         <View style={styles.card}>
           <Text style={styles.subSectionTitle}>Por Cidade</Text>
           {data.geography.by_city.length === 0 ? (
@@ -325,6 +329,7 @@ export default function DashboardScreen() {
                 rank={i + 1}
                 label={item.city ?? '-'}
                 count={item.count}
+                styles={styles}
               />
             ))
           )}
@@ -340,13 +345,14 @@ export default function DashboardScreen() {
                 rank={i + 1}
                 label={item.state ?? '-'}
                 count={item.count}
+                styles={styles}
               />
             ))
           )}
         </View>
 
         {/* ---- Perfil Vocacional ---- */}
-        <SectionHeader title="Perfil Vocacional" />
+        <SectionHeader title="Perfil Vocacional" styles={styles} />
         <View style={styles.card}>
           <Text style={styles.subSectionTitle}>Estado de Vida</Text>
           {data.profile_breakdown.by_life_state.length === 0 ? (
@@ -415,24 +421,24 @@ export default function DashboardScreen() {
         </View>
 
         {/* ---- Engajamento ---- */}
-        <SectionHeader title="Engajamento" />
+        <SectionHeader title="Engajamento" styles={styles} />
         <View style={styles.grid3}>
           <View style={styles.engCard}>
-            <Ionicons name="person-outline" size={22} color={colors.primary} />
+            <Ionicons name="person-outline" size={22} color={t.brand.primary} />
             <Text style={styles.engValue}>
               {data.profile_breakdown.with_vocational_accompaniment}
             </Text>
             <Text style={styles.engLabel}>Com Acomp. Vocacional</Text>
           </View>
           <View style={styles.engCard}>
-            <Ionicons name="star-outline" size={22} color={colors.warning} />
+            <Ionicons name="star-outline" size={22} color={t.status.warning} />
             <Text style={styles.engValue}>
               {data.profile_breakdown.interested_in_ministry}
             </Text>
             <Text style={styles.engLabel}>Interesse em Ministério</Text>
           </View>
           <View style={styles.engCard}>
-            <Ionicons name="globe-outline" size={22} color={colors.success} />
+            <Ionicons name="globe-outline" size={22} color={t.status.success} />
             <Text style={styles.engValue}>
               {data.profile_breakdown.from_mission}
             </Text>
@@ -441,7 +447,7 @@ export default function DashboardScreen() {
         </View>
 
         {/* ---- Memberships ---- */}
-        <SectionHeader title="Memberships" />
+        <SectionHeader title="Memberships" styles={styles} />
         <View style={styles.card}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total Ativos</Text>
@@ -453,12 +459,13 @@ export default function DashboardScreen() {
               label={item.label}
               count={item.count}
               total={data.memberships.total_active || 1}
+              styles={styles}
             />
           ))}
         </View>
 
         {/* ---- Convites ---- */}
-        <SectionHeader title="Convites" />
+        <SectionHeader title="Convites" styles={styles} />
         <View style={styles.card}>
           <View style={styles.inviteGrid}>
             <View style={styles.inviteItem}>
@@ -466,19 +473,19 @@ export default function DashboardScreen() {
               <Text style={styles.inviteLabel}>Total</Text>
             </View>
             <View style={styles.inviteItem}>
-              <Text style={[styles.inviteValue, { color: colors.success }]}>
+              <Text style={[styles.inviteValue, { color: t.status.success }]}>
                 {data.invites.accepted}
               </Text>
               <Text style={styles.inviteLabel}>Aceitos</Text>
             </View>
             <View style={styles.inviteItem}>
-              <Text style={[styles.inviteValue, { color: colors.warning }]}>
+              <Text style={[styles.inviteValue, { color: t.status.warning }]}>
                 {data.invites.pending}
               </Text>
               <Text style={styles.inviteLabel}>Pendentes</Text>
             </View>
             <View style={styles.inviteItem}>
-              <Text style={[styles.inviteValue, { color: colors.error }]}>
+              <Text style={[styles.inviteValue, { color: t.status.error }]}>
                 {data.invites.declined}
               </Text>
               <Text style={styles.inviteLabel}>Recusados</Text>
@@ -494,7 +501,7 @@ export default function DashboardScreen() {
                   styles.barFill,
                   {
                     width: `${Math.min(data.invites.acceptance_rate, 100)}%`,
-                    backgroundColor: colors.success,
+                    backgroundColor: t.status.success,
                   },
                 ]}
               />
@@ -503,7 +510,7 @@ export default function DashboardScreen() {
         </View>
 
         {/* ---- Top Ministérios ---- */}
-        <SectionHeader title="Top Ministérios" />
+        <SectionHeader title="Top Ministérios" styles={styles} />
         <View style={styles.card}>
           {data.top_ministries.length === 0 ? (
             <Text style={styles.emptyText}>Sem dados</Text>
@@ -514,6 +521,7 @@ export default function DashboardScreen() {
                 rank={i + 1}
                 label={item.name}
                 count={item.member_count}
+                styles={styles}
               />
             ))
           )}
@@ -533,10 +541,10 @@ export default function DashboardScreen() {
 // -------------------------------------------------------------------------
 // Styles
 // -------------------------------------------------------------------------
-const styles = StyleSheet.create({
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: t.bg.elevated,
   },
   content: {
     padding: 16,
@@ -547,23 +555,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
-    backgroundColor: colors.background,
+    backgroundColor: t.bg.elevated,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: colors.gray,
+    color: t.text.secondary,
   },
   errorTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
+    color: t.text.primary,
     marginTop: 16,
     marginBottom: 8,
   },
   errorText: {
     fontSize: 14,
-    color: colors.textMuted,
+    color: t.text.secondary,
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -572,16 +580,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: colors.admin,
+    borderColor: ADMIN_COLOR,
   },
   backBtnText: {
-    color: colors.admin,
+    color: ADMIN_COLOR,
     fontSize: 15,
     fontWeight: '600',
   },
   // Header
   header: {
-    backgroundColor: colors.admin,
+    backgroundColor: ADMIN_COLOR,
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
@@ -590,7 +598,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.white,
+    color: t.text.inverse,
     marginTop: 10,
     marginBottom: 4,
   },
@@ -602,21 +610,21 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.text,
+    color: t.text.primary,
     marginTop: 16,
     marginBottom: 8,
   },
   subSectionTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.textMuted,
+    color: t.text.secondary,
     marginBottom: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   // Cards
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: t.bg.screen,
     borderRadius: 12,
     padding: 16,
   },
@@ -627,7 +635,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   metricCard: {
-    backgroundColor: colors.white,
+    backgroundColor: t.bg.screen,
     borderRadius: 12,
     padding: 16,
     width: '48%',
@@ -636,12 +644,12 @@ const styles = StyleSheet.create({
   metricValue: {
     fontSize: 28,
     fontWeight: '800',
-    color: colors.text,
+    color: t.text.primary,
     marginBottom: 4,
   },
   metricLabel: {
     fontSize: 12,
-    color: colors.textMuted,
+    color: t.text.secondary,
     textAlign: 'center',
   },
   // Bar rows
@@ -650,24 +658,24 @@ const styles = StyleSheet.create({
   },
   barLabel: {
     fontSize: 13,
-    color: colors.text,
+    color: t.text.primary,
     marginBottom: 4,
   },
   barTrack: {
     height: 8,
-    backgroundColor: colors.barBg,
+    backgroundColor: t.border.subtle,
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 2,
   },
   barFill: {
     height: 8,
-    backgroundColor: colors.admin,
+    backgroundColor: ADMIN_COLOR,
     borderRadius: 4,
   },
   barCount: {
     fontSize: 11,
-    color: colors.textMuted,
+    color: t.text.secondary,
   },
   // Ranked list rows
   rankedRow: {
@@ -675,23 +683,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 7,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: t.border.subtle,
   },
   rankedIndex: {
     width: 24,
     fontSize: 13,
     fontWeight: '700',
-    color: colors.admin,
+    color: ADMIN_COLOR,
   },
   rankedLabel: {
     flex: 1,
     fontSize: 13,
-    color: colors.text,
+    color: t.text.primary,
   },
   rankedCount: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.textMuted,
+    color: t.text.secondary,
   },
   // Label + count rows (catalog breakdown)
   labelRow: {
@@ -699,16 +707,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: t.border.subtle,
   },
   labelText: {
     flex: 1,
     fontSize: 13,
-    color: colors.text,
+    color: t.text.primary,
   },
   labelCount: {
     fontSize: 13,
-    color: colors.textMuted,
+    color: t.text.secondary,
     fontWeight: '500',
   },
   // Engagement 3-column grid
@@ -718,7 +726,7 @@ const styles = StyleSheet.create({
   },
   engCard: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: t.bg.screen,
     borderRadius: 12,
     padding: 14,
     alignItems: 'center',
@@ -726,12 +734,12 @@ const styles = StyleSheet.create({
   engValue: {
     fontSize: 22,
     fontWeight: '800',
-    color: colors.text,
+    color: t.text.primary,
     marginVertical: 6,
   },
   engLabel: {
     fontSize: 11,
-    color: colors.textMuted,
+    color: t.text.secondary,
     textAlign: 'center',
   },
   // Totals
@@ -741,17 +749,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: t.border.subtle,
   },
   totalLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
+    color: t.text.primary,
   },
   totalValue: {
     fontSize: 16,
     fontWeight: '800',
-    color: colors.admin,
+    color: ADMIN_COLOR,
   },
   // Invites
   inviteGrid: {
@@ -765,12 +773,12 @@ const styles = StyleSheet.create({
   inviteValue: {
     fontSize: 22,
     fontWeight: '800',
-    color: colors.text,
+    color: t.text.primary,
     marginBottom: 2,
   },
   inviteLabel: {
     fontSize: 11,
-    color: colors.textMuted,
+    color: t.text.secondary,
   },
   acceptanceRow: {
     gap: 6,
@@ -778,12 +786,12 @@ const styles = StyleSheet.create({
   acceptanceLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.text,
+    color: t.text.primary,
     marginBottom: 4,
   },
   emptyText: {
     fontSize: 13,
-    color: colors.textMuted,
+    color: t.text.secondary,
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 8,
@@ -794,11 +802,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: colors.admin,
+    borderColor: ADMIN_COLOR,
     alignItems: 'center',
   },
   backButtonText: {
-    color: colors.admin,
+    color: ADMIN_COLOR,
     fontSize: 16,
     fontWeight: '600',
   },
