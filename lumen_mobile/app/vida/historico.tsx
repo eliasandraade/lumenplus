@@ -8,6 +8,7 @@ import {
   View, Text, FlatList,
   TouchableOpacity, ActivityIndicator, RefreshControl, StyleSheet,
 } from 'react-native';
+import type { Href } from 'expo-router';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import projetoVidaMensalApi, {
@@ -72,7 +73,7 @@ export default function HistoricoScreen() {
         </Text>
         <TouchableOpacity
           style={[styles.startButton, { backgroundColor: t.brand.primary, borderRadius: r.lg }]}
-          onPress={() => router.replace('/vida' as any)}
+          onPress={() => router.replace('/vida' as Href)}
           accessibilityLabel="Ir para Projeto de Vida"
           accessibilityRole="button"
         >
@@ -114,6 +115,7 @@ export default function HistoricoScreen() {
           onPress={() => handleOpen(item)}
           activeOpacity={0.8}
           accessibilityLabel={`Ciclo de ${MESES[item.mes - 1]} ${item.ano}`}
+          accessibilityRole="button"
         >
           <View style={styles.cardTop}>
             <View style={{ flex: 1 }}>
