@@ -109,6 +109,7 @@ const formatDate = (v: string): string => {
 
 export default function ProfileScreen() {
   const { t } = useTheme();
+  const styles = makeStyles(t);
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [email, setEmail] = useState('');
@@ -478,36 +479,36 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Dados Pessoais ── */}
-        <SectionTitle>Dados Pessoais</SectionTitle>
+        <SectionTitle t={t}>Dados Pessoais</SectionTitle>
         <View style={styles.card}>
-          <InfoRow icon="person-outline" label="Nome" value={profile?.full_name} />
-          <InfoRow icon="calendar-outline" label="Nascimento" value={isoToDisplay(profile?.birth_date) || undefined} />
-          <InfoRow icon="call-outline" label="Telefone" value={e164ToDisplay(profile?.phone_e164) || undefined} />
-          <InfoRow icon="logo-instagram" label="Instagram" value={profile?.instagram} />
+          <InfoRow icon="person-outline" label="Nome" value={profile?.full_name} t={t} />
+          <InfoRow icon="calendar-outline" label="Nascimento" value={isoToDisplay(profile?.birth_date) || undefined} t={t} />
+          <InfoRow icon="call-outline" label="Telefone" value={e164ToDisplay(profile?.phone_e164) || undefined} t={t} />
+          <InfoRow icon="logo-instagram" label="Instagram" value={profile?.instagram} t={t} />
           <InfoRow icon="map-outline" label="Estado / País"
-            value={profile?.state ?? (profile?.country ? `${profile.country} (exterior)` : undefined)} />
-          <InfoRow icon="location-outline" label="Cidade" value={profile?.city} last />
+            value={profile?.state ?? (profile?.country ? `${profile.country} (exterior)` : undefined)} t={t} />
+          <InfoRow icon="location-outline" label="Cidade" value={profile?.city} last t={t} />
         </View>
 
         {/* ── Informações da Comunidade ── */}
-        <SectionTitle>Informações da Comunidade</SectionTitle>
+        <SectionTitle t={t}>Informações da Comunidade</SectionTitle>
         <View style={styles.card}>
-          <InfoRow icon="heart-outline" label="Estado de Vida" value={profile?.life_state_label} />
-          <InfoRow icon="people-outline" label="Estado Civil" value={profile?.marital_status_label} />
+          <InfoRow icon="heart-outline" label="Estado de Vida" value={profile?.life_state_label} t={t} />
+          <InfoRow icon="people-outline" label="Estado Civil" value={profile?.marital_status_label} t={t} />
           {profile?.spouse_in_community != null ? (
             <InfoRow icon="people-circle-outline" label="Cônjuge na Comunidade"
-              value={profile.spouse_in_community ? 'Sim' : 'Não'} />
+              value={profile.spouse_in_community ? 'Sim' : 'Não'} t={t} />
           ) : null}
-          <InfoRow icon="star-outline" label="Realidade Vocacional" value={profile?.vocational_reality_label} />
+          <InfoRow icon="star-outline" label="Realidade Vocacional" value={profile?.vocational_reality_label} t={t} />
           {profile?.consecration_year ? (
-            <InfoRow icon="ribbon-outline" label="Ano de Consagração" value={String(profile.consecration_year)} />
+            <InfoRow icon="ribbon-outline" label="Ano de Consagração" value={String(profile.consecration_year)} t={t} />
           ) : null}
           {profile?.realidade_atual?.length ? (
-            <InfoRow icon="list-outline" label="Realidade Atual" value={profile.realidade_atual.join(', ')} />
+            <InfoRow icon="list-outline" label="Realidade Atual" value={profile.realidade_atual.join(', ')} t={t} />
           ) : null}
-          <InfoRow icon="flame-outline" label="Encontro Despertar" value={profile?.despertar_encounter} />
+          <InfoRow icon="flame-outline" label="Encontro Despertar" value={profile?.despertar_encounter} t={t} />
           <InfoRow icon="globe-outline" label="É de alguma Missão"
-            value={profile?.is_from_mission == null ? undefined : profile.is_from_mission ? (profile.mission_name ?? 'Sim') : 'Não'} last />
+            value={profile?.is_from_mission == null ? undefined : profile.is_from_mission ? (profile.mission_name ?? 'Sim') : 'Não'} last t={t} />
         </View>
 
         {/* ── Retiros e Eventos ── */}
@@ -516,53 +517,53 @@ export default function ProfileScreen() {
           <InfoRow icon="bed-outline" label="Disponibilidade de Acomodação"
             value={profile?.accommodation_options?.length
               ? profile.accommodation_options.map(v => ACCOMMODATION_OPTIONS.find(o => o.value === v)?.label ?? v).join(', ')
-              : undefined} />
+              : undefined} t={t} />
           <InfoRow icon="restaurant-outline" label="Restrição Alimentar"
             value={profile?.dietary_restriction == null ? undefined
-              : profile.dietary_restriction ? (profile.dietary_restriction_notes ?? 'Sim') : 'Não'} />
+              : profile.dietary_restriction ? (profile.dietary_restriction_notes ?? 'Sim') : 'Não'} t={t} />
           <InfoRow icon="medkit-outline" label="Plano de Saúde"
             value={profile?.health_insurance == null ? undefined
-              : profile.health_insurance ? (profile.health_insurance_name ?? 'Sim') : 'Não'} last />
+              : profile.health_insurance ? (profile.health_insurance_name ?? 'Sim') : 'Não'} last t={t} />
         </View>
 
         {/* ── Acompanhamento Vocacional ── */}
-        <SectionTitle>Acompanhamento Vocacional</SectionTitle>
+        <SectionTitle t={t}>Acompanhamento Vocacional</SectionTitle>
         <View style={styles.card}>
           <InfoRow icon="hand-left-outline" label="Possui acompanhamento"
             value={profile?.has_vocational_accompaniment == null ? undefined
-              : profile.has_vocational_accompaniment ? 'Sim' : 'Não'} last />
+              : profile.has_vocational_accompaniment ? 'Sim' : 'Não'} last t={t} />
         </View>
 
         {/* ── Interesse em Ministério ── */}
-        <SectionTitle>Interesse em Ministério</SectionTitle>
+        <SectionTitle t={t}>Interesse em Ministério</SectionTitle>
         <View style={styles.card}>
           <InfoRow icon="flag-outline" label="Tem interesse"
             value={profile?.interested_in_ministry == null ? undefined
-              : profile.interested_in_ministry ? 'Sim' : 'Não'} />
+              : profile.interested_in_ministry ? 'Sim' : 'Não'} t={t} />
           {profile?.interested_in_ministry && profile?.ministry_interest_notes
-            ? <InfoRow icon="document-text-outline" label="Observações" value={profile.ministry_interest_notes} last />
+            ? <InfoRow icon="document-text-outline" label="Observações" value={profile.ministry_interest_notes} last t={t} />
             : <View style={{ height: 2 }} />
           }
         </View>
 
         {/* ── Música e Ministério Musical ── */}
-        <SectionTitle>Música e Ministério Musical</SectionTitle>
+        <SectionTitle t={t}>Música e Ministério Musical</SectionTitle>
         <View style={styles.card}>
           <InfoRow icon="musical-notes-outline" label="Toca instrumento ou canta"
             value={profile?.plays_instrument == null ? undefined
-              : profile.plays_instrument ? 'Sim' : 'Não'} />
+              : profile.plays_instrument ? 'Sim' : 'Não'} t={t} />
           {profile?.plays_instrument && profile.instrument_names?.length ? (
             <InfoRow icon="musical-note-outline" label="Instrumento(s)"
-              value={profile.instrument_names.join(', ')} />
+              value={profile.instrument_names.join(', ')} t={t} />
           ) : null}
           {profile?.plays_instrument ? (
             <InfoRow icon="people-outline" label="Disponível para grupo"
               value={profile.available_for_group == null ? undefined
-                : profile.available_for_group ? 'Sim' : 'Não'} />
+                : profile.available_for_group ? 'Sim' : 'Não'} t={t} />
           ) : null}
           {profile?.plays_instrument && profile.available_for_group && profile.music_availability?.length ? (
             <InfoRow icon="time-outline" label="Disponibilidade"
-              value={profile.music_availability.join(', ')} last />
+              value={profile.music_availability.join(', ')} last t={t} />
           ) : (
             <View style={{ height: 2 }} />
           )}
@@ -571,9 +572,9 @@ export default function ProfileScreen() {
         {/* ── Contato de Emergência ── */}
         <SectionTitle sensitive t={t}>Contato de Emergência</SectionTitle>
         <View style={styles.card}>
-          <InfoRow icon="person-add-outline" label="Nome" value={ec?.name} />
-          <InfoRow icon="heart-circle-outline" label="Parentesco" value={ec?.relationship} />
-          <InfoRow icon="call-outline" label="Telefone" value={e164ToDisplay(ec?.phone_e164) || undefined} last />
+          <InfoRow icon="person-add-outline" label="Nome" value={ec?.name} t={t} />
+          <InfoRow icon="heart-circle-outline" label="Parentesco" value={ec?.relationship} t={t} />
+          <InfoRow icon="call-outline" label="Telefone" value={e164ToDisplay(ec?.phone_e164) || undefined} last t={t} />
         </View>
 
         {/* ── Sair ── */}
@@ -1227,31 +1228,41 @@ export default function ProfileScreen() {
 const SectionTitle = memo(function SectionTitle({
   children, sensitive = false, t,
 }: {
-  children: string; sensitive?: boolean; t?: SemanticTokens;
+  children: string; sensitive?: boolean; t: SemanticTokens;
 }) {
-  if (sensitive && t) {
+  const titleStyle = {
+    fontSize: 11 as const,
+    fontFamily: 'Nunito-Bold',
+    color: t.text.tertiary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 1,
+  };
+  if (sensitive) {
     return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, marginBottom: 6, paddingHorizontal: 2 }}>
-        <Text style={styles.sectionTitle}>{children}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 6, paddingHorizontal: 2 }}>
+        <Text style={titleStyle}>{children}</Text>
         <Ionicons name="shield-checkmark-outline" size={13} color={t.brand.primary} style={{ opacity: 0.5 }} />
       </View>
     );
   }
-  return <Text style={styles.sectionTitle}>{children}</Text>;
+  return <Text style={[titleStyle, { marginTop: 16, marginBottom: 6, paddingHorizontal: 2 }]}>{children}</Text>;
 });
 
-const InfoRow = memo(function InfoRow({ icon, label, value, last }: {
-  icon: string; label: string; value?: string | null; last?: boolean;
+const InfoRow = memo(function InfoRow({ icon, label, value, last, t }: {
+  icon: string; label: string; value?: string | null; last?: boolean; t: SemanticTokens;
 }) {
   const isEmpty = !value;
   return (
-    <View style={[styles.row, last ? styles.rowLast : null]}>
-      <Ionicons name={icon as IoniconsName} size={18} color={PRIMARY} style={{ opacity: 0.7 }} />
-      <View style={styles.rowContent}>
-        <Text style={styles.rowLabel}>{label}</Text>
+    <View style={{
+      flexDirection: 'row', alignItems: 'center', padding: 14,
+      borderBottomWidth: last ? 0 : 1, borderBottomColor: t.border.subtle,
+    }}>
+      <Ionicons name={icon as IoniconsName} size={18} color={t.brand.primary} style={{ opacity: 0.7 }} />
+      <View style={{ flex: 1, marginLeft: 12 }}>
+        <Text style={{ fontSize: 11, color: t.text.secondary, fontFamily: 'Nunito-Regular' }}>{label}</Text>
         {isEmpty
-          ? <Text style={[styles.rowValue, { color: GRAY, fontStyle: 'italic', fontSize: 14 }]}>—</Text>
-          : <Text style={styles.rowValue}>{value}</Text>
+          ? <Text style={{ fontSize: 14, color: t.text.tertiary, fontStyle: 'italic', marginTop: 2 }}>—</Text>
+          : <Text style={{ fontSize: 15, color: t.text.primary, marginTop: 2, fontFamily: 'Nunito-SemiBold' }}>{value}</Text>
         }
       </View>
     </View>
@@ -1262,135 +1273,128 @@ const InfoRow = memo(function InfoRow({ icon, label, value, last }: {
 // ESTILOS
 // =============================================================================
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.screen },
   content: { padding: 16, paddingBottom: 48 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: BG },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: t.bg.screen },
 
-  headerCard: { backgroundColor: WHITE, borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 12 },
+  headerCard: { backgroundColor: t.bg.elevated, borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 12 },
   avatarContainer: { marginBottom: 14 },
-  avatar: { width: 96, height: 96, borderRadius: 48 },
+  avatar: { width: 88, height: 88, borderRadius: 44 },
   avatarPlaceholder: {
-    width: 96, height: 96, borderRadius: 48,
-    backgroundColor: PRIMARY, alignItems: 'center', justifyContent: 'center',
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: t.brand.primary, alignItems: 'center', justifyContent: 'center',
   },
-  userName: { fontSize: 22, fontWeight: 'bold', color: '#171717', marginBottom: 4 },
-  userEmail: { fontSize: 14, color: GRAY, marginBottom: 12 },
+  userName: { fontSize: 22, fontFamily: 'Nunito-Bold', color: t.text.primary, marginBottom: 4 },
+  userEmail: { fontSize: 14, color: t.text.secondary, marginBottom: 12, fontFamily: 'Nunito-Regular' },
   statusChip: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, marginBottom: 14 },
-  statusComplete: { backgroundColor: 'rgba(34,197,94,0.1)' },
-  statusPending: { backgroundColor: 'rgba(245,158,11,0.1)' },
-  statusText: { fontSize: 13, fontWeight: '600' },
+  statusComplete: { backgroundColor: t.status.successBg },
+  statusPending: { backgroundColor: t.status.warningBg },
+  statusText: { fontSize: 13, fontFamily: 'Nunito-SemiBold' },
   editProfileButton: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 20, paddingVertical: 10,
-    borderRadius: 20, borderWidth: 1.5, borderColor: PRIMARY,
+    borderRadius: 20, borderWidth: 1, borderColor: t.border.subtle,
   },
-  editProfileButtonText: { color: PRIMARY, fontSize: 15, fontWeight: '600' },
+  editProfileButtonText: { color: t.brand.primary, fontSize: 15, fontFamily: 'Nunito-SemiBold' },
 
-  sectionTitle: { fontSize: 13, fontWeight: '600', color: GRAY, marginTop: 12, marginBottom: 6, paddingHorizontal: 2 },
-  card: { backgroundColor: WHITE, borderRadius: 12, marginBottom: 4, overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  rowLast: { borderBottomWidth: 0 },
-  rowContent: { flex: 1, marginLeft: 12 },
-  rowLabel: { fontSize: 11, color: GRAY },
-  rowValue: { fontSize: 15, color: '#171717', marginTop: 2 },
+  card: { backgroundColor: t.bg.elevated, borderRadius: 12, marginBottom: 4, overflow: 'hidden' },
 
   logoutButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     marginTop: 24, padding: 14, gap: 8,
   },
-  logoutText: { color: '#ef4444', fontSize: 14, fontWeight: '600' },
-  version: { textAlign: 'center', fontSize: 12, color: GRAY, marginTop: 16 },
+  logoutText: { color: t.status.error, fontSize: 14, fontFamily: 'Nunito-SemiBold' },
+  version: { textAlign: 'center', fontSize: 12, color: t.text.tertiary, marginTop: 16 },
 
-  editModal: { flex: 1, backgroundColor: BG },
+  editModal: { flex: 1, backgroundColor: t.bg.screen },
   editHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: WHITE, paddingHorizontal: 16, paddingTop: 56, paddingBottom: 16,
-    borderBottomWidth: 1, borderBottomColor: '#e5e7eb',
+    backgroundColor: t.bg.elevated, paddingHorizontal: 16, paddingTop: 56, paddingBottom: 16,
+    borderBottomWidth: 1, borderBottomColor: t.border.subtle,
   },
   editHeaderBack: { padding: 4 },
-  editHeaderTitle: { fontSize: 18, fontWeight: '600', color: '#171717' },
+  editHeaderTitle: { fontSize: 18, fontFamily: 'Nunito-Bold', color: t.text.primary },
   editBody: { flex: 1 },
   editBodyContent: { padding: 16, paddingBottom: 48 },
 
   editSection: {
-    fontSize: 13, fontWeight: '700', color: PRIMARY,
+    fontSize: 11, fontFamily: 'Nunito-Bold', color: t.brand.primary,
     marginBottom: 10, marginTop: 4,
     textTransform: 'uppercase', letterSpacing: 0.5,
   },
-  editLabel: { fontSize: 13, color: GRAY, marginBottom: 4, marginLeft: 2 },
+  editLabel: { fontSize: 13, color: t.text.secondary, marginBottom: 4, marginLeft: 2, fontFamily: 'Nunito-Regular' },
   editInput: {
-    backgroundColor: WHITE, borderRadius: 10,
+    backgroundColor: t.bg.elevated, borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: 13,
-    fontSize: 15, color: '#171717', marginBottom: 12,
-    borderWidth: 1, borderColor: '#e5e7eb',
+    fontSize: 15, color: t.text.primary, marginBottom: 12,
+    borderWidth: 1, borderColor: t.border.subtle,
+    fontFamily: 'Nunito-Regular',
   },
-  editInputError: { borderColor: '#ef4444', marginBottom: 4 },
+  editInputError: { borderColor: t.status.error, marginBottom: 4 },
   editInputMultiline: { height: 110, textAlignVertical: 'top', paddingTop: 12 },
   editSelector: {
-    backgroundColor: WHITE, borderRadius: 10,
+    backgroundColor: t.bg.elevated, borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: 13,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: 12, borderWidth: 1, borderColor: '#e5e7eb',
+    marginBottom: 12, borderWidth: 1, borderColor: t.border.subtle,
   },
-  editSelectorValue: { fontSize: 15, color: '#171717', flex: 1 },
-  editSelectorPlaceholder: { fontSize: 15, color: '#9ca3af', flex: 1 },
-  editError: { color: '#ef4444', fontSize: 12, marginBottom: 10, marginLeft: 4 },
+  editSelectorValue: { fontSize: 15, color: t.text.primary, flex: 1, fontFamily: 'Nunito-Regular' },
+  editSelectorPlaceholder: { fontSize: 15, color: t.text.tertiary, flex: 1, fontFamily: 'Nunito-Regular' },
+  editError: { color: t.status.error, fontSize: 12, marginBottom: 10, marginLeft: 4 },
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: WHITE, borderRadius: 10,
+    backgroundColor: t.bg.elevated, borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: 12,
-    marginBottom: 12, borderWidth: 1, borderColor: '#e5e7eb',
+    marginBottom: 12, borderWidth: 1, borderColor: t.border.subtle,
   },
-  toggleLabel: { fontSize: 15, color: '#171717', flex: 1, marginRight: 12 },
-  saveButton: { backgroundColor: PRIMARY, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
+  toggleLabel: { fontSize: 15, color: t.text.primary, flex: 1, marginRight: 12, fontFamily: 'Nunito-Regular' },
+  saveButton: { backgroundColor: t.brand.primary, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
   saveButtonDisabled: { opacity: 0.6 },
-  saveButtonText: { color: WHITE, fontSize: 16, fontWeight: '700' },
+  saveButtonText: { color: t.text.inverse, fontSize: 16, fontFamily: 'Nunito-Bold' },
   saveErrorBox: {
-    backgroundColor: '#FEE2E2', borderRadius: 8, padding: 12,
-    marginTop: 12, borderWidth: 1, borderColor: '#FECACA',
+    backgroundColor: t.status.errorBg, borderRadius: 8, padding: 12,
+    marginTop: 12, borderWidth: 1, borderColor: t.status.error,
   },
-  saveErrorText: { color: '#B91C1C', fontSize: 13, textAlign: 'center' },
+  saveErrorText: { color: t.status.error, fontSize: 13, textAlign: 'center' },
 
-  // Chips de instrumento
   chipsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   chip: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    borderWidth: 1.5, borderColor: '#d1d5db', backgroundColor: WHITE,
+    borderWidth: 1.5, borderColor: t.border.subtle, backgroundColor: t.bg.surface,
   },
-  chipSelected: { borderColor: PRIMARY, backgroundColor: PRIMARY },
-  chipText: { fontSize: 14, color: GRAY, fontWeight: '500' },
-  chipTextSelected: { color: WHITE, fontWeight: '700' },
+  chipSelected: { borderColor: t.brand.primary, backgroundColor: t.brand.primary },
+  chipText: { fontSize: 14, color: t.text.secondary, fontFamily: 'Nunito-SemiBold' },
+  chipTextSelected: { color: t.text.inverse, fontFamily: 'Nunito-Bold' },
 
-  // Grade de disponibilidade
   availGrid: {
-    backgroundColor: WHITE, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb',
+    backgroundColor: t.bg.elevated, borderRadius: 10, borderWidth: 1, borderColor: t.border.subtle,
     marginBottom: 12, overflow: 'hidden',
   },
-  availHeaderRow: { flexDirection: 'row', backgroundColor: '#f9fafb', paddingVertical: 8, paddingHorizontal: 10 },
-  availTurnHeader: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '700', color: GRAY },
-  availRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  availHeaderRow: { flexDirection: 'row', backgroundColor: t.bg.surface, paddingVertical: 8, paddingHorizontal: 10 },
+  availTurnHeader: { flex: 1, textAlign: 'center', fontSize: 12, fontFamily: 'Nunito-Bold', color: t.text.secondary },
+  availRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 10, borderTopWidth: 1, borderTopColor: t.border.subtle },
   availDayCell: { width: 62 },
-  availDayLabel: { width: 62, fontSize: 12, color: '#374151', fontWeight: '500' },
+  availDayLabel: { width: 62, fontSize: 12, color: t.text.primary, fontFamily: 'Nunito-SemiBold' },
   availCell: {
     flex: 1, height: 28, borderRadius: 6, alignItems: 'center', justifyContent: 'center',
-    marginHorizontal: 3, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#f9fafb',
+    marginHorizontal: 3, borderWidth: 1, borderColor: t.border.subtle, backgroundColor: t.bg.surface,
   },
-  availCellChecked: { backgroundColor: PRIMARY, borderColor: PRIMARY },
+  availCellChecked: { backgroundColor: t.brand.primary, borderColor: t.brand.primary },
 
-  subOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  subSheet: { backgroundColor: WHITE, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%' },
+  subOverlay: { flex: 1, backgroundColor: t.bg.overlay, justifyContent: 'flex-end' },
+  subSheet: { backgroundColor: t.bg.elevated, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%' },
   subHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 16, borderBottomWidth: 1, borderBottomColor: '#e5e5e5',
+    padding: 16, borderBottomWidth: 1, borderBottomColor: t.border.subtle,
   },
-  subTitle: { fontSize: 18, fontWeight: '600', color: '#171717' },
+  subTitle: { fontSize: 18, fontFamily: 'Nunito-Bold', color: t.text.primary },
   subItem: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: 14, paddingHorizontal: 20,
-    borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+    borderBottomWidth: 1, borderBottomColor: t.border.subtle,
   },
-  subItemSelected: { backgroundColor: 'rgba(26,133,155,0.07)' },
-  subItemText: { fontSize: 16, color: '#171717' },
-  subItemTextSelected: { color: PRIMARY, fontWeight: '600' },
+  subItemSelected: { backgroundColor: t.brand.primaryDim },
+  subItemText: { fontSize: 16, color: t.text.primary, fontFamily: 'Nunito-Regular' },
+  subItemTextSelected: { color: t.brand.primary, fontFamily: 'Nunito-Bold' },
 });
