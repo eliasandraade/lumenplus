@@ -12,17 +12,12 @@ import {
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '@/services/api';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
-const colors = {
-  primary: '#7c3aed',
-  white: '#ffffff',
-  gray: '#6b7280',
-  lightGray: '#f3f4f6',
-  green: '#059669',
-  red: '#dc2626',
-  blue: '#2563eb',
-};
+const ADMIN_COLOR = '#7c3aed';
 
+// Static status colors kept as constants (not theme-dependent — semantic status colors)
 const STATUS_META: Record<string, { label: string; color: string }> = {
   DRAFT:     { label: 'Rascunho',  color: '#6b7280' },
   PUBLISHED: { label: 'Publicado', color: '#059669' },
@@ -169,6 +164,9 @@ interface RetreatDetail {
 }
 
 export default function AdminRetreatDetailScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const [retreat, setRetreat]       = useState<RetreatDetail | null>(null);
   const [regs, setRegs]             = useState<Registration[]>([]);
@@ -592,7 +590,7 @@ export default function AdminRetreatDetailScreen() {
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+    return <View style={styles.center}><ActivityIndicator size="large" color={ADMIN_COLOR} /></View>;
   }
 
   if (error || !retreat) {
@@ -606,7 +604,7 @@ export default function AdminRetreatDetailScreen() {
     );
   }
 
-  const statusMeta = STATUS_META[retreat.status] ?? { label: retreat.status, color: colors.gray };
+  const statusMeta = STATUS_META[retreat.status] ?? { label: retreat.status, color: t.text.secondary };
   const fmt = (iso: string) =>
     new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -614,7 +612,7 @@ export default function AdminRetreatDetailScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[ADMIN_COLOR]} />}
     >
       {/* ── Cabeçalho ── */}
       <View style={styles.card}>
@@ -627,12 +625,12 @@ export default function AdminRetreatDetailScreen() {
         <Text style={styles.title}>{retreat.title}</Text>
         {retreat.description && <Text style={styles.desc}>{retreat.description}</Text>}
         <View style={styles.metaGrid}>
-          <MetaRow icon="calendar-outline" text={`${fmt(retreat.start_date)} → ${fmt(retreat.end_date)}`} />
-          {retreat.location && <MetaRow icon="location-outline" text={retreat.location} />}
+          <MetaRow icon="calendar-outline" text={`${fmt(retreat.start_date)} → ${fmt(retreat.end_date)}`} t={t} styles={styles} />
+          {retreat.location && <MetaRow icon="location-outline" text={retreat.location} t={t} styles={styles} />}
           {retreat.max_participants != null && (
-            <MetaRow icon="people-outline" text={`${retreat.registrations_count}/${retreat.max_participants} inscritos`} />
+            <MetaRow icon="people-outline" text={`${retreat.registrations_count}/${retreat.max_participants} inscritos`} t={t} styles={styles} />
           )}
-          <MetaRow icon="eye-outline" text={retreat.visibility_type === 'ALL' ? 'Todos os membros' : 'Específico'} />
+          <MetaRow icon="eye-outline" text={retreat.visibility_type === 'ALL' ? 'Todos os membros' : 'Específico'} t={t} styles={styles} />
         </View>
       </View>
 
@@ -641,7 +639,7 @@ export default function AdminRetreatDetailScreen() {
         <View style={styles.actionMsg}>
           <Text style={styles.actionMsgText}>{actionMsg}</Text>
           <TouchableOpacity onPress={() => setActionMsg(null)}>
-            <Ionicons name="close" size={16} color={colors.gray} />
+            <Ionicons name="close" size={16} color={t.text.secondary} />
           </TouchableOpacity>
         </View>
       )}
@@ -650,7 +648,7 @@ export default function AdminRetreatDetailScreen() {
       <View style={styles.actionsRow}>
         {retreat.status === 'DRAFT' && (
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: colors.green }]}
+            style={[styles.actionBtn, { backgroundColor: t.status.success }]}
             onPress={() => setConfirmModal({
               title: 'Publicar retiro?',
               body: 'Um aviso será enviado para todos os membros elegíveis.',
@@ -658,13 +656,13 @@ export default function AdminRetreatDetailScreen() {
             })}
             disabled={processing}
           >
-            <Ionicons name="megaphone-outline" size={16} color={colors.white} />
+            <Ionicons name="megaphone-outline" size={16} color={t.text.inverse} />
             <Text style={styles.actionBtnText}>Publicar</Text>
           </TouchableOpacity>
         )}
         {retreat.status === 'PUBLISHED' && (
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: colors.blue }]}
+            style={[styles.actionBtn, { backgroundColor: t.status.info }]}
             onPress={() => setConfirmModal({
               title: 'Fechar inscrições?',
               body: 'Novos membros não poderão se inscrever após fechar.',
@@ -672,13 +670,13 @@ export default function AdminRetreatDetailScreen() {
             })}
             disabled={processing}
           >
-            <Ionicons name="lock-closed-outline" size={16} color={colors.white} />
+            <Ionicons name="lock-closed-outline" size={16} color={t.text.inverse} />
             <Text style={styles.actionBtnText}>Fechar inscrições</Text>
           </TouchableOpacity>
         )}
         {['DRAFT', 'PUBLISHED'].includes(retreat.status) && (
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: colors.red }]}
+            style={[styles.actionBtn, { backgroundColor: t.status.error }]}
             onPress={() => setConfirmModal({
               title: 'Cancelar retiro?',
               body: 'Esta ação não pode ser desfeita.',
@@ -686,15 +684,15 @@ export default function AdminRetreatDetailScreen() {
             })}
             disabled={processing}
           >
-            <Ionicons name="close-circle-outline" size={16} color={colors.white} />
+            <Ionicons name="close-circle-outline" size={16} color={t.text.inverse} />
             <Text style={styles.actionBtnText}>Cancelar</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: colors.gray }]}
+          style={[styles.actionBtn, { backgroundColor: t.text.secondary }]}
           onPress={() => Linking.openURL(`${api.baseUrl}/admin/retreats/${id}/export`)}
         >
-          <Ionicons name="download-outline" size={16} color={colors.white} />
+          <Ionicons name="download-outline" size={16} color={t.text.inverse} />
           <Text style={styles.actionBtnText}>CSV</Text>
         </TouchableOpacity>
       </View>
@@ -703,7 +701,7 @@ export default function AdminRetreatDetailScreen() {
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Casas ({retreat.houses.length})</Text>
         <TouchableOpacity style={styles.addBtn} onPress={openAddHouse}>
-          <Ionicons name="add" size={16} color={colors.primary} />
+          <Ionicons name="add" size={16} color={ADMIN_COLOR} />
           <Text style={styles.addBtnText}>Adicionar</Text>
         </TouchableOpacity>
       </View>
@@ -720,7 +718,7 @@ export default function AdminRetreatDetailScreen() {
                 <Text style={styles.houseName}>{house.name}</Text>
                 <View style={styles.houseInfo}>
                   <View style={[styles.modalityPill, { backgroundColor: house.modality === 'PRESENCIAL' ? '#dbeafe' : '#fef3c7' }]}>
-                    <Text style={[styles.modalityPillText, { color: house.modality === 'PRESENCIAL' ? colors.blue : '#d97706' }]}>
+                    <Text style={[styles.modalityPillText, { color: house.modality === 'PRESENCIAL' ? t.status.info : '#d97706' }]}>
                       {MODALITY_LABEL[house.modality] ?? house.modality}
                     </Text>
                   </View>
@@ -731,7 +729,7 @@ export default function AdminRetreatDetailScreen() {
               </View>
               <View style={styles.houseActions}>
                 <TouchableOpacity onPress={() => openEditHouse(house)} style={styles.iconBtn}>
-                  <Ionicons name="pencil-outline" size={16} color={colors.gray} />
+                  <Ionicons name="pencil-outline" size={16} color={t.text.secondary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setConfirmModal({
@@ -741,7 +739,7 @@ export default function AdminRetreatDetailScreen() {
                   })}
                   style={styles.iconBtn}
                 >
-                  <Ionicons name="trash-outline" size={16} color={colors.red} />
+                  <Ionicons name="trash-outline" size={16} color={t.status.error} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -753,7 +751,7 @@ export default function AdminRetreatDetailScreen() {
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Taxas ({retreat.fee_types.length}/{FEE_ALL_CATEGORIES.length})</Text>
         <TouchableOpacity style={styles.addBtn} onPress={openFeeModal}>
-          <Ionicons name="pencil-outline" size={16} color={colors.primary} />
+          <Ionicons name="pencil-outline" size={16} color={ADMIN_COLOR} />
           <Text style={styles.addBtnText}>Editar</Text>
         </TouchableOpacity>
       </View>
@@ -779,7 +777,7 @@ export default function AdminRetreatDetailScreen() {
           Quem pode participar ({retreat.participant_eligibility_rules.length})
         </Text>
         <TouchableOpacity style={styles.addBtn} onPress={() => openEligibilityModal('PARTICIPANT')}>
-          <Ionicons name="add" size={16} color={colors.primary} />
+          <Ionicons name="add" size={16} color={ADMIN_COLOR} />
           <Text style={styles.addBtnText}>Adicionar</Text>
         </TouchableOpacity>
       </View>
@@ -789,7 +787,7 @@ export default function AdminRetreatDetailScreen() {
         </View>
       ) : (
         retreat.participant_eligibility_rules.map(rule => (
-          <EligibilityRuleRow key={rule.id} rule={rule} onDelete={() => handleDeleteEligibilityRule(rule.id)} />
+          <EligibilityRuleRow key={rule.id} rule={rule} onDelete={() => handleDeleteEligibilityRule(rule.id)} t={t} styles={styles} />
         ))
       )}
 
@@ -799,7 +797,7 @@ export default function AdminRetreatDetailScreen() {
           Quem pode servir ({retreat.service_eligibility_rules.length})
         </Text>
         <TouchableOpacity style={styles.addBtn} onPress={() => openEligibilityModal('SERVICE')}>
-          <Ionicons name="add" size={16} color={colors.primary} />
+          <Ionicons name="add" size={16} color={ADMIN_COLOR} />
           <Text style={styles.addBtnText}>Adicionar</Text>
         </TouchableOpacity>
       </View>
@@ -809,7 +807,7 @@ export default function AdminRetreatDetailScreen() {
         </View>
       ) : (
         retreat.service_eligibility_rules.map(rule => (
-          <EligibilityRuleRow key={rule.id} rule={rule} onDelete={() => handleDeleteEligibilityRule(rule.id)} />
+          <EligibilityRuleRow key={rule.id} rule={rule} onDelete={() => handleDeleteEligibilityRule(rule.id)} t={t} styles={styles} />
         ))
       )}
 
@@ -822,7 +820,7 @@ export default function AdminRetreatDetailScreen() {
           style={styles.addBtn}
           onPress={() => { setCoordUserId(''); setCoordSearch(''); setCoordModal(true); }}
         >
-          <Ionicons name="person-add-outline" size={16} color={colors.primary} />
+          <Ionicons name="person-add-outline" size={16} color={ADMIN_COLOR} />
           <Text style={styles.addBtnText}>Adicionar</Text>
         </TouchableOpacity>
       </View>
@@ -838,10 +836,10 @@ export default function AdminRetreatDetailScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                 <View style={{
                   width: 36, height: 36, borderRadius: 18,
-                  backgroundColor: `${colors.primary}18`,
+                  backgroundColor: `${ADMIN_COLOR}18`,
                   alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Ionicons name="person-outline" size={18} color={colors.primary} />
+                  <Ionicons name="person-outline" size={18} color={ADMIN_COLOR} />
                 </View>
                 <View>
                   <Text style={styles.houseName}>{coord.user_name || 'Usuário'}</Text>
@@ -856,7 +854,7 @@ export default function AdminRetreatDetailScreen() {
                   action: async () => { setConfirmModal(null); await handleRemoveCoordinator(coord.id); },
                 })}
               >
-                <Ionicons name="trash-outline" size={16} color={colors.red} />
+                <Ionicons name="trash-outline" size={16} color={t.status.error} />
               </TouchableOpacity>
             </View>
           </View>
@@ -872,7 +870,7 @@ export default function AdminRetreatDetailScreen() {
           style={styles.addBtn}
           onPress={() => { setTeamName(''); setTeamDesc(''); setTeamModal({ mode: 'create' }); }}
         >
-          <Ionicons name="add" size={16} color={colors.primary} />
+          <Ionicons name="add" size={16} color={ADMIN_COLOR} />
           <Text style={styles.addBtnText}>Nova equipe</Text>
         </TouchableOpacity>
       </View>
@@ -904,7 +902,7 @@ export default function AdminRetreatDetailScreen() {
                     setTeamModal({ mode: 'assign', team });
                   }}
                 >
-                  <Ionicons name="person-add-outline" size={16} color={colors.primary} />
+                  <Ionicons name="person-add-outline" size={16} color={ADMIN_COLOR} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.iconBtn}
@@ -914,7 +912,7 @@ export default function AdminRetreatDetailScreen() {
                     action: async () => { setConfirmModal(null); await handleDeleteTeam(team.id); },
                   })}
                 >
-                  <Ionicons name="trash-outline" size={16} color={colors.red} />
+                  <Ionicons name="trash-outline" size={16} color={t.status.error} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -923,12 +921,12 @@ export default function AdminRetreatDetailScreen() {
             {team.members.length > 0 && (
               <View style={{ marginTop: 8, gap: 4 }}>
                 {team.members.map(m => (
-                  <View key={m.id} style={[styles.row, { paddingVertical: 4, borderTopWidth: 1, borderTopColor: '#f3f4f6' }]}>
+                  <View key={m.id} style={[styles.row, { paddingVertical: 4, borderTopWidth: 1, borderTopColor: t.bg.elevated }]}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, color: '#374151', fontWeight: '600' }}>
+                      <Text style={{ fontSize: 13, color: t.text.primary, fontWeight: '600' }}>
                         {m.user_name || 'Membro'}
                       </Text>
-                      <Text style={{ fontSize: 11, color: colors.gray }}>
+                      <Text style={{ fontSize: 11, color: t.text.secondary }}>
                         {m.role}{m.house_name ? ` · ${m.house_name}` : ''}
                       </Text>
                     </View>
@@ -936,7 +934,7 @@ export default function AdminRetreatDetailScreen() {
                       style={styles.iconBtn}
                       onPress={() => handleRemoveTeamMember(team.id, m.id)}
                     >
-                      <Ionicons name="close-circle-outline" size={16} color={colors.red} />
+                      <Ionicons name="close-circle-outline" size={16} color={t.status.error} />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -957,7 +955,7 @@ export default function AdminRetreatDetailScreen() {
         </View>
       ) : (
         regs.map(reg => {
-          const regMeta = REG_STATUS_META[reg.status] ?? { label: reg.status, color: colors.gray };
+          const regMeta = REG_STATUS_META[reg.status] ?? { label: reg.status, color: t.text.secondary };
           return (
             <View key={reg.id} style={styles.regCard}>
               <View style={styles.row}>
@@ -976,13 +974,13 @@ export default function AdminRetreatDetailScreen() {
                 )}
                 {reg.fee_label && (
                   <View style={[styles.tag, { backgroundColor: '#f3e8ff' }]}>
-                    <Text style={[styles.tagText, { color: '#7c3aed' }]}>{reg.fee_label}</Text>
+                    <Text style={[styles.tagText, { color: ADMIN_COLOR }]}>{reg.fee_label}</Text>
                   </View>
                 )}
                 {reg.assigned_house_name && (
                   <View style={[styles.tag, { backgroundColor: '#dcfce7' }]}>
-                    <Ionicons name="home-outline" size={11} color={colors.green} />
-                    <Text style={[styles.tagText, { color: colors.green }]}>{reg.assigned_house_name}</Text>
+                    <Ionicons name="home-outline" size={11} color={t.status.success} />
+                    <Text style={[styles.tagText, { color: t.status.success }]}>{reg.assigned_house_name}</Text>
                   </View>
                 )}
               </View>
@@ -1000,7 +998,7 @@ export default function AdminRetreatDetailScreen() {
                     style={styles.smallBtn}
                     onPress={() => setAssignHouseModal({ regId: reg.id })}
                   >
-                    <Ionicons name="home-outline" size={13} color={colors.primary} />
+                    <Ionicons name="home-outline" size={13} color={ADMIN_COLOR} />
                     <Text style={styles.smallBtnText}>
                       {reg.assigned_house_name ? 'Mudar casa' : 'Atribuir casa'}
                     </Text>
@@ -1008,11 +1006,11 @@ export default function AdminRetreatDetailScreen() {
                 )}
                 {/* Mudar papel */}
                 <TouchableOpacity
-                  style={[styles.smallBtn, { borderColor: '#7c3aed' }]}
+                  style={[styles.smallBtn, { borderColor: ADMIN_COLOR }]}
                   onPress={() => setRoleModal({ regId: reg.id, currentRole: reg.retreat_role })}
                 >
-                  <Ionicons name="person-outline" size={13} color="#7c3aed" />
-                  <Text style={[styles.smallBtnText, { color: '#7c3aed' }]}>
+                  <Ionicons name="person-outline" size={13} color={ADMIN_COLOR} />
+                  <Text style={[styles.smallBtnText, { color: ADMIN_COLOR }]}>
                     {reg.retreat_role === 'EQUIPE_SERVICO' ? 'ES' : 'Part.'}
                   </Text>
                 </TouchableOpacity>
@@ -1022,7 +1020,7 @@ export default function AdminRetreatDetailScreen() {
                     style={styles.smallBtn}
                     onPress={() => Linking.openURL(reg.payment_proof_url!)}
                   >
-                    <Ionicons name="image-outline" size={13} color={colors.primary} />
+                    <Ionicons name="image-outline" size={13} color={ADMIN_COLOR} />
                     <Text style={styles.smallBtnText}>Comprovante</Text>
                   </TouchableOpacity>
                 )}
@@ -1030,20 +1028,20 @@ export default function AdminRetreatDetailScreen() {
                 {reg.status === 'PAYMENT_SUBMITTED' && (
                   <>
                     <TouchableOpacity
-                      style={[styles.smallBtn, { borderColor: colors.green }]}
+                      style={[styles.smallBtn, { borderColor: t.status.success }]}
                       onPress={() => handleConfirmPayment(reg.id)}
                       disabled={processing}
                     >
-                      <Ionicons name="checkmark" size={13} color={colors.green} />
-                      <Text style={[styles.smallBtnText, { color: colors.green }]}>Confirmar</Text>
+                      <Ionicons name="checkmark" size={13} color={t.status.success} />
+                      <Text style={[styles.smallBtnText, { color: t.status.success }]}>Confirmar</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.smallBtn, { borderColor: colors.red }]}
+                      style={[styles.smallBtn, { borderColor: t.status.error }]}
                       onPress={() => setRejectModal({ regId: reg.id })}
                       disabled={processing}
                     >
-                      <Ionicons name="close" size={13} color={colors.red} />
-                      <Text style={[styles.smallBtnText, { color: colors.red }]}>Rejeitar</Text>
+                      <Ionicons name="close" size={13} color={t.status.error} />
+                      <Text style={[styles.smallBtnText, { color: t.status.error }]}>Rejeitar</Text>
                     </TouchableOpacity>
                   </>
                 )}
@@ -1065,7 +1063,7 @@ export default function AdminRetreatDetailScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.confirmBtn} onPress={() => confirmModal?.action()} disabled={processing}>
                 {processing
-                  ? <ActivityIndicator color={colors.white} size="small" />
+                  ? <ActivityIndicator color={t.text.inverse} size="small" />
                   : <Text style={styles.confirmBtnText}>Confirmar</Text>
                 }
               </TouchableOpacity>
@@ -1085,14 +1083,14 @@ export default function AdminRetreatDetailScreen() {
               value={rejectReason}
               onChangeText={setRejectReason}
               placeholder="Motivo (opcional)..."
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={t.text.tertiary}
               multiline
             />
             <View style={styles.modalRow}>
               <TouchableOpacity style={styles.outlineBtn} onPress={() => { setRejectModal(null); setRejectReason(''); }}>
                 <Text style={styles.outlineBtnText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: colors.red }]} onPress={handleRejectPayment} disabled={processing}>
+              <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: t.status.error }]} onPress={handleRejectPayment} disabled={processing}>
                 <Text style={styles.confirmBtnText}>Rejeitar</Text>
               </TouchableOpacity>
             </View>
@@ -1111,7 +1109,7 @@ export default function AdminRetreatDetailScreen() {
               value={houseName}
               onChangeText={setHouseName}
               placeholder="Ex: Casa São João"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={t.text.tertiary}
             />
             <Text style={styles.fieldLabel}>Modalidade</Text>
             <View style={styles.modalitySelector}>
@@ -1121,7 +1119,7 @@ export default function AdminRetreatDetailScreen() {
                   style={[styles.modalityOption, houseModality === m && styles.modalityOptionSelected]}
                   onPress={() => setHouseModality(m)}
                 >
-                  <Text style={[styles.modalityOptionText, houseModality === m && { color: colors.white }]}>
+                  <Text style={[styles.modalityOptionText, houseModality === m && { color: t.text.inverse }]}>
                     {m === 'PRESENCIAL' ? 'Presencial' : 'Híbrido'}
                   </Text>
                 </TouchableOpacity>
@@ -1133,7 +1131,7 @@ export default function AdminRetreatDetailScreen() {
               value={houseCapacity}
               onChangeText={setHouseCapacity}
               placeholder="Sem limite"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={t.text.tertiary}
               keyboardType="number-pad"
             />
             <View style={styles.modalRow}>
@@ -1142,7 +1140,7 @@ export default function AdminRetreatDetailScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.confirmBtn} onPress={handleSaveHouse} disabled={processing}>
                 {processing
-                  ? <ActivityIndicator color={colors.white} size="small" />
+                  ? <ActivityIndicator color={t.text.inverse} size="small" />
                   : <Text style={styles.confirmBtnText}>Salvar</Text>
                 }
               </TouchableOpacity>
@@ -1166,7 +1164,7 @@ export default function AdminRetreatDetailScreen() {
                     value={feeValues[cat.key] ?? ''}
                     onChangeText={v => setFeeValues(prev => ({ ...prev, [cat.key]: v }))}
                     placeholder="Ex: 150,00"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={t.text.tertiary}
                     keyboardType="decimal-pad"
                   />
                 </View>
@@ -1177,7 +1175,7 @@ export default function AdminRetreatDetailScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.confirmBtn} onPress={handleSaveFees} disabled={processing}>
                   {processing
-                    ? <ActivityIndicator color={colors.white} size="small" />
+                    ? <ActivityIndicator color={t.text.inverse} size="small" />
                     : <Text style={styles.confirmBtnText}>Salvar</Text>
                   }
                 </TouchableOpacity>
@@ -1193,11 +1191,11 @@ export default function AdminRetreatDetailScreen() {
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>Atribuir Casa</Text>
             <TouchableOpacity
-              style={[styles.houseOption, { borderColor: colors.red }]}
+              style={[styles.houseOption, { borderColor: t.status.error }]}
               onPress={() => handleAssignHouse(null)}
             >
-              <Ionicons name="close-circle-outline" size={18} color={colors.red} />
-              <Text style={[styles.houseOptionText, { color: colors.red }]}>Remover atribuição</Text>
+              <Ionicons name="close-circle-outline" size={18} color={t.status.error} />
+              <Text style={[styles.houseOptionText, { color: t.status.error }]}>Remover atribuição</Text>
             </TouchableOpacity>
             {retreat.houses.map(house => (
               <TouchableOpacity
@@ -1205,7 +1203,7 @@ export default function AdminRetreatDetailScreen() {
                 style={styles.houseOption}
                 onPress={() => handleAssignHouse(house.id)}
               >
-                <Ionicons name="home-outline" size={18} color={colors.primary} />
+                <Ionicons name="home-outline" size={18} color={ADMIN_COLOR} />
                 <View>
                   <Text style={styles.houseOptionText}>{house.name}</Text>
                   <Text style={styles.houseOptionSub}>
@@ -1235,7 +1233,7 @@ export default function AdminRetreatDetailScreen() {
                 style={[styles.modalityOption, ruleType === 'ORG_UNIT' && styles.modalityOptionSelected]}
                 onPress={() => setRuleType('ORG_UNIT')}
               >
-                <Text style={[styles.modalityOptionText, ruleType === 'ORG_UNIT' && { color: colors.white }]}>
+                <Text style={[styles.modalityOptionText, ruleType === 'ORG_UNIT' && { color: t.text.inverse }]}>
                   Unidade org.
                 </Text>
               </TouchableOpacity>
@@ -1243,7 +1241,7 @@ export default function AdminRetreatDetailScreen() {
                 style={[styles.modalityOption, ruleType === 'VOCATIONAL_REALITY' && styles.modalityOptionSelected]}
                 onPress={() => setRuleType('VOCATIONAL_REALITY')}
               >
-                <Text style={[styles.modalityOptionText, ruleType === 'VOCATIONAL_REALITY' && { color: colors.white }]}>
+                <Text style={[styles.modalityOptionText, ruleType === 'VOCATIONAL_REALITY' && { color: t.text.inverse }]}>
                   Real. vocacional
                 </Text>
               </TouchableOpacity>
@@ -1262,7 +1260,7 @@ export default function AdminRetreatDetailScreen() {
                         style={[styles.houseOption, selectedOrgUnit?.id === ou.id && styles.houseOptionActive]}
                         onPress={() => setSelectedOrgUnit(ou)}
                       >
-                        <Text style={[styles.houseOptionText, selectedOrgUnit?.id === ou.id && { color: colors.white }]}>
+                        <Text style={[styles.houseOptionText, selectedOrgUnit?.id === ou.id && { color: t.text.inverse }]}>
                           {ou.name}
                         </Text>
                         <Text style={[styles.houseOptionSub, selectedOrgUnit?.id === ou.id && { color: '#e9d5ff' }]}>
@@ -1286,7 +1284,7 @@ export default function AdminRetreatDetailScreen() {
                         style={[styles.houseOption, selectedVocItem?.code === item.code && styles.houseOptionActive]}
                         onPress={() => setSelectedVocItem(item)}
                       >
-                        <Text style={[styles.houseOptionText, selectedVocItem?.code === item.code && { color: colors.white }]}>
+                        <Text style={[styles.houseOptionText, selectedVocItem?.code === item.code && { color: t.text.inverse }]}>
                           {item.label}
                         </Text>
                       </TouchableOpacity>
@@ -1302,7 +1300,7 @@ export default function AdminRetreatDetailScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.confirmBtn} onPress={handleAddEligibilityRule} disabled={processing}>
                 {processing
-                  ? <ActivityIndicator color={colors.white} size="small" />
+                  ? <ActivityIndicator color={t.text.inverse} size="small" />
                   : <Text style={styles.confirmBtnText}>Adicionar</Text>
                 }
               </TouchableOpacity>
@@ -1326,7 +1324,7 @@ export default function AdminRetreatDetailScreen() {
               value={coordSearch}
               onChangeText={setCoordSearch}
               placeholder="Filtrar por nome..."
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={t.text.tertiary}
             />
             <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
               {regs
@@ -1343,10 +1341,10 @@ export default function AdminRetreatDetailScreen() {
                     <Ionicons
                       name="person-outline"
                       size={16}
-                      color={coordUserId === r.user_id ? colors.white : colors.primary}
+                      color={coordUserId === r.user_id ? t.text.inverse : ADMIN_COLOR}
                     />
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.houseOptionText, coordUserId === r.user_id && { color: colors.white }]}>
+                      <Text style={[styles.houseOptionText, coordUserId === r.user_id && { color: t.text.inverse }]}>
                         {r.user_name || 'Membro'}
                       </Text>
                       <Text style={[styles.houseOptionSub, coordUserId === r.user_id && { color: '#e9d5ff' }]}>
@@ -1354,7 +1352,7 @@ export default function AdminRetreatDetailScreen() {
                       </Text>
                     </View>
                     {coordUserId === r.user_id && (
-                      <Ionicons name="checkmark-circle" size={18} color={colors.white} />
+                      <Ionicons name="checkmark-circle" size={18} color={t.text.inverse} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -1369,7 +1367,7 @@ export default function AdminRetreatDetailScreen() {
               value={coordUserId}
               onChangeText={v => { setCoordUserId(v); setCoordSearch(''); }}
               placeholder="UUID do usuário"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={t.text.tertiary}
               autoCapitalize="none"
             />
 
@@ -1383,7 +1381,7 @@ export default function AdminRetreatDetailScreen() {
                 disabled={!coordUserId.trim() || processing}
               >
                 {processing
-                  ? <ActivityIndicator color={colors.white} size="small" />
+                  ? <ActivityIndicator color={t.text.inverse} size="small" />
                   : <Text style={styles.confirmBtnText}>Adicionar</Text>
                 }
               </TouchableOpacity>
@@ -1403,7 +1401,7 @@ export default function AdminRetreatDetailScreen() {
               value={teamName}
               onChangeText={setTeamName}
               placeholder="Ex: Louvor, Acolhida, Cozinha..."
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={t.text.tertiary}
             />
             <Text style={styles.fieldLabel}>Descrição (opcional)</Text>
             <TextInput
@@ -1411,7 +1409,7 @@ export default function AdminRetreatDetailScreen() {
               value={teamDesc}
               onChangeText={setTeamDesc}
               placeholder="Responsabilidades desta equipe..."
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={t.text.tertiary}
               multiline
             />
             <View style={styles.modalRow}>
@@ -1420,7 +1418,7 @@ export default function AdminRetreatDetailScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.confirmBtn} onPress={handleCreateTeam} disabled={processing}>
                 {processing
-                  ? <ActivityIndicator color={colors.white} size="small" />
+                  ? <ActivityIndicator color={t.text.inverse} size="small" />
                   : <Text style={styles.confirmBtnText}>Criar</Text>
                 }
               </TouchableOpacity>
@@ -1446,7 +1444,7 @@ export default function AdminRetreatDetailScreen() {
                     style={[styles.modalityOption, assignTeamRole === r && styles.modalityOptionSelected]}
                     onPress={() => setAssignTeamRole(r)}
                   >
-                    <Text style={[styles.modalityOptionText, assignTeamRole === r && { color: colors.white }]}>
+                    <Text style={[styles.modalityOptionText, assignTeamRole === r && { color: t.text.inverse }]}>
                       {r === 'COORDENADOR' ? 'Coord.' : r === 'MEMBRO' ? 'Membro' : 'Apoio'}
                     </Text>
                   </TouchableOpacity>
@@ -1455,10 +1453,10 @@ export default function AdminRetreatDetailScreen() {
 
               <Text style={styles.fieldLabel}>Sub-equipe (casa — opcional)</Text>
               <TouchableOpacity
-                style={[styles.houseOption, assignTeamHouseId === null && { borderColor: '#9ca3af' }]}
+                style={[styles.houseOption, assignTeamHouseId === null && { borderColor: t.text.tertiary }]}
                 onPress={() => setAssignTeamHouseId(null)}
               >
-                <Text style={[styles.houseOptionText, assignTeamHouseId === null && { color: '#9ca3af' }]}>
+                <Text style={[styles.houseOptionText, assignTeamHouseId === null && { color: t.text.tertiary }]}>
                   Sem casa específica
                 </Text>
               </TouchableOpacity>
@@ -1468,8 +1466,8 @@ export default function AdminRetreatDetailScreen() {
                   style={[styles.houseOption, assignTeamHouseId === house.id && styles.houseOptionActive]}
                   onPress={() => setAssignTeamHouseId(house.id)}
                 >
-                  <Ionicons name="home-outline" size={16} color={assignTeamHouseId === house.id ? colors.white : colors.primary} />
-                  <Text style={[styles.houseOptionText, assignTeamHouseId === house.id && { color: colors.white }]}>
+                  <Ionicons name="home-outline" size={16} color={assignTeamHouseId === house.id ? t.text.inverse : ADMIN_COLOR} />
+                  <Text style={[styles.houseOptionText, assignTeamHouseId === house.id && { color: t.text.inverse }]}>
                     {house.name}
                   </Text>
                 </TouchableOpacity>
@@ -1485,7 +1483,7 @@ export default function AdminRetreatDetailScreen() {
                       style={[styles.houseOption, assignTeamRegId === r.id && styles.houseOptionActive]}
                       onPress={() => setAssignTeamRegId(r.id)}
                     >
-                      <Text style={[styles.houseOptionText, assignTeamRegId === r.id && { color: colors.white }]}>
+                      <Text style={[styles.houseOptionText, assignTeamRegId === r.id && { color: t.text.inverse }]}>
                         {r.user_name || 'Membro'}
                       </Text>
                       {r.team_preferences && r.team_preferences.length > 0 && (
@@ -1510,7 +1508,7 @@ export default function AdminRetreatDetailScreen() {
                   disabled={processing}
                 >
                   {processing
-                    ? <ActivityIndicator color={colors.white} size="small" />
+                    ? <ActivityIndicator color={t.text.inverse} size="small" />
                     : <Text style={styles.confirmBtnText}>Atribuir</Text>
                   }
                 </TouchableOpacity>
@@ -1529,7 +1527,7 @@ export default function AdminRetreatDetailScreen() {
               style={[styles.houseOption, roleModal?.currentRole === 'PARTICIPANTE' && styles.houseOptionActive]}
               onPress={() => handleSetRole('PARTICIPANTE')}
             >
-              <Ionicons name="person-outline" size={18} color={colors.primary} />
+              <Ionicons name="person-outline" size={18} color={ADMIN_COLOR} />
               <View>
                 <Text style={styles.houseOptionText}>Participante</Text>
                 <Text style={styles.houseOptionSub}>Taxa de participante</Text>
@@ -1539,7 +1537,7 @@ export default function AdminRetreatDetailScreen() {
               style={[styles.houseOption, roleModal?.currentRole === 'EQUIPE_SERVICO' && styles.houseOptionActive]}
               onPress={() => handleSetRole('EQUIPE_SERVICO')}
             >
-              <Ionicons name="hammer-outline" size={18} color="#7c3aed" />
+              <Ionicons name="hammer-outline" size={18} color={ADMIN_COLOR} />
               <View>
                 <Text style={styles.houseOptionText}>Equipe de Serviço</Text>
                 <Text style={styles.houseOptionSub}>Taxa de equipe — recalculada automaticamente</Text>
@@ -1555,16 +1553,18 @@ export default function AdminRetreatDetailScreen() {
   );
 }
 
-function MetaRow({ icon, text }: { icon: string; text: string }) {
+type Styles = ReturnType<typeof makeStyles>;
+
+function MetaRow({ icon, text, t, styles }: { icon: string; text: string; t: SemanticTokens; styles: Styles }) {
   return (
     <View style={styles.metaRow}>
-      <Ionicons name={icon as any} size={13} color={colors.gray} />
+      <Ionicons name={icon as any} size={13} color={t.text.secondary} />
       <Text style={styles.metaText}>{text}</Text>
     </View>
   );
 }
 
-function EligibilityRuleRow({ rule, onDelete }: { rule: EligibilityRule; onDelete: () => void }) {
+function EligibilityRuleRow({ rule, onDelete, t, styles }: { rule: EligibilityRule; onDelete: () => void; t: SemanticTokens; styles: Styles }) {
   const vocLabel = rule.vocational_reality_code
     ? rule.vocational_reality_code.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
     : '—';
@@ -1576,142 +1576,144 @@ function EligibilityRuleRow({ rule, onDelete }: { rule: EligibilityRule; onDelet
     <View style={styles.houseCard}>
       <View style={styles.row}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-          <Ionicons name={icon as any} size={16} color={colors.primary} />
+          <Ionicons name={icon as any} size={16} color={ADMIN_COLOR} />
           <Text style={styles.houseName}>{label}</Text>
         </View>
         <TouchableOpacity onPress={onDelete} style={styles.iconBtn}>
-          <Ionicons name="trash-outline" size={16} color={colors.red} />
+          <Ionicons name="trash-outline" size={16} color={t.status.error} />
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.lightGray },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.elevated },
   content: { padding: 14, paddingBottom: 48, gap: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
   card: {
-    backgroundColor: colors.white, borderRadius: 16, padding: 16, gap: 6,
+    backgroundColor: t.bg.screen, borderRadius: 16, padding: 16, gap: 6,
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
   },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  typeLabel: { fontSize: 11, color: colors.gray, textTransform: 'uppercase', fontWeight: '600' },
+  typeLabel: { fontSize: 11, color: t.text.secondary, textTransform: 'uppercase', fontWeight: '600' },
   statusBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   statusText: { fontSize: 11, fontWeight: '700' },
-  title: { fontSize: 19, fontWeight: '800', color: '#111827' },
-  desc: { fontSize: 13, color: colors.gray, lineHeight: 18 },
+  title: { fontSize: 19, fontWeight: '800', color: t.text.primary },
+  desc: { fontSize: 13, color: t.text.secondary, lineHeight: 18 },
   metaGrid: { gap: 4, marginTop: 4 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  metaText: { fontSize: 12, color: colors.gray },
+  metaText: { fontSize: 12, color: t.text.secondary },
   actionMsg: {
-    backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12,
+    backgroundColor: t.status.successBg, borderRadius: 10, padding: 12,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
-  actionMsgText: { fontSize: 13, color: '#166534', flex: 1 },
+  actionMsgText: { fontSize: 13, color: t.status.success, flex: 1 },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   actionBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9,
   },
-  actionBtnText: { color: colors.white, fontWeight: '700', fontSize: 13 },
+  actionBtnText: { color: t.text.inverse, fontWeight: '700', fontSize: 13 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: t.text.primary },
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    borderWidth: 1.5, borderColor: colors.primary, borderRadius: 8,
+    borderWidth: 1.5, borderColor: ADMIN_COLOR, borderRadius: 8,
     paddingHorizontal: 10, paddingVertical: 5,
   },
-  addBtnText: { fontSize: 13, fontWeight: '600', color: colors.primary },
-  emptyBox: { backgroundColor: colors.white, borderRadius: 12, padding: 18, alignItems: 'center' },
-  emptyText: { color: colors.gray, fontSize: 14 },
+  addBtnText: { fontSize: 13, fontWeight: '600', color: ADMIN_COLOR },
+  emptyBox: { backgroundColor: t.bg.screen, borderRadius: 12, padding: 18, alignItems: 'center' },
+  emptyText: { color: t.text.secondary, fontSize: 14 },
   houseCard: {
-    backgroundColor: colors.white, borderRadius: 12, padding: 14,
+    backgroundColor: t.bg.screen, borderRadius: 12, padding: 14,
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
-  houseName: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  houseName: { fontSize: 15, fontWeight: '700', color: t.text.primary },
   houseInfo: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   modalityPill: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   modalityPillText: { fontSize: 11, fontWeight: '700' },
-  houseCapacity: { fontSize: 12, color: colors.gray },
+  houseCapacity: { fontSize: 12, color: t.text.secondary },
   houseActions: { flexDirection: 'row', gap: 8 },
   iconBtn: { padding: 4 },
   feeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   feePill: {
-    backgroundColor: colors.white, borderRadius: 10, padding: 10,
+    backgroundColor: t.bg.screen, borderRadius: 10, padding: 10,
     minWidth: '47%', flexGrow: 1,
     shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 2, elevation: 1,
   },
-  feePillLabel: { fontSize: 11, color: colors.gray, marginBottom: 2 },
-  feePillAmount: { fontSize: 16, fontWeight: '800', color: colors.primary },
+  feePillLabel: { fontSize: 11, color: t.text.secondary, marginBottom: 2 },
+  feePillAmount: { fontSize: 16, fontWeight: '800', color: ADMIN_COLOR },
   regCard: {
-    backgroundColor: colors.white, borderRadius: 14, padding: 14, gap: 6,
+    backgroundColor: t.bg.screen, borderRadius: 14, padding: 14, gap: 6,
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
-  regName: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  regName: { fontSize: 15, fontWeight: '700', color: t.text.primary },
   regBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   regBadgeText: { fontSize: 11, fontWeight: '700' },
   regTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tag: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#f1f5f9', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3,
+    backgroundColor: t.bg.surface, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3,
   },
-  tagText: { fontSize: 11, fontWeight: '600', color: '#374151' },
-  regNotes: { fontSize: 12, color: colors.gray },
-  rejectionText: { fontSize: 12, color: colors.red },
+  tagText: { fontSize: 11, fontWeight: '600', color: t.text.primary },
+  regNotes: { fontSize: 12, color: t.text.secondary },
+  rejectionText: { fontSize: 12, color: t.status.error },
   regActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   smallBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    borderWidth: 1, borderColor: colors.primary, borderRadius: 8,
+    borderWidth: 1, borderColor: ADMIN_COLOR, borderRadius: 8,
     paddingHorizontal: 8, paddingVertical: 5,
   },
-  smallBtnText: { fontSize: 12, fontWeight: '600', color: colors.primary },
-  errorText: { color: colors.red, textAlign: 'center' },
-  btn: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 24, paddingVertical: 10 },
-  btnText: { color: colors.white, fontWeight: '600' },
+  smallBtnText: { fontSize: 12, fontWeight: '600', color: ADMIN_COLOR },
+  errorText: { color: t.status.error, textAlign: 'center' },
+  btn: { backgroundColor: ADMIN_COLOR, borderRadius: 8, paddingHorizontal: 24, paddingVertical: 10 },
+  btnText: { color: t.text.inverse, fontWeight: '600' },
   // Modal shared
   modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    flex: 1, backgroundColor: t.bg.overlay,
     alignItems: 'center', justifyContent: 'center', padding: 20,
   },
   modalBox: {
-    backgroundColor: colors.white, borderRadius: 20, padding: 22,
+    backgroundColor: t.bg.screen, borderRadius: 20, padding: 22,
     width: '100%', gap: 10,
   },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: '#111827', textAlign: 'center' },
-  modalBody: { fontSize: 13, color: colors.gray, textAlign: 'center' },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: '#374151' },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: t.text.primary, textAlign: 'center' },
+  modalBody: { fontSize: 13, color: t.text.secondary, textAlign: 'center' },
+  fieldLabel: { fontSize: 12, fontWeight: '600', color: t.text.primary },
   input: {
-    borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, color: '#111827',
+    borderWidth: 1, borderColor: t.border.subtle, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 9, fontSize: 14, color: t.text.primary,
+    backgroundColor: t.bg.surface,
   },
   textArea: {
-    borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10,
-    padding: 10, minHeight: 60, textAlignVertical: 'top', fontSize: 14, color: '#111827',
+    borderWidth: 1, borderColor: t.border.subtle, borderRadius: 10,
+    padding: 10, minHeight: 60, textAlignVertical: 'top', fontSize: 14, color: t.text.primary,
+    backgroundColor: t.bg.surface,
   },
   modalitySelector: { flexDirection: 'row', gap: 8 },
   modalityOption: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: colors.primary, borderRadius: 10, paddingVertical: 9,
+    borderWidth: 1.5, borderColor: ADMIN_COLOR, borderRadius: 10, paddingVertical: 9,
   },
-  modalityOptionSelected: { backgroundColor: colors.primary },
-  modalityOptionText: { fontSize: 13, fontWeight: '600', color: colors.primary },
+  modalityOptionSelected: { backgroundColor: ADMIN_COLOR },
+  modalityOptionText: { fontSize: 13, fontWeight: '600', color: ADMIN_COLOR },
   modalRow: { flexDirection: 'row', gap: 10 },
   outlineBtn: {
-    flex: 1, borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 12,
+    flex: 1, borderWidth: 1.5, borderColor: t.border.subtle, borderRadius: 12,
     padding: 12, alignItems: 'center',
   },
-  outlineBtnText: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  outlineBtnText: { fontSize: 14, fontWeight: '600', color: t.text.primary },
   confirmBtn: {
-    flex: 1, backgroundColor: colors.primary, borderRadius: 12,
+    flex: 1, backgroundColor: ADMIN_COLOR, borderRadius: 12,
     padding: 12, alignItems: 'center', justifyContent: 'center',
   },
-  confirmBtnText: { fontSize: 14, fontWeight: '700', color: colors.white },
+  confirmBtnText: { fontSize: 14, fontWeight: '700', color: t.text.inverse },
   houseOption: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 12, padding: 12,
+    borderWidth: 1.5, borderColor: t.border.subtle, borderRadius: 12, padding: 12,
   },
-  houseOptionActive: { borderColor: colors.primary, backgroundColor: `${colors.primary}0A` },
-  houseOptionText: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  houseOptionSub: { fontSize: 12, color: colors.gray },
+  houseOptionActive: { borderColor: ADMIN_COLOR, backgroundColor: `${ADMIN_COLOR}0A` },
+  houseOptionText: { fontSize: 14, fontWeight: '600', color: t.text.primary },
+  houseOptionSub: { fontSize: 12, color: t.text.secondary },
 });

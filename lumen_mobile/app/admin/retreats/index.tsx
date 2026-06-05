@@ -12,13 +12,10 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '@/services/api';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
-const colors = {
-  primary: '#7c3aed',
-  white: '#ffffff',
-  gray: '#6b7280',
-  lightGray: '#f3f4f6',
-};
+const ADMIN_COLOR = '#7c3aed';
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   DRAFT:     { label: 'Rascunho',  color: '#6b7280' },
@@ -45,6 +42,9 @@ interface Retreat {
 }
 
 export default function AdminRetreatsScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const [retreats, setRetreats] = useState<Retreat[]>([]);
   const [loading, setLoading]   = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,7 +74,7 @@ export default function AdminRetreatsScreen() {
   };
 
   const renderItem = ({ item }: { item: Retreat }) => {
-    const meta = STATUS_META[item.status] ?? { label: item.status, color: colors.gray };
+    const meta = STATUS_META[item.status] ?? { label: item.status, color: t.text.secondary };
     const start = new Date(item.start_date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 
     return (
@@ -92,17 +92,17 @@ export default function AdminRetreatsScreen() {
         <Text style={styles.title}>{item.title}</Text>
         <View style={styles.cardMeta}>
           <View style={styles.metaRow}>
-            <Ionicons name="calendar-outline" size={13} color={colors.gray} />
+            <Ionicons name="calendar-outline" size={13} color={t.text.secondary} />
             <Text style={styles.metaText}>{start}</Text>
           </View>
           {item.location && (
             <View style={styles.metaRow}>
-              <Ionicons name="location-outline" size={13} color={colors.gray} />
+              <Ionicons name="location-outline" size={13} color={t.text.secondary} />
               <Text style={styles.metaText}>{item.location}</Text>
             </View>
           )}
           <View style={styles.metaRow}>
-            <Ionicons name="people-outline" size={13} color={colors.gray} />
+            <Ionicons name="people-outline" size={13} color={t.text.secondary} />
             <Text style={styles.metaText}>{item.registrations_count} inscrito(s)</Text>
           </View>
         </View>
@@ -111,7 +111,7 @@ export default function AdminRetreatsScreen() {
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+    return <View style={styles.center}><ActivityIndicator size="large" color={ADMIN_COLOR} /></View>;
   }
 
   return (
@@ -121,7 +121,7 @@ export default function AdminRetreatsScreen() {
         keyExtractor={item => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[ADMIN_COLOR]} />}
         ListHeaderComponent={
           error ? (
             <View style={styles.errorBox}>
@@ -131,7 +131,7 @@ export default function AdminRetreatsScreen() {
         }
         ListEmptyComponent={
           <View style={styles.center}>
-            <Ionicons name="calendar-outline" size={56} color="#d1d5db" />
+            <Ionicons name="calendar-outline" size={56} color={t.border.subtle} />
             <Text style={styles.emptyText}>Nenhum retiro criado</Text>
           </View>
         }
@@ -140,34 +140,34 @@ export default function AdminRetreatsScreen() {
         style={styles.fab}
         onPress={() => router.push('/admin/retreats/create' as any)}
       >
-        <Ionicons name="add" size={28} color={colors.white} />
+        <Ionicons name="add" size={28} color={t.text.inverse} />
       </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.lightGray },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.elevated },
   list: { padding: 14, paddingBottom: 90 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 },
   card: {
-    backgroundColor: colors.white, borderRadius: 14, padding: 14, marginBottom: 12, gap: 6,
+    backgroundColor: t.bg.screen, borderRadius: 14, padding: 14, marginBottom: 12, gap: 6,
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  typeText: { fontSize: 11, fontWeight: '600', color: colors.gray, textTransform: 'uppercase' },
+  typeText: { fontSize: 11, fontWeight: '600', color: t.text.secondary, textTransform: 'uppercase' },
   statusBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   statusText: { fontSize: 11, fontWeight: '700' },
-  title: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  title: { fontSize: 16, fontWeight: '700', color: t.text.primary },
   cardMeta: { gap: 3 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  metaText: { fontSize: 12, color: colors.gray },
-  errorBox: { backgroundColor: '#fef2f2', borderRadius: 10, padding: 12, marginBottom: 12 },
-  errorText: { color: '#dc2626', fontSize: 13 },
-  emptyText: { fontSize: 15, color: colors.gray },
+  metaText: { fontSize: 12, color: t.text.secondary },
+  errorBox: { backgroundColor: t.status.errorBg, borderRadius: 10, padding: 12, marginBottom: 12 },
+  errorText: { color: t.status.error, fontSize: 13 },
+  emptyText: { fontSize: 15, color: t.text.secondary },
   fab: {
     position: 'absolute', bottom: 24, right: 20,
-    backgroundColor: colors.primary, width: 56, height: 56, borderRadius: 28,
+    backgroundColor: ADMIN_COLOR, width: 56, height: 56, borderRadius: 28,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 6, elevation: 4,
   },

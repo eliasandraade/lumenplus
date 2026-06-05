@@ -12,14 +12,10 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '@/services/api';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
-const colors = {
-  primary: '#7c3aed',
-  white: '#ffffff',
-  gray: '#6b7280',
-  lightGray: '#f3f4f6',
-  border: '#e5e7eb',
-};
+const ADMIN_COLOR = '#7c3aed';
 
 const TYPES = [
   { value: 'WEEKEND',   label: 'Fim de semana' },
@@ -33,6 +29,9 @@ const VISIBILITIES = [
 ];
 
 export default function CreateRetreatScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const [title, setTitle]         = useState('');
   const [description, setDesc]    = useState('');
   const [type, setType]           = useState('WEEKEND');
@@ -89,70 +88,70 @@ export default function CreateRetreatScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       {error && (
         <View style={styles.errorBox}>
-          <Ionicons name="alert-circle-outline" size={16} color="#dc2626" />
+          <Ionicons name="alert-circle-outline" size={16} color={t.status.error} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
 
-      <Field label="Título *">
-        <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Ex: Retiro de Formação 2026" placeholderTextColor="#9ca3af" />
+      <Field label="Título *" styles={styles}>
+        <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Ex: Retiro de Formação 2026" placeholderTextColor={t.text.tertiary} />
       </Field>
 
-      <Field label="Descrição">
+      <Field label="Descrição" styles={styles}>
         <TextInput
           style={[styles.input, styles.textarea]} value={description}
-          onChangeText={setDesc} placeholder="Descreva o retiro..." placeholderTextColor="#9ca3af"
+          onChangeText={setDesc} placeholder="Descreva o retiro..." placeholderTextColor={t.text.tertiary}
           multiline numberOfLines={4} textAlignVertical="top"
         />
       </Field>
 
-      <Field label="Tipo">
+      <Field label="Tipo" styles={styles}>
         <View style={styles.pills}>
-          {TYPES.map(t => (
+          {TYPES.map(tp => (
             <TouchableOpacity
-              key={t.value}
-              style={[styles.pill, type === t.value && styles.pillActive]}
-              onPress={() => setType(t.value)}
+              key={tp.value}
+              style={[styles.pill, type === tp.value && styles.pillActive]}
+              onPress={() => setType(tp.value)}
             >
-              <Text style={[styles.pillText, type === t.value && styles.pillTextActive]}>
-                {t.label}
+              <Text style={[styles.pillText, type === tp.value && styles.pillTextActive]}>
+                {tp.label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
       </Field>
 
-      <Field label="Data de início *">
+      <Field label="Data de início *" styles={styles}>
         <TextInput
           style={styles.input} value={startDate} onChangeText={setStartDate}
-          placeholder="dd/mm/aaaa" placeholderTextColor="#9ca3af" keyboardType="numeric"
+          placeholder="dd/mm/aaaa" placeholderTextColor={t.text.tertiary} keyboardType="numeric"
         />
       </Field>
 
-      <Field label="Data de término *">
+      <Field label="Data de término *" styles={styles}>
         <TextInput
           style={styles.input} value={endDate} onChangeText={setEndDate}
-          placeholder="dd/mm/aaaa" placeholderTextColor="#9ca3af" keyboardType="numeric"
+          placeholder="dd/mm/aaaa" placeholderTextColor={t.text.tertiary} keyboardType="numeric"
         />
       </Field>
 
-      <Field label="Local">
-        <TextInput style={styles.input} value={location} onChangeText={setLocation} placeholder="Ex: Casa de Retiros Nossa Senhora" placeholderTextColor="#9ca3af" />
+      <Field label="Local" styles={styles}>
+        <TextInput style={styles.input} value={location} onChangeText={setLocation} placeholder="Ex: Casa de Retiros Nossa Senhora" placeholderTextColor={t.text.tertiary} />
       </Field>
 
-      <Field label="Endereço completo">
-        <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Rua, número, cidade..." placeholderTextColor="#9ca3af" />
+      <Field label="Endereço completo" styles={styles}>
+        <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Rua, número, cidade..." placeholderTextColor={t.text.tertiary} />
       </Field>
 
-      <Field label="Máximo de vagas">
-        <TextInput style={styles.input} value={maxPart} onChangeText={setMaxPart} placeholder="Deixe vazio para sem limite" placeholderTextColor="#9ca3af" keyboardType="numeric" />
+      <Field label="Máximo de vagas" styles={styles}>
+        <TextInput style={styles.input} value={maxPart} onChangeText={setMaxPart} placeholder="Deixe vazio para sem limite" placeholderTextColor={t.text.tertiary} keyboardType="numeric" />
       </Field>
 
-      <Field label="Valor (R$)">
-        <TextInput style={styles.input} value={price} onChangeText={setPrice} placeholder="Ex: 120,00 · Vazio = gratuito" placeholderTextColor="#9ca3af" keyboardType="decimal-pad" />
+      <Field label="Valor (R$)" styles={styles}>
+        <TextInput style={styles.input} value={price} onChangeText={setPrice} placeholder="Ex: 120,00 · Vazio = gratuito" placeholderTextColor={t.text.tertiary} keyboardType="decimal-pad" />
       </Field>
 
-      <Field label="Visibilidade">
+      <Field label="Visibilidade" styles={styles}>
         <View style={styles.pills}>
           {VISIBILITIES.map(v => (
             <TouchableOpacity
@@ -179,9 +178,9 @@ export default function CreateRetreatScreen() {
         disabled={loading}
       >
         {loading
-          ? <ActivityIndicator color={colors.white} />
+          ? <ActivityIndicator color={t.text.inverse} />
           : <>
-              <Ionicons name="save-outline" size={20} color={colors.white} />
+              <Ionicons name="save-outline" size={20} color={t.text.inverse} />
               <Text style={styles.createBtnText}>Criar como Rascunho</Text>
             </>
         }
@@ -190,7 +189,9 @@ export default function CreateRetreatScreen() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+type Styles = ReturnType<typeof makeStyles>;
+
+function Field({ label, children, styles }: { label: string; children: React.ReactNode; styles: Styles }) {
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
@@ -199,33 +200,33 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.lightGray },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.elevated },
   content: { padding: 16, paddingBottom: 40, gap: 14 },
   errorBox: {
-    flexDirection: 'row', gap: 8, backgroundColor: '#fef2f2',
+    flexDirection: 'row', gap: 8, backgroundColor: t.status.errorBg,
     borderRadius: 10, padding: 12, alignItems: 'center',
   },
-  errorText: { color: '#dc2626', fontSize: 13, flex: 1 },
+  errorText: { color: t.status.error, fontSize: 13, flex: 1 },
   field: { gap: 6 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  label: { fontSize: 13, fontWeight: '600', color: t.text.primary },
   input: {
-    backgroundColor: colors.white, borderRadius: 10, borderWidth: 1,
-    borderColor: colors.border, padding: 12, fontSize: 14, color: '#111827',
+    backgroundColor: t.bg.surface, borderRadius: 10, borderWidth: 1,
+    borderColor: t.border.subtle, padding: 12, fontSize: 14, color: t.text.primary,
   },
   textarea: { minHeight: 90, textAlignVertical: 'top' },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pill: {
-    borderWidth: 1.5, borderColor: colors.border, borderRadius: 20,
+    borderWidth: 1.5, borderColor: t.border.subtle, borderRadius: 20,
     paddingHorizontal: 14, paddingVertical: 7,
   },
-  pillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  pillText: { fontSize: 13, color: colors.gray, fontWeight: '500' },
-  pillTextActive: { color: colors.white, fontWeight: '700' },
-  hint: { fontSize: 12, color: colors.gray, marginTop: 4, fontStyle: 'italic' },
+  pillActive: { backgroundColor: ADMIN_COLOR, borderColor: ADMIN_COLOR },
+  pillText: { fontSize: 13, color: t.text.secondary, fontWeight: '500' },
+  pillTextActive: { color: t.text.inverse, fontWeight: '700' },
+  hint: { fontSize: 12, color: t.text.secondary, marginTop: 4, fontStyle: 'italic' },
   createBtn: {
-    backgroundColor: colors.primary, borderRadius: 14, padding: 16,
+    backgroundColor: ADMIN_COLOR, borderRadius: 14, padding: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8,
   },
-  createBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  createBtnText: { color: t.text.inverse, fontSize: 16, fontWeight: '700' },
 });
