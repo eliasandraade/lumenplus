@@ -24,18 +24,12 @@ import type { IoniconsName } from '@/types/icons';
 import { orgService, orgAdminService } from '@/services';
 import api from '@/services/api';
 import type { Membership } from '@/types';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
-const colors = {
-  admin: '#7c3aed',
-  adminLight: '#ede9fe',
-  primary: '#1A859B',
-  white: '#ffffff',
-  gray: '#6b7280',
-  lightGray: '#E8E8E8',
-  danger: '#dc2626',
-  success: '#16a34a',
-  text: '#171717',
-};
+// Admin purple — identidade visual específica, não muda com o tema
+const ADMIN_COLOR = '#7c3aed';
+const ADMIN_LIGHT = '#ede9fe';
 
 // Tipos correspondentes ao backend
 const TYPE_LABELS: Record<string, string> = {
@@ -157,6 +151,9 @@ function isDescendantOf(unit: OrgUnitNode, ancestorId: string, root: OrgUnitNode
 // Componente principal
 // =============================================================================
 export default function EntitiesScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const [tree, setTree] = useState<OrgUnitNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -259,8 +256,8 @@ export default function EntitiesScreen() {
     return (
       <View key={unit.id} style={[styles.unitCard, { marginLeft: depth * 12 }]}>
         <View style={styles.unitHeader}>
-          <View style={[styles.unitIconBox, { backgroundColor: colors.adminLight }]}>
-            <Ionicons name={icon as IoniconsName} size={20} color={colors.admin} />
+          <View style={[styles.unitIconBox, { backgroundColor: ADMIN_LIGHT }]}>
+            <Ionicons name={icon as IoniconsName} size={20} color={ADMIN_COLOR} />
           </View>
           <View style={styles.unitInfo}>
             <Text style={styles.unitName}>{unit.name}</Text>
@@ -274,8 +271,8 @@ export default function EntitiesScreen() {
             style={styles.actionBtn}
             onPress={() => setProfileModal({ visible: true, unit, canEdit: canEditUnit(unit) })}
           >
-            <Ionicons name="people-outline" size={14} color={colors.primary} />
-            <Text style={[styles.actionBtnText, { color: colors.primary }]}>Membros</Text>
+            <Ionicons name="people-outline" size={14} color={t.brand.primary} />
+            <Text style={[styles.actionBtnText, { color: t.brand.primary }]}>Membros</Text>
           </TouchableOpacity>
 
           {/* Convidar membro */}
@@ -283,8 +280,8 @@ export default function EntitiesScreen() {
             style={styles.actionBtn}
             onPress={() => setInviteModal({ visible: true, orgUnitId: unit.id, orgUnitName: unit.name })}
           >
-            <Ionicons name="person-add-outline" size={14} color={colors.primary} />
-            <Text style={[styles.actionBtnText, { color: colors.primary }]}>Convidar</Text>
+            <Ionicons name="person-add-outline" size={14} color={t.brand.primary} />
+            <Text style={[styles.actionBtnText, { color: t.brand.primary }]}>Convidar</Text>
           </TouchableOpacity>
 
           {/* Editar */}
@@ -293,8 +290,8 @@ export default function EntitiesScreen() {
               style={styles.actionBtn}
               onPress={() => setEditModal({ visible: true, unit })}
             >
-              <Ionicons name="pencil-outline" size={14} color={colors.admin} />
-              <Text style={[styles.actionBtnText, { color: colors.admin }]}>Editar</Text>
+              <Ionicons name="pencil-outline" size={14} color={ADMIN_COLOR} />
+              <Text style={[styles.actionBtnText, { color: ADMIN_COLOR }]}>Editar</Text>
             </TouchableOpacity>
           )}
 
@@ -312,8 +309,8 @@ export default function EntitiesScreen() {
                 })
               }
             >
-              <Ionicons name="add-circle-outline" size={14} color={colors.admin} />
-              <Text style={[styles.actionBtnText, { color: colors.admin }]}>Criar filho</Text>
+              <Ionicons name="add-circle-outline" size={14} color={ADMIN_COLOR} />
+              <Text style={[styles.actionBtnText, { color: ADMIN_COLOR }]}>Criar filho</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -336,12 +333,12 @@ export default function EntitiesScreen() {
       >
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color={colors.admin} />
+            <ActivityIndicator size="large" color={ADMIN_COLOR} />
             <Text style={styles.loadingText}>Carregando estrutura...</Text>
           </View>
         ) : error ? (
           <View style={styles.errorCard}>
-            <Ionicons name="alert-circle-outline" size={32} color={colors.danger} />
+            <Ionicons name="alert-circle-outline" size={32} color={t.status.error} />
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={() => loadTree()}>
               <Text style={styles.retryBtnText}>Tentar novamente</Text>
@@ -350,7 +347,7 @@ export default function EntitiesScreen() {
         ) : tree === null ? (
           // Nenhuma unidade raiz
           <View style={styles.emptyCard}>
-            <Ionicons name="git-network-outline" size={48} color={colors.admin} />
+            <Ionicons name="git-network-outline" size={48} color={ADMIN_COLOR} />
             <Text style={styles.emptyTitle}>Nenhuma estrutura criada</Text>
             <Text style={styles.emptyDesc}>
               Crie o Conselho Geral para começar a estrutura organizacional da Obra.
@@ -367,7 +364,7 @@ export default function EntitiesScreen() {
                 })
               }
             >
-              <Ionicons name="add-circle" size={20} color={colors.white} />
+              <Ionicons name="add-circle" size={20} color={t.text.inverse} />
               <Text style={styles.createRootBtnText}>Criar Entidade</Text>
             </TouchableOpacity>
           </View>
@@ -430,6 +427,9 @@ function CreateUnitModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [groupType, setGroupType] = useState('');
@@ -505,14 +505,14 @@ function CreateUnitModal({
             {state.isRoot ? 'Criar Entidade' : `Criar em: ${state.parentName}`}
           </Text>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color={colors.text} />
+            <Ionicons name="close" size={24} color={t.text.primary} />
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.modalBody}>
           {!state.isRoot && (
             <Text style={styles.fieldLabel}>
-              Tipo: <Text style={{ color: colors.admin, fontWeight: '600' }}>{TYPE_LABELS[childType ?? ''] ?? childType}</Text>
+              Tipo: <Text style={{ color: ADMIN_COLOR, fontWeight: '600' }}>{TYPE_LABELS[childType ?? ''] ?? childType}</Text>
             </Text>
           )}
 
@@ -552,7 +552,7 @@ function CreateUnitModal({
             value={name}
             onChangeText={setName}
             placeholder="Nome da entidade"
-            placeholderTextColor={colors.gray}
+            placeholderTextColor={t.text.secondary}
             maxLength={80}
           />
 
@@ -562,7 +562,7 @@ function CreateUnitModal({
             value={description}
             onChangeText={setDescription}
             placeholder="Breve descrição..."
-            placeholderTextColor={colors.gray}
+            placeholderTextColor={t.text.secondary}
             multiline
             numberOfLines={3}
             maxLength={300}
@@ -591,7 +591,7 @@ function CreateUnitModal({
           {/* Tipo de missão (multi-select) */}
           {childType === 'MISSAO' && (
             <>
-              <Text style={styles.fieldLabel}>Tipo de Missão * <Text style={{ color: colors.gray, fontWeight: '400' }}>(pode marcar os dois)</Text></Text>
+              <Text style={styles.fieldLabel}>Tipo de Missão * <Text style={{ color: t.text.secondary, fontWeight: '400' }}>(pode marcar os dois)</Text></Text>
               <View style={styles.chipRow}>
                 {MISSION_TYPES.map((mt) => {
                   const selected = missionTypes.includes(mt.value);
@@ -624,7 +624,7 @@ function CreateUnitModal({
           </TouchableOpacity>
           <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={loading}>
             {loading ? (
-              <ActivityIndicator size="small" color={colors.white} />
+              <ActivityIndicator size="small" color={t.text.inverse} />
             ) : (
               <Text style={styles.submitBtnText}>Criar</Text>
             )}
@@ -645,6 +645,9 @@ function InviteModal({
   state: InviteModalState;
   onClose: () => void;
 }) {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
@@ -705,7 +708,7 @@ function InviteModal({
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>Convidar para: {state.orgUnitName}</Text>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color={colors.text} />
+            <Ionicons name="close" size={24} color={t.text.primary} />
           </TouchableOpacity>
         </View>
 
@@ -714,16 +717,16 @@ function InviteModal({
             <>
               <Text style={styles.fieldLabel}>Buscar usuário</Text>
               <View style={styles.searchRow}>
-                <Ionicons name="search-outline" size={18} color={colors.gray} style={{ marginRight: 8 }} />
+                <Ionicons name="search-outline" size={18} color={t.text.secondary} style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.searchInput}
                   value={search}
                   onChangeText={handleSearch}
                   placeholder="Nome ou e-mail..."
-                  placeholderTextColor={colors.gray}
+                  placeholderTextColor={t.text.secondary}
                   autoFocus
                 />
-                {searching && <ActivityIndicator size="small" color={colors.admin} />}
+                {searching && <ActivityIndicator size="small" color={ADMIN_COLOR} />}
               </View>
 
               {searchResults.map((u) => (
@@ -741,7 +744,7 @@ function InviteModal({
                     <Text style={styles.userName}>{u.name ?? 'Sem nome'}</Text>
                     <Text style={styles.userEmail}>{u.email}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.gray} />
+                  <Ionicons name="chevron-forward" size={16} color={t.text.secondary} />
                 </TouchableOpacity>
               ))}
 
@@ -763,7 +766,7 @@ function InviteModal({
                   <Text style={styles.userEmail}>{selectedUser.email}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setSelectedUser(null)}>
-                  <Ionicons name="close-circle" size={22} color={colors.gray} />
+                  <Ionicons name="close-circle" size={22} color={t.text.secondary} />
                 </TouchableOpacity>
               </View>
 
@@ -789,7 +792,7 @@ function InviteModal({
                 value={message}
                 onChangeText={setMessage}
                 placeholder="Escreva uma mensagem para o convite..."
-                placeholderTextColor={colors.gray}
+                placeholderTextColor={t.text.secondary}
                 multiline
                 numberOfLines={3}
                 maxLength={300}
@@ -799,9 +802,9 @@ function InviteModal({
         </ScrollView>
 
         {inviteSuccess && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, backgroundColor: '#dcfce7', margin: 12, borderRadius: 10 }}>
-            <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
-            <Text style={{ color: '#16a34a', fontWeight: '600', flex: 1 }}>{inviteSuccess}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, backgroundColor: t.status.successBg, margin: 12, borderRadius: 10 }}>
+            <Ionicons name="checkmark-circle" size={20} color={t.status.success} />
+            <Text style={{ color: t.status.success, fontWeight: '600', flex: 1 }}>{inviteSuccess}</Text>
           </View>
         )}
         {inviteError && (
@@ -815,7 +818,7 @@ function InviteModal({
             </TouchableOpacity>
             <TouchableOpacity style={styles.submitBtn} onPress={handleSendInvite} disabled={sending}>
               {sending ? (
-                <ActivityIndicator size="small" color={colors.white} />
+                <ActivityIndicator size="small" color={t.text.inverse} />
               ) : (
                 <Text style={styles.submitBtnText}>Enviar Convite</Text>
               )}
@@ -839,6 +842,9 @@ function EditEntityModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [channelPostMode, setChannelPostMode] = useState<'COORDINATOR_ONLY' | 'ALL_MEMBERS'>('COORDINATOR_ONLY');
@@ -888,7 +894,7 @@ function EditEntityModal({
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>Editar: {state.unit?.name}</Text>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color={colors.text} />
+            <Ionicons name="close" size={24} color={t.text.primary} />
           </TouchableOpacity>
         </View>
 
@@ -897,9 +903,9 @@ function EditEntityModal({
           <TextInput
             style={styles.input}
             value={name}
-            onChangeText={(t) => { setName(t); setError(null); }}
+            onChangeText={(v) => { setName(v); setError(null); }}
             placeholder="Nome da entidade"
-            placeholderTextColor={colors.gray}
+            placeholderTextColor={t.text.secondary}
             maxLength={80}
           />
 
@@ -909,7 +915,7 @@ function EditEntityModal({
             value={description}
             onChangeText={setDescription}
             placeholder="Breve descrição..."
-            placeholderTextColor={colors.gray}
+            placeholderTextColor={t.text.secondary}
             multiline
             numberOfLines={3}
             maxLength={300}
@@ -927,22 +933,22 @@ function EditEntityModal({
                 padding: 12,
                 borderRadius: 10,
                 marginBottom: 8,
-                backgroundColor: channelPostMode === mode ? '#EDE9FE' : '#F9FAFB',
+                backgroundColor: channelPostMode === mode ? ADMIN_LIGHT : t.bg.elevated,
                 borderWidth: 1,
-                borderColor: channelPostMode === mode ? '#7C3AED' : '#E5E7EB',
+                borderColor: channelPostMode === mode ? ADMIN_COLOR : t.border.subtle,
               }}
             >
               <View style={{
                 width: 18, height: 18, borderRadius: 9,
                 borderWidth: 2,
-                borderColor: channelPostMode === mode ? '#7C3AED' : '#9CA3AF',
-                backgroundColor: channelPostMode === mode ? '#7C3AED' : 'transparent',
+                borderColor: channelPostMode === mode ? ADMIN_COLOR : t.text.secondary,
+                backgroundColor: channelPostMode === mode ? ADMIN_COLOR : 'transparent',
               }} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: '600', fontSize: 13, color: channelPostMode === mode ? '#7C3AED' : '#374151' }}>
+                <Text style={{ fontWeight: '600', fontSize: 13, color: channelPostMode === mode ? ADMIN_COLOR : t.text.primary }}>
                   {mode === 'COORDINATOR_ONLY' ? 'Somente coordenadores' : 'Todos os membros'}
                 </Text>
-                <Text style={{ fontSize: 11, color: '#6B7280' }}>
+                <Text style={{ fontSize: 11, color: t.text.secondary }}>
                   {mode === 'COORDINATOR_ONLY'
                     ? 'Membros só respondem; coordenadores postam'
                     : 'Qualquer membro ativo pode criar posts'}
@@ -952,7 +958,7 @@ function EditEntityModal({
           ))}
 
           {error && (
-            <Text style={{ color: colors.danger, fontSize: 13, marginTop: 8 }}>{error}</Text>
+            <Text style={{ color: t.status.error, fontSize: 13, marginTop: 8 }}>{error}</Text>
           )}
         </ScrollView>
 
@@ -962,7 +968,7 @@ function EditEntityModal({
           </TouchableOpacity>
           <TouchableOpacity style={styles.submitBtn} onPress={handleSave} disabled={loading}>
             {loading ? (
-              <ActivityIndicator size="small" color={colors.white} />
+              <ActivityIndicator size="small" color={t.text.inverse} />
             ) : (
               <Text style={styles.submitBtnText}>Salvar</Text>
             )}
@@ -985,6 +991,10 @@ function EntityProfileModal({
   onClose: () => void;
   onMembersChanged: () => void;
 }) {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+  const mStyles = makeMemberStyles(t);
+
   const [members, setMembers] = useState<MemberItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1064,7 +1074,7 @@ function EntityProfileModal({
           <View style={{ flex: 1 }}>
             <Text style={styles.modalTitle}>{unit?.name}</Text>
             {unit && (
-              <Text style={{ fontSize: 12, color: colors.gray, marginTop: 2 }}>
+              <Text style={{ fontSize: 12, color: t.text.secondary, marginTop: 2 }}>
                 {TYPE_LABELS[unit.type] ?? unit.type}
                 {' · '}
                 {members.length} membro{members.length !== 1 ? 's' : ''}
@@ -1072,18 +1082,18 @@ function EntityProfileModal({
             )}
           </View>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={24} color={colors.text} />
+            <Ionicons name="close" size={24} color={t.text.primary} />
           </TouchableOpacity>
         </View>
 
         {/* Conteúdo */}
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color={colors.admin} />
+            <ActivityIndicator size="large" color={ADMIN_COLOR} />
           </View>
         ) : error ? (
           <View style={[styles.center, { padding: 24 }]}>
-            <Ionicons name="alert-circle-outline" size={32} color={colors.danger} />
+            <Ionicons name="alert-circle-outline" size={32} color={t.status.error} />
             <Text style={[styles.errorText, { marginTop: 8 }]}>{error}</Text>
             <TouchableOpacity style={[styles.retryBtn, { marginTop: 12 }]} onPress={loadMembers}>
               <Text style={styles.retryBtnText}>Tentar novamente</Text>
@@ -1091,8 +1101,8 @@ function EntityProfileModal({
           </View>
         ) : members.length === 0 ? (
           <View style={[styles.center, { padding: 32 }]}>
-            <Ionicons name="people-outline" size={44} color={colors.gray} />
-            <Text style={{ color: colors.gray, marginTop: 12, textAlign: 'center', fontSize: 14 }}>
+            <Ionicons name="people-outline" size={44} color={t.text.secondary} />
+            <Text style={{ color: t.text.secondary, marginTop: 12, textAlign: 'center', fontSize: 14 }}>
               Nenhum membro nesta entidade ainda.
             </Text>
           </View>
@@ -1101,9 +1111,9 @@ function EntityProfileModal({
             {/* Coordenação */}
             {coordinators.length > 0 && (
               <>
-                <View style={memberStyles.sectionHeader}>
-                  <Ionicons name="star" size={13} color={colors.admin} />
-                  <Text style={memberStyles.sectionTitle}>
+                <View style={mStyles.sectionHeader}>
+                  <Ionicons name="star" size={13} color={ADMIN_COLOR} />
+                  <Text style={mStyles.sectionTitle}>
                     Coordenação ({coordinators.length})
                   </Text>
                 </View>
@@ -1123,9 +1133,9 @@ function EntityProfileModal({
             {/* Membros */}
             {regularMembers.length > 0 && (
               <>
-                <View style={memberStyles.sectionHeader}>
-                  <Ionicons name="people-outline" size={13} color={colors.primary} />
-                  <Text style={[memberStyles.sectionTitle, { color: colors.primary }]}>
+                <View style={mStyles.sectionHeader}>
+                  <Ionicons name="people-outline" size={13} color={t.brand.primary} />
+                  <Text style={[mStyles.sectionTitle, { color: t.brand.primary }]}>
                     Membros ({regularMembers.length})
                   </Text>
                 </View>
@@ -1153,8 +1163,8 @@ function EntityProfileModal({
         >
           <View style={styles.confirmOverlay}>
             <View style={styles.confirmBox}>
-              <View style={[styles.confirmIcon, { backgroundColor: '#fee2e2' }]}>
-                <Ionicons name="person-remove-outline" size={28} color={colors.danger} />
+              <View style={[styles.confirmIcon, { backgroundColor: t.status.errorBg }]}>
+                <Ionicons name="person-remove-outline" size={28} color={t.status.error} />
               </View>
               <Text style={styles.confirmTitle}>Remover membro</Text>
               <Text style={styles.confirmMsg}>
@@ -1173,7 +1183,7 @@ function EntityProfileModal({
                   <Text style={styles.confirmBtnCancelText}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.confirmBtn, { backgroundColor: colors.danger }]}
+                  style={[styles.confirmBtn, { backgroundColor: t.status.error }]}
                   onPress={handleConfirmRemove}
                   disabled={!!actionLoading}
                 >
@@ -1208,25 +1218,28 @@ function MemberCard({
   onChangeRole: (role: 'COORDINATOR' | 'MEMBER') => void;
   onRemove: () => void;
 }) {
+  const { t } = useTheme();
+  const mStyles = makeMemberStyles(t);
+
   const isCoord = member.role === 'COORDINATOR';
   const initial = (member.user_name || member.user_email || '?')[0].toUpperCase();
 
   return (
-    <View style={memberStyles.memberCard}>
+    <View style={mStyles.memberCard}>
       {/* Avatar */}
-      <View style={[memberStyles.avatar, isCoord && memberStyles.avatarCoord]}>
-        <Text style={memberStyles.avatarText}>{initial}</Text>
+      <View style={[mStyles.avatar, isCoord && mStyles.avatarCoord]}>
+        <Text style={mStyles.avatarText}>{initial}</Text>
       </View>
 
       {/* Info */}
       <View style={{ flex: 1 }}>
-        <Text style={memberStyles.memberName} numberOfLines={1}>{member.user_name}</Text>
+        <Text style={mStyles.memberName} numberOfLines={1}>{member.user_name}</Text>
         {member.user_email ? (
-          <Text style={memberStyles.memberEmail} numberOfLines={1}>{member.user_email}</Text>
+          <Text style={mStyles.memberEmail} numberOfLines={1}>{member.user_email}</Text>
         ) : null}
-        <View style={memberStyles.roleRow}>
-          <View style={[memberStyles.roleBadge, isCoord ? memberStyles.roleBadgeCoord : memberStyles.roleBadgeMember]}>
-            <Text style={[memberStyles.roleText, { color: isCoord ? colors.admin : colors.primary }]}>
+        <View style={mStyles.roleRow}>
+          <View style={[mStyles.roleBadge, isCoord ? mStyles.roleBadgeCoord : mStyles.roleBadgeMember]}>
+            <Text style={[mStyles.roleText, { color: isCoord ? ADMIN_COLOR : t.brand.primary }]}>
               {isCoord ? 'Coordenador' : 'Membro'}
             </Text>
           </View>
@@ -1235,25 +1248,25 @@ function MemberCard({
 
       {/* Ações (só para admin) */}
       {canEdit && (
-        <View style={memberStyles.actions}>
+        <View style={mStyles.actions}>
           {loading ? (
-            <ActivityIndicator size="small" color={colors.admin} style={{ marginHorizontal: 8 }} />
+            <ActivityIndicator size="small" color={ADMIN_COLOR} style={{ marginHorizontal: 8 }} />
           ) : (
             <>
               {/* Promover/rebaixar */}
               <TouchableOpacity
-                style={memberStyles.actionIconBtn}
+                style={mStyles.actionIconBtn}
                 onPress={() => onChangeRole(isCoord ? 'MEMBER' : 'COORDINATOR')}
               >
                 <Ionicons
                   name={isCoord ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'}
                   size={24}
-                  color={isCoord ? colors.gray : colors.admin}
+                  color={isCoord ? t.text.secondary : ADMIN_COLOR}
                 />
               </TouchableOpacity>
               {/* Remover */}
-              <TouchableOpacity style={memberStyles.actionIconBtn} onPress={onRemove}>
-                <Ionicons name="person-remove-outline" size={24} color={colors.danger} />
+              <TouchableOpacity style={mStyles.actionIconBtn} onPress={onRemove}>
+                <Ionicons name="person-remove-outline" size={24} color={t.status.error} />
               </TouchableOpacity>
             </>
           )}
@@ -1263,7 +1276,7 @@ function MemberCard({
   );
 }
 
-const memberStyles = StyleSheet.create({
+const makeMemberStyles = (t: SemanticTokens) => StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1275,43 +1288,43 @@ const memberStyles = StyleSheet.create({
   sectionTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.admin,
+    color: ADMIN_COLOR,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
   memberCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fafafa',
+    backgroundColor: t.bg.elevated,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
     gap: 10,
     borderWidth: 1,
-    borderColor: colors.lightGray,
+    borderColor: t.border.subtle,
   },
   avatar: {
     width: 42, height: 42, borderRadius: 21,
-    backgroundColor: colors.primary,
+    backgroundColor: t.brand.primary,
     alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
   },
   avatarCoord: {
-    backgroundColor: colors.admin,
+    backgroundColor: ADMIN_COLOR,
   },
   avatarText: {
-    color: colors.white,
+    color: t.text.inverse,
     fontWeight: '700',
     fontSize: 17,
   },
   memberName: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
+    color: t.text.primary,
   },
   memberEmail: {
     fontSize: 12,
-    color: colors.gray,
+    color: t.text.secondary,
     marginTop: 1,
   },
   roleRow: {
@@ -1325,12 +1338,12 @@ const memberStyles = StyleSheet.create({
     borderWidth: 1,
   },
   roleBadgeCoord: {
-    backgroundColor: colors.adminLight,
-    borderColor: colors.admin,
+    backgroundColor: ADMIN_LIGHT,
+    borderColor: ADMIN_COLOR,
   },
   roleBadgeMember: {
     backgroundColor: '#e0f2fe',
-    borderColor: colors.primary,
+    borderColor: t.brand.primary,
   },
   roleText: {
     fontSize: 11,
@@ -1350,43 +1363,43 @@ const memberStyles = StyleSheet.create({
 // =============================================================================
 // Estilos
 // =============================================================================
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.lightGray },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.screen },
   content: { padding: 16, paddingBottom: 40 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
-  loadingText: { marginTop: 12, color: colors.gray, fontSize: 14 },
+  loadingText: { marginTop: 12, color: t.text.secondary, fontSize: 14 },
 
   errorCard: {
-    backgroundColor: colors.white, borderRadius: 12, padding: 24,
+    backgroundColor: t.bg.elevated, borderRadius: 12, padding: 24,
     alignItems: 'center', gap: 12,
   },
-  errorText: { color: colors.danger, fontSize: 14, textAlign: 'center' },
+  errorText: { color: t.status.error, fontSize: 14, textAlign: 'center' },
   retryBtn: {
-    backgroundColor: colors.admin, borderRadius: 8,
+    backgroundColor: ADMIN_COLOR, borderRadius: 8,
     paddingHorizontal: 20, paddingVertical: 10,
   },
-  retryBtnText: { color: colors.white, fontWeight: '600' },
+  retryBtnText: { color: t.text.inverse, fontWeight: '600' },
 
   emptyCard: {
-    backgroundColor: colors.white, borderRadius: 16, padding: 32,
+    backgroundColor: t.bg.elevated, borderRadius: 16, padding: 32,
     alignItems: 'center', gap: 12,
   },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
-  emptyDesc: { fontSize: 14, color: colors.gray, textAlign: 'center', lineHeight: 20 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: t.text.primary },
+  emptyDesc: { fontSize: 14, color: t.text.secondary, textAlign: 'center', lineHeight: 20 },
   createRootBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.admin, borderRadius: 10,
+    backgroundColor: ADMIN_COLOR, borderRadius: 10,
     paddingHorizontal: 20, paddingVertical: 12, marginTop: 8,
   },
-  createRootBtnText: { color: colors.white, fontWeight: '700', fontSize: 15 },
+  createRootBtnText: { color: t.text.inverse, fontWeight: '700', fontSize: 15 },
 
   treeHeader: { marginBottom: 12 },
-  treeHeaderTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  treeHeaderTitle: { fontSize: 16, fontWeight: '700', color: t.text.primary },
 
   unitCard: {
-    backgroundColor: colors.white, borderRadius: 12,
+    backgroundColor: t.bg.elevated, borderRadius: 12,
     padding: 14, marginBottom: 10,
-    borderLeftWidth: 3, borderLeftColor: colors.adminLight,
+    borderLeftWidth: 3, borderLeftColor: ADMIN_LIGHT,
   },
   unitHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   unitIconBox: {
@@ -1394,111 +1407,111 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginRight: 10,
   },
   unitInfo: { flex: 1 },
-  unitName: { fontSize: 15, fontWeight: '600', color: colors.text },
-  unitType: { fontSize: 12, color: colors.gray, marginTop: 2 },
+  unitName: { fontSize: 15, fontWeight: '600', color: t.text.primary },
+  unitType: { fontSize: 12, color: t.text.secondary, marginTop: 2 },
   unitActions: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   actionBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    borderWidth: 1, borderColor: colors.lightGray,
+    borderWidth: 1, borderColor: t.border.subtle,
     borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
   },
   actionBtnText: { fontSize: 12, fontWeight: '500' },
 
   // Modal
-  modalContainer: { flex: 1, backgroundColor: colors.white },
+  modalContainer: { flex: 1, backgroundColor: t.bg.screen },
   modalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 16, borderBottomWidth: 1, borderBottomColor: colors.lightGray,
+    padding: 16, borderBottomWidth: 1, borderBottomColor: t.border.subtle,
   },
-  modalTitle: { fontSize: 16, fontWeight: '700', color: colors.text, flex: 1, marginRight: 12 },
+  modalTitle: { fontSize: 16, fontWeight: '700', color: t.text.primary, flex: 1, marginRight: 12 },
   modalBody: { flex: 1, padding: 16 },
   modalFooter: {
     flexDirection: 'row', gap: 12, padding: 16,
-    borderTopWidth: 1, borderTopColor: colors.lightGray,
+    borderTopWidth: 1, borderTopColor: t.border.subtle,
   },
 
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 6, marginTop: 12 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: t.text.primary, marginBottom: 6, marginTop: 12 },
   input: {
-    borderWidth: 1, borderColor: colors.lightGray, borderRadius: 10,
-    padding: 12, fontSize: 15, color: colors.text, backgroundColor: '#fafafa',
+    borderWidth: 1, borderColor: t.border.subtle, borderRadius: 10,
+    padding: 12, fontSize: 15, color: t.text.primary, backgroundColor: t.bg.surface,
   },
   textArea: { minHeight: 80, textAlignVertical: 'top' },
 
   toggleRow: { flexDirection: 'row', gap: 10, marginBottom: 4 },
   toggleBtn: {
-    flex: 1, borderWidth: 1, borderColor: colors.lightGray,
+    flex: 1, borderWidth: 1, borderColor: t.border.subtle,
     borderRadius: 8, paddingVertical: 10, alignItems: 'center',
   },
-  toggleBtnActive: { backgroundColor: colors.admin, borderColor: colors.admin },
-  toggleBtnText: { fontSize: 14, color: colors.gray, fontWeight: '500' },
-  toggleBtnTextActive: { color: colors.white },
+  toggleBtnActive: { backgroundColor: ADMIN_COLOR, borderColor: ADMIN_COLOR },
+  toggleBtnText: { fontSize: 14, color: t.text.secondary, fontWeight: '500' },
+  toggleBtnTextActive: { color: t.text.inverse },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    borderWidth: 1, borderColor: colors.lightGray, borderRadius: 20,
+    borderWidth: 1, borderColor: t.border.subtle, borderRadius: 20,
     paddingHorizontal: 14, paddingVertical: 6,
   },
-  chipActive: { backgroundColor: colors.admin, borderColor: colors.admin },
-  chipText: { fontSize: 13, color: colors.gray },
-  chipTextActive: { color: colors.white, fontWeight: '600' },
+  chipActive: { backgroundColor: ADMIN_COLOR, borderColor: ADMIN_COLOR },
+  chipText: { fontSize: 13, color: t.text.secondary },
+  chipTextActive: { color: t.text.inverse, fontWeight: '600' },
 
   cancelBtn: {
-    flex: 1, borderWidth: 2, borderColor: colors.admin,
+    flex: 1, borderWidth: 2, borderColor: ADMIN_COLOR,
     borderRadius: 10, paddingVertical: 14, alignItems: 'center',
   },
-  cancelBtnText: { color: colors.admin, fontWeight: '700', fontSize: 15 },
+  cancelBtnText: { color: ADMIN_COLOR, fontWeight: '700', fontSize: 15 },
   submitBtn: {
-    flex: 1, backgroundColor: colors.admin,
+    flex: 1, backgroundColor: ADMIN_COLOR,
     borderRadius: 10, paddingVertical: 14, alignItems: 'center',
   },
-  submitBtnText: { color: colors.white, fontWeight: '700', fontSize: 15 },
+  submitBtnText: { color: t.text.inverse, fontWeight: '700', fontSize: 15 },
 
   // Invite modal
   searchRow: {
     flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderColor: colors.lightGray,
-    borderRadius: 10, padding: 10, backgroundColor: '#fafafa', marginBottom: 8,
+    borderWidth: 1, borderColor: t.border.subtle,
+    borderRadius: 10, padding: 10, backgroundColor: t.bg.surface, marginBottom: 8,
   },
-  searchInput: { flex: 1, fontSize: 15, color: colors.text },
+  searchInput: { flex: 1, fontSize: 15, color: t.text.primary },
   userResult: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#fafafa', borderRadius: 10,
+    backgroundColor: t.bg.surface, borderRadius: 10,
     padding: 12, marginBottom: 8, gap: 10,
   },
   selectedUserCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.adminLight, borderRadius: 10,
+    backgroundColor: ADMIN_LIGHT, borderRadius: 10,
     padding: 12, gap: 10, marginBottom: 4,
   },
   userAvatar: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: colors.admin, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: ADMIN_COLOR, alignItems: 'center', justifyContent: 'center',
   },
-  userAvatarText: { color: colors.white, fontWeight: '700', fontSize: 16 },
-  userName: { fontSize: 14, fontWeight: '600', color: colors.text },
-  userEmail: { fontSize: 12, color: colors.gray },
-  noResults: { textAlign: 'center', color: colors.gray, marginTop: 16, fontSize: 14 },
+  userAvatarText: { color: t.text.inverse, fontWeight: '700', fontSize: 16 },
+  userName: { fontSize: 14, fontWeight: '600', color: t.text.primary },
+  userEmail: { fontSize: 12, color: t.text.secondary },
+  noResults: { textAlign: 'center', color: t.text.secondary, marginTop: 16, fontSize: 14 },
 
   // Confirmação de remoção
   confirmOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
+    flex: 1, backgroundColor: t.bg.overlay,
     alignItems: 'center', justifyContent: 'center', padding: 24,
   },
   confirmBox: {
-    backgroundColor: colors.white, borderRadius: 16,
+    backgroundColor: t.bg.elevated, borderRadius: 16,
     padding: 24, width: '100%', maxWidth: 340, alignItems: 'center',
   },
   confirmIcon: {
     width: 56, height: 56, borderRadius: 28,
     alignItems: 'center', justifyContent: 'center', marginBottom: 14,
   },
-  confirmTitle: { fontSize: 17, fontWeight: '700', color: colors.text, marginBottom: 8 },
-  confirmMsg: { fontSize: 14, color: colors.gray, textAlign: 'center', marginBottom: 20, lineHeight: 20 },
+  confirmTitle: { fontSize: 17, fontWeight: '700', color: t.text.primary, marginBottom: 8 },
+  confirmMsg: { fontSize: 14, color: t.text.secondary, textAlign: 'center', marginBottom: 20, lineHeight: 20 },
   confirmActions: { flexDirection: 'row', gap: 12, width: '100%' },
   confirmBtn: {
     flex: 1, borderRadius: 10, paddingVertical: 13, alignItems: 'center',
   },
-  confirmBtnCancel: { borderWidth: 1.5, borderColor: colors.lightGray },
-  confirmBtnCancelText: { color: colors.text, fontWeight: '600', fontSize: 14 },
-  confirmBtnText: { color: colors.white, fontWeight: '700', fontSize: 14 },
+  confirmBtnCancel: { borderWidth: 1.5, borderColor: t.border.subtle },
+  confirmBtnCancelText: { color: t.text.primary, fontWeight: '600', fontSize: 14 },
+  confirmBtnText: { color: t.text.inverse, fontWeight: '700', fontSize: 14 },
 });
