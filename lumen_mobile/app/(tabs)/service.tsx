@@ -245,9 +245,10 @@ export default function OracoesScreen() {
               <View style={[styles.corChip, { backgroundColor: liturgicalColor }]}>
                 <Text style={styles.corChipText}>{liturgia.color || ''}</Text>
               </View>
-              <Text style={styles.liturgiaData}>{liturgia.date || ''}</Text>
+              {/* Data e título sempre em cor escura — o fundo litúrgico é sempre pastel claro */}
+              <Text style={[styles.liturgiaData, { color: '#374151' }]}>{liturgia.date || ''}</Text>
             </View>
-            <Text style={styles.liturgiaTitulo}>{liturgia.entry_title || ''}</Text>
+            <Text style={[styles.liturgiaTitulo, { color: '#111827' }]}>{liturgia.entry_title || ''}</Text>
           </View>
 
           {readings && readings.first_reading && readings.first_reading.text ? (
