@@ -1,136 +1,75 @@
 /**
  * Tabs Layout
  * ===========
- * Layout das tabs principais do app com novo design.
- * Verifica se o perfil está completo (has_documents) e redireciona
- * para preenchimento de CPF/RG se necessário.
+ * Lógica de onboarding intacta.
+ * Tab bar substituída pelo CustomTabBar com pill animado.
  */
 
 import { useEffect } from 'react';
 import { Tabs, router } from 'expo-router';
 import { View, Image, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { authService, profileService } from '@/services';
-
-const colors = {
-  primary: '#1A859B',
-  white: '#ffffff',
-  gray: '#a3a3a3',
-};
+import { CustomTabBar } from '@/components/ui/CustomTabBar';
+import { useTheme } from '@/theme';
 
 export default function TabsLayout() {
+  const { t } = useTheme();
+
   useEffect(() => {
     (async () => {
       try {
-        // 1. Verifica consentimento dos termos (LGPD) — tem prioridade
         const me = await authService.getMe();
         if (me.consents.pending_terms || me.consents.pending_privacy) {
           router.replace('/(onboarding)/terms');
           return;
         }
-
-        // 2. Verifica documentos obrigatórios (CPF/RG)
         const profile = await profileService.getProfile();
         if (!profile.has_documents) {
           router.replace('/(onboarding)/complete-documents');
           return;
         }
-
-        // 3. Verifica atualização semestral obrigatória
         if (me.profile_update_due) {
           router.replace('/(onboarding)/profile-update');
           return;
         }
       } catch {
-        // Ignora erros de rede — não bloqueia a navegação
+        // Ignora erros de rede
       }
     })();
   }, []);
 
   return (
     <Tabs
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         header: () => (
-          <View style={styles.header}>
-            <Image 
-              source={require('../../assets/images/logo.png')} 
+          <View style={[styles.header, { backgroundColor: t.bg.elevated, borderBottomColor: t.border.subtle }]}>
+            <Image
+              source={require('../../assets/images/logo.png')}
               style={styles.logo}
               resizeMode="contain"
             />
           </View>
         ),
-        tabBarActiveTintColor: colors.white,
-        tabBarInactiveTintColor: 'rgba(255,255,255,0.6)',
-        tabBarStyle: {
-          backgroundColor: colors.primary,
-          borderTopWidth: 0,
-          height: 70,
-          paddingBottom: 10,
-          paddingTop: 10,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
-        },
       }}
     >
-      <Tabs.Screen
-        name="service"
-        options={{
-          title: 'Orações',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "book" : "book-outline"} size={24} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="community"
-        options={{
-          title: 'Convites',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "mail-open" : "mail-open-outline"} size={24} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: 'Início',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="invites"
-        options={{
-          title: 'Inbox',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "mail" : "mail-outline"} size={24} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Perfil',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "person" : "person-outline"} size={24} color={color} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="service"   options={{ title: 'Servir'     }} />
+      <Tabs.Screen name="community" options={{ title: 'Comunidade' }} />
+      <Tabs.Screen name="home"      options={{ title: 'Início'     }} />
+      <Tabs.Screen name="invites"   options={{ title: 'Inbox'      }} />
+      <Tabs.Screen name="profile"   options={{ title: 'Perfil'     }} />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   logo: {
     height: 30,
