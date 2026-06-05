@@ -1,11 +1,11 @@
 /**
  * Home Screen
  * ===========
- * Dashboard principal do usuário.
+ * Dashboard principal do usuário — hierarquia de 5 seções.
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Platform } from 'react-native';
 import { router, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { IoniconsName } from '@/types/icons';
@@ -14,17 +14,11 @@ import api from '@/services/api';
 import { getVersiculoDoDia } from '@/services/bible';
 import { PushPermissionCard } from '@/components/PushPermissionCard';
 import { getPushDecision } from '@/services/push';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
+import { radius } from '@/theme/tokens';
 
-const colors = {
-  primary: '#1A859B',
-  white: '#ffffff',
-  gray: '#6b7280',
-  lightGray: '#E8E8E8',
-  success: '#22c55e',
-  warning: '#f59e0b',
-  admin: '#7c3aed',
-  coord: '#059669',
-};
+type R = typeof radius;
 
 interface Aviso {
   id: string;
@@ -36,6 +30,8 @@ interface Aviso {
 }
 
 export default function HomeScreen() {
+  const { t, r } = useTheme();
+
   const [userName, setUserName] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [avisosNaoLidos, setAvisosNaoLidos] = useState<Aviso[]>([]);
@@ -142,7 +138,7 @@ export default function HomeScreen() {
       case 'success':
         return { name: 'checkmark-circle', color: '#22c55e' };
       default:
-        return { name: 'information-circle', color: colors.primary };
+        return { name: 'information-circle', color: t.brand.primary };
     }
   };
 
@@ -162,477 +158,602 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
+      style={{ flex: 1, backgroundColor: t.bg.screen }}
+      contentContainerStyle={{ paddingBottom: 40 }}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[t.brand.primary]} />
       }
     >
-      {/* Greeting */}
-      <Text style={styles.greeting}>Olá, {userName || 'Usuário'}!</Text>
+      {/* ── 1. HERO DE ACOLHIMENTO ─────────────────────────── */}
+      <HeroSection userName={userName} t={t} r={r} loading={loading} />
 
+      {/* Push permission (web only) */}
       {Platform.OS === 'web' && showPushCard && (
-        <PushPermissionCard onDismiss={() => setShowPushCard(false)} />
-      )}
-
-      {/* Admin Button */}
-      {hasAdminAccess && (
-        <TouchableOpacity 
-          style={styles.adminButton}
-          onPress={() => router.push('/admin')}
-        >
-          <View style={styles.adminIconContainer}>
-            <Ionicons name="shield-checkmark" size={24} color={colors.white} />
-          </View>
-          <View style={styles.adminTextContainer}>
-            <Text style={styles.adminTitle}>Administração</Text>
-            <Text style={styles.adminSubtitle}>Entidades, membros e comunicações</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.admin} />
-        </TouchableOpacity>
-      )}
-
-      {/* Coordinator Button */}
-      {isCoordinator && !hasAdminAccess && !hasRetreatAccess && (
-        <TouchableOpacity
-          style={styles.coordButton}
-          onPress={() => router.push('/coordinator')}
-        >
-          <View style={styles.coordIconContainer}>
-            <Ionicons name="ribbon" size={24} color={colors.white} />
-          </View>
-          <View style={styles.adminTextContainer}>
-            <Text style={styles.coordTitle}>Minha Coordenação</Text>
-            <Text style={styles.adminSubtitle}>Membros e convites da sua unidade</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.coord} />
-        </TouchableOpacity>
-      )}
-
-      {/* Retreat Ministry Button */}
-      {hasRetreatAccess && !hasAdminAccess && (
-        <TouchableOpacity
-          style={styles.retreatButton}
-          onPress={() => router.push('/coordinator')}
-        >
-          <View style={styles.retreatIconContainer}>
-            <Ionicons name="compass" size={24} color={colors.white} />
-          </View>
-          <View style={styles.adminTextContainer}>
-            <Text style={styles.retreatTitle}>Ministério de Retiro</Text>
-            <Text style={styles.adminSubtitle}>Retiros, equipes e inscrições</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#b45309" />
-        </TouchableOpacity>
-      )}
-
-      {/* Versículo do Dia */}
-      {(() => {
-        const v = getVersiculoDoDia();
-        if (!v.texto) return null;
-        return (
-          <TouchableOpacity
-            style={styles.versiculoCard}
-            onPress={() => router.push('/biblia' as Href)}
-            activeOpacity={0.85}
-          >
-            <View style={styles.versiculoHeader}>
-              <Ionicons name="book-outline" size={16} color={colors.primary} />
-              <Text style={styles.versiculoLabel}>Versículo do Dia</Text>
-            </View>
-            <Text style={styles.versiculoTexto}>"{v.texto}"</Text>
-            <Text style={styles.versiculoRef}>{v.referencia}</Text>
-          </TouchableOpacity>
-        );
-      })()}
-
-      {/* Avisos Section */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Avisos</Text>
-        {avisosNaoLidos.length > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{avisosNaoLidos.length}</Text>
-          </View>
-        )}
-      </View>
-
-      {avisosNaoLidos.length > 0 ? (
-        <View style={styles.avisosContainer}>
-          {avisosNaoLidos.slice(0, 5).map((aviso) => {
-            const icon = getAvisoIcon(aviso.type);
-            return (
-              <TouchableOpacity 
-                key={aviso.id} 
-                style={styles.avisoCard}
-                onPress={() => handleOpenAviso(aviso)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.avisoIconContainer, { backgroundColor: `${icon.color}15` }]}>
-                  <Ionicons name={icon.name as IoniconsName} size={24} color={icon.color} />
-                </View>
-                <View style={styles.avisoContent}>
-                  <Text style={styles.avisoTitle} numberOfLines={1}>{aviso.title}</Text>
-                  <Text style={styles.avisoMessage} numberOfLines={2}>{aviso.message}</Text>
-                  <Text style={styles.avisoDate}>{formatDate(aviso.created_at)}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.gray} />
-              </TouchableOpacity>
-            );
-          })}
-          
-          {avisosNaoLidos.length > 5 && (
-            <TouchableOpacity 
-              style={styles.verMaisButton}
-              onPress={() => router.push('/(tabs)/invites')}
-            >
-              <Text style={styles.verMaisText}>Ver todos os avisos ({avisosNaoLidos.length})</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      ) : (
-        <View style={styles.allReadCard}>
-          <View style={styles.allReadIconContainer}>
-            <Ionicons name="checkmark-done-circle" size={48} color={colors.success} />
-          </View>
-          <Text style={styles.allReadTitle}>Você já leu todos os avisos!</Text>
-          <Text style={styles.allReadMessage}>Obrigado pela comunhão!</Text>
+        <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
+          <PushPermissionCard onDismiss={() => setShowPushCard(false)} />
         </View>
       )}
 
-      {/* Projeto de Vida Card */}
+      {/* ── 2. ÁREA DE ATENÇÃO ─────────────────────────────── */}
+      <AttentionSection
+        avisosNaoLidos={avisosNaoLidos}
+        t={t}
+        r={r}
+        onOpenAviso={handleOpenAviso}
+        formatDate={formatDate}
+        getAvisoIcon={getAvisoIcon}
+        loading={loading}
+      />
+
+      {/* ── 3. VIDA COMUNITÁRIA ────────────────────────────── */}
+      <CommunitySection t={t} r={r} />
+
+      {/* ── 4. ÁREA DE SERVIÇO ────────────────────────────── */}
+      {(hasAdminAccess || isCoordinator || hasRetreatAccess) && (
+        <ServiceSection
+          hasAdminAccess={hasAdminAccess}
+          isCoordinator={isCoordinator}
+          hasRetreatAccess={hasRetreatAccess}
+          t={t}
+          r={r}
+        />
+      )}
+
+      {/* ── 5. RODAPÉ ESPIRITUAL ───────────────────────────── */}
+      <SpiritualFooter t={t} />
+
       <TouchableOpacity
-        style={styles.vidaButton}
-        onPress={() => router.push('/vida' as Href)}
+        style={{ alignSelf: 'center', marginTop: 24, padding: 12 }}
+        onPress={handleLogout}
+        accessibilityLabel="Sair da conta"
       >
-        <View style={styles.vidaIconContainer}>
-          <Ionicons name="compass" size={24} color={colors.white} />
-        </View>
-        <View style={styles.adminTextContainer}>
-          <Text style={styles.vidaTitle}>Projeto de Vida</Text>
-          <Text style={styles.adminSubtitle}>Plano espiritual personalizado</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color={colors.primary} />
-      </TouchableOpacity>
-
-      {/* Quick Actions */}
-      <Text style={styles.sectionTitle}>Acesso Rápido</Text>
-      <View style={styles.quickActions}>
-        <TouchableOpacity
-          style={styles.quickActionCard}
-          onPress={() => router.push('/(tabs)/profile')}
-        >
-          <Ionicons name="person-outline" size={28} color={colors.primary} />
-          <Text style={styles.quickActionText}>Meu Perfil</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickActionCard}
-          onPress={() => router.push('/(tabs)/invites')}
-        >
-          <Ionicons name="mail-outline" size={28} color={colors.primary} />
-          <Text style={styles.quickActionText}>Inbox</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickActionCard}
-          onPress={() => router.push('/retreats' as Href)}
-        >
-          <Ionicons name="compass-outline" size={28} color={colors.primary} />
-          <Text style={styles.quickActionText}>Retiros</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Logout Button */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Sair da conta</Text>
+        <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary }}>
+          Sair da conta
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.lightGray,
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  greeting: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#171717',
-    marginBottom: 20,
-  },
-  // Admin Button
-  adminButton: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-    borderWidth: 2,
-    borderColor: colors.admin,
-  },
-  adminIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.admin,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  adminTextContainer: {
-    flex: 1,
-  },
-  adminTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.admin,
-  },
-  adminSubtitle: {
-    fontSize: 13,
-    color: colors.gray,
-    marginTop: 2,
-  },
-  // Coordinator Button
-  coordButton: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-    borderWidth: 2,
-    borderColor: colors.coord,
-  },
-  coordIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.coord,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  coordTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.coord,
-  },
-  // Projeto de Vida Button
-  vidaButton: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  vidaIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  vidaTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  // Retreat Ministry Button
-  retreatButton: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-    borderWidth: 2,
-    borderColor: '#b45309',
-  },
-  retreatIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#b45309',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  retreatTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#b45309',
-  },
-  // Versículo do Dia
-  versiculoCard: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  versiculoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 10,
-  },
-  versiculoLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  versiculoTexto: {
-    fontSize: 15,
-    color: '#374151',
-    lineHeight: 24,
-    fontStyle: 'italic',
-    marginBottom: 8,
-  },
-  versiculoRef: {
-    fontSize: 13,
-    color: colors.primary,
-    fontWeight: '600',
-    textAlign: 'right',
-  },
-  // Section
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#171717',
-  },
-  badge: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginLeft: 8,
-  },
-  badgeText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  // Avisos
-  avisosContainer: {
-    marginBottom: 24,
-  },
-  avisoCard: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  avisoIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  avisoContent: {
-    flex: 1,
-  },
-  avisoTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#171717',
-    marginBottom: 2,
-  },
-  avisoMessage: {
-    fontSize: 13,
-    color: colors.gray,
-    lineHeight: 18,
-  },
-  avisoDate: {
-    fontSize: 11,
-    color: colors.gray,
-    marginTop: 4,
-  },
-  verMaisButton: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  verMaisText: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  // All Read
-  allReadCard: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 32,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  allReadIconContainer: {
-    marginBottom: 16,
-  },
-  allReadTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#171717',
-    marginBottom: 4,
-  },
-  allReadMessage: {
-    fontSize: 14,
-    color: colors.gray,
-  },
-  // Quick Actions
-  quickActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-    marginTop: 12,
-  },
-  quickActionCard: {
-    flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-  },
-  quickActionText: {
-    fontSize: 14,
-    color: '#171717',
-    marginTop: 8,
-    fontWeight: '500',
-  },
-  // Logout
-  logoutButton: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#ef4444',
-    alignItems: 'center',
-  },
-  logoutText: {
-    color: '#ef4444',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
+// ──────────────────────────────────────────────────────────────
+// Sub-components
+// ──────────────────────────────────────────────────────────────
+
+// ── 1. Hero ───────────────────────────────────────────────────
+function HeroSection({
+  userName,
+  t,
+  r,
+  loading,
+}: {
+  userName: string;
+  t: SemanticTokens;
+  r: R;
+  loading: boolean;
+}) {
+  const v = getVersiculoDoDia();
+
+  return (
+    <View
+      style={{
+        backgroundColor: t.bg.elevated,
+        paddingHorizontal: 20,
+        paddingTop: 28,
+        paddingBottom: 24,
+        borderBottomLeftRadius: r.xl,
+        borderBottomRightRadius: r.xl,
+        marginBottom: 8,
+        ...t.shadow.sm,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 13,
+          fontFamily: 'Nunito-Regular',
+          color: t.text.tertiary,
+          marginBottom: 2,
+        }}
+      >
+        Bem-vindo de volta
+      </Text>
+      <Text
+        style={{
+          fontSize: 26,
+          fontFamily: 'Nunito-ExtraBold',
+          color: t.text.primary,
+          marginBottom: 16,
+        }}
+      >
+        {loading ? 'Carregando...' : `Olá, ${userName || 'Usuário'}!`}
+      </Text>
+
+      {v.texto ? (
+        <View
+          style={{
+            backgroundColor: t.bg.surface,
+            borderRadius: r.md,
+            padding: 14,
+            borderLeftWidth: 3,
+            borderLeftColor: t.accent.spiritual,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              marginBottom: 8,
+            }}
+          >
+            <Ionicons name="book-outline" size={13} color={t.accent.spiritual} />
+            <Text
+              style={{
+                fontSize: 10,
+                fontFamily: 'Nunito-Bold',
+                color: t.accent.spiritual,
+                letterSpacing: 1,
+                textTransform: 'uppercase',
+              }}
+            >
+              Versículo do Dia
+            </Text>
+          </View>
+          <Text
+            style={{
+              fontSize: 14,
+              fontFamily: 'Nunito-Italic',
+              color: t.text.spiritual,
+              lineHeight: 22,
+            }}
+          >
+            "{v.texto}"
+          </Text>
+          <Text
+            style={{
+              fontSize: 12,
+              fontFamily: 'Nunito-SemiBold',
+              color: t.text.tertiary,
+              marginTop: 6,
+            }}
+          >
+            {v.referencia}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+// ── 2. Área de Atenção ────────────────────────────────────────
+function AttentionSection({
+  avisosNaoLidos,
+  t,
+  r,
+  onOpenAviso,
+  formatDate,
+  getAvisoIcon,
+  loading,
+}: {
+  avisosNaoLidos: Aviso[];
+  t: SemanticTokens;
+  r: R;
+  onOpenAviso: (a: Aviso) => void;
+  formatDate: (d: string) => string;
+  getAvisoIcon: (type: string) => { name: string; color: string };
+  loading: boolean;
+}) {
+  if (loading) return null;
+
+  if (avisosNaoLidos.length === 0) {
+    return (
+      <View style={{ paddingHorizontal: 16, paddingVertical: 12, marginBottom: 4 }}>
+        <View
+          style={{
+            backgroundColor: t.bg.elevated,
+            borderRadius: r.lg,
+            padding: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            ...t.shadow.sm,
+          }}
+        >
+          <Ionicons name="checkmark-done-circle" size={32} color={t.status.success} />
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 14,
+                fontFamily: 'Nunito-SemiBold',
+                color: t.text.primary,
+              }}
+            >
+              Tudo em dia!
+            </Text>
+            <Text
+              style={{
+                fontSize: 12,
+                fontFamily: 'Nunito-Regular',
+                color: t.text.secondary,
+                marginTop: 2,
+              }}
+            >
+              Nenhum aviso pendente.
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ paddingHorizontal: 16, marginBottom: 4 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 10,
+          marginTop: 16,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 13,
+            fontFamily: 'Nunito-Bold',
+            color: t.text.secondary,
+            textTransform: 'uppercase',
+            letterSpacing: 0.8,
+          }}
+        >
+          Atenção
+        </Text>
+        <View
+          style={{
+            backgroundColor: t.status.error,
+            borderRadius: r.full,
+            minWidth: 20,
+            height: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 5,
+          }}
+        >
+          <Text
+            style={{ fontSize: 11, fontFamily: 'Nunito-Bold', color: '#ffffff' }}
+          >
+            {avisosNaoLidos.length}
+          </Text>
+        </View>
+      </View>
+
+      {avisosNaoLidos.slice(0, 5).map((aviso) => {
+        const icon = getAvisoIcon(aviso.type);
+        return (
+          <TouchableOpacity
+            key={aviso.id}
+            onPress={() => onOpenAviso(aviso)}
+            activeOpacity={0.75}
+            accessibilityLabel={`Aviso: ${aviso.title}`}
+            style={{
+              backgroundColor: t.bg.elevated,
+              borderRadius: r.lg,
+              padding: 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              marginBottom: 8,
+              ...t.shadow.sm,
+            }}
+          >
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: `${icon.color}18`,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name={icon.name as IoniconsName} size={22} color={icon.color} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Nunito-SemiBold',
+                  color: t.text.primary,
+                }}
+                numberOfLines={1}
+              >
+                {aviso.title}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontFamily: 'Nunito-Regular',
+                  color: t.text.secondary,
+                  marginTop: 2,
+                }}
+                numberOfLines={2}
+              >
+                {aviso.message}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontFamily: 'Nunito-Regular',
+                  color: t.text.tertiary,
+                  marginTop: 4,
+                }}
+              >
+                {formatDate(aviso.created_at)}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={t.text.tertiary} />
+          </TouchableOpacity>
+        );
+      })}
+
+      {avisosNaoLidos.length > 5 && (
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/invites')}
+          style={{ alignItems: 'center', paddingVertical: 10 }}
+        >
+          <Text
+            style={{
+              fontSize: 13,
+              fontFamily: 'Nunito-SemiBold',
+              color: t.brand.primary,
+            }}
+          >
+            Ver todos os avisos ({avisosNaoLidos.length})
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+// ── 3. Vida Comunitária ───────────────────────────────────────
+function CommunitySection({ t, r }: { t: SemanticTokens; r: R }) {
+  const items: {
+    label: string;
+    icon: React.ComponentProps<typeof Ionicons>['name'];
+    route: string;
+    color: string;
+  }[] = [
+    {
+      label: 'Projeto de Vida',
+      icon: 'compass-outline',
+      route: '/vida',
+      color: t.brand.primary,
+    },
+    {
+      label: 'Retiros',
+      icon: 'earth-outline',
+      route: '/retreats',
+      color: t.brand.coord,
+    },
+    {
+      label: 'Comunidade',
+      icon: 'people-outline',
+      route: '/(tabs)/community',
+      color: t.brand.secondary,
+    },
+    {
+      label: 'Inbox',
+      icon: 'mail-outline',
+      route: '/(tabs)/invites',
+      color: t.brand.admin,
+    },
+  ];
+
+  return (
+    <View style={{ paddingHorizontal: 16, marginTop: 20, marginBottom: 4 }}>
+      <Text
+        style={{
+          fontSize: 13,
+          fontFamily: 'Nunito-Bold',
+          color: t.text.secondary,
+          textTransform: 'uppercase',
+          letterSpacing: 0.8,
+          marginBottom: 12,
+        }}
+      >
+        Vida Comunitária
+      </Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        {items.map((item) => (
+          <TouchableOpacity
+            key={item.label}
+            onPress={() => router.push(item.route as any)}
+            accessibilityLabel={item.label}
+            style={{
+              flex: 1,
+              minWidth: '44%',
+              backgroundColor: t.bg.elevated,
+              borderRadius: r.lg,
+              padding: 16,
+              alignItems: 'center',
+              gap: 8,
+              ...t.shadow.sm,
+            }}
+          >
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: `${item.color}18`,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name={item.icon} size={22} color={item.color} />
+            </View>
+            <Text
+              style={{
+                fontSize: 13,
+                fontFamily: 'Nunito-SemiBold',
+                color: t.text.primary,
+                textAlign: 'center',
+              }}
+            >
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ── 4. Área de Serviço ────────────────────────────────────────
+function ServiceSection({
+  hasAdminAccess,
+  isCoordinator,
+  hasRetreatAccess,
+  t,
+  r,
+}: {
+  hasAdminAccess: boolean;
+  isCoordinator: boolean;
+  hasRetreatAccess: boolean;
+  t: SemanticTokens;
+  r: R;
+}) {
+  const items = (
+    [
+      hasAdminAccess && {
+        label: 'Administração',
+        subtitle: 'Entidades, membros e comunicações',
+        icon: 'shield-checkmark-outline' as const,
+        color: t.brand.admin,
+        route: '/admin',
+      },
+      isCoordinator &&
+        !hasAdminAccess && {
+          label: 'Minha Coordenação',
+          subtitle: 'Membros e convites da unidade',
+          icon: 'ribbon-outline' as const,
+          color: t.brand.coord,
+          route: '/coordinator',
+        },
+      hasRetreatAccess &&
+        !hasAdminAccess && {
+          label: 'Ministério de Retiro',
+          subtitle: 'Retiros, equipes e inscrições',
+          icon: 'compass-outline' as const,
+          color: '#b45309',
+          route: '/coordinator',
+        },
+    ] as const
+  ).filter(Boolean) as {
+    label: string;
+    subtitle: string;
+    icon: React.ComponentProps<typeof Ionicons>['name'];
+    color: string;
+    route: string;
+  }[];
+
+  return (
+    <View style={{ paddingHorizontal: 16, marginTop: 20, marginBottom: 4 }}>
+      <Text
+        style={{
+          fontSize: 13,
+          fontFamily: 'Nunito-Bold',
+          color: t.text.tertiary,
+          textTransform: 'uppercase',
+          letterSpacing: 0.8,
+          marginBottom: 12,
+        }}
+      >
+        Área de Serviço
+      </Text>
+      {items.map((item) => (
+        <TouchableOpacity
+          key={item.label}
+          onPress={() => router.push(item.route as any)}
+          accessibilityLabel={item.label}
+          style={{
+            backgroundColor: t.bg.elevated,
+            borderRadius: r.lg,
+            padding: 14,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            marginBottom: 8,
+            borderWidth: 1,
+            borderColor: `${item.color}30`,
+            ...t.shadow.sm,
+          }}
+        >
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: `${item.color}18`,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name={item.icon} size={20} color={item.color} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 14,
+                fontFamily: 'Nunito-SemiBold',
+                color: item.color,
+              }}
+            >
+              {item.label}
+            </Text>
+            <Text
+              style={{
+                fontSize: 12,
+                fontFamily: 'Nunito-Regular',
+                color: t.text.secondary,
+                marginTop: 2,
+              }}
+            >
+              {item.subtitle}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={item.color} />
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
+// ── 5. Rodapé Espiritual ──────────────────────────────────────
+function SpiritualFooter({ t }: { t: SemanticTokens }) {
+  return (
+    <View
+      style={{ alignItems: 'center', paddingVertical: 32, paddingHorizontal: 32 }}
+    >
+      <View
+        style={{
+          width: 32,
+          height: 1,
+          backgroundColor: t.border.subtle,
+          marginBottom: 16,
+        }}
+      />
+      <Text
+        style={{
+          fontSize: 12,
+          fontFamily: 'Nunito-Italic',
+          color: t.text.tertiary,
+          textAlign: 'center',
+          lineHeight: 20,
+        }}
+      >
+        Obra Lumen · Formação e Missão
+      </Text>
+    </View>
+  );
+}
