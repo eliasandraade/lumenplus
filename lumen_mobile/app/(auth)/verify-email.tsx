@@ -19,20 +19,17 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { verificationService } from '@/services';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
-const colors = {
-  primary: '#1a365d',
-  white: '#ffffff',
-  gray: '#6b7280',
-  lightGray: '#f3f4f6',
-  error: '#ef4444',
-  success: '#22c55e',
-  warning: '#f59e0b',
-  devBg: '#fefce8',
-  devBorder: '#fde047',
-};
+// Intentionally hardcoded — eye-catching for devs in DEV mode
+const DEV_BG = '#fefce8';
+const DEV_BORDER = '#fde047';
 
 export default function VerifyEmailScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const params = useLocalSearchParams<{ email: string; fromRegister?: string }>();
   const email = params.email || '';
   const fromRegister = params.fromRegister === '1';
@@ -149,7 +146,7 @@ export default function VerifyEmailScreen() {
         {/* Loading inicial */}
         {isSending && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size="large" color={t.brand.primary} />
             <Text style={styles.loadingText}>Enviando verificação...</Text>
           </View>
         )}
@@ -168,7 +165,7 @@ export default function VerifyEmailScreen() {
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator size="small" color={colors.primary} />
+                <ActivityIndicator size="small" color="#854d0e" />
               ) : (
                 <Text style={styles.devButtonText}>✓ Confirmar E-mail Automaticamente</Text>
               )}
@@ -206,10 +203,10 @@ export default function VerifyEmailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: t.bg.screen,
   },
   content: {
     flex: 1,
@@ -221,7 +218,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: colors.primary,
+    color: t.text.primary,
     fontWeight: '500',
   },
   iconContainer: {
@@ -234,13 +231,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#171717',
+    color: t.text.primary,
     textAlign: 'center',
     marginBottom: 12,
   },
   subtitle: {
     fontSize: 16,
-    color: colors.gray,
+    color: t.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 8,
@@ -248,12 +245,12 @@ const styles = StyleSheet.create({
   emailHighlight: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.primary,
+    color: t.brand.primary,
     textAlign: 'center',
     marginBottom: 24,
   },
   errorText: {
-    color: colors.error,
+    color: t.status.error,
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 16,
@@ -265,13 +262,13 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: colors.gray,
+    color: t.text.secondary,
   },
-  // DEV Card
+  // DEV Card — hardcoded yellow, intentionally eye-catching
   devCard: {
-    backgroundColor: colors.devBg,
+    backgroundColor: DEV_BG,
     borderWidth: 1,
-    borderColor: colors.devBorder,
+    borderColor: DEV_BORDER,
     borderRadius: 12,
     padding: 20,
     marginBottom: 20,
@@ -289,9 +286,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   devButton: {
-    backgroundColor: colors.white,
+    backgroundColor: t.bg.screen,
     borderWidth: 2,
-    borderColor: colors.devBorder,
+    borderColor: DEV_BORDER,
     borderRadius: 8,
     padding: 14,
     alignItems: 'center',
@@ -303,27 +300,27 @@ const styles = StyleSheet.create({
   },
   // Info produção
   infoCard: {
-    backgroundColor: colors.lightGray,
+    backgroundColor: t.bg.elevated,
     borderRadius: 12,
     padding: 20,
     marginBottom: 20,
   },
   infoText: {
     fontSize: 15,
-    color: colors.gray,
+    color: t.text.secondary,
     textAlign: 'center',
     lineHeight: 22,
   },
   // Botões
   primaryButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: t.brand.primary,
     borderRadius: 12,
     padding: 18,
     alignItems: 'center',
     marginTop: 32,
   },
   primaryButtonText: {
-    color: colors.white,
+    color: t.text.inverse,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -337,7 +334,7 @@ const styles = StyleSheet.create({
   },
   resendText: {
     fontSize: 16,
-    color: colors.primary,
+    color: t.brand.primary,
     fontWeight: '500',
   },
   skipButton: {
@@ -346,7 +343,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 14,
-    color: colors.gray,
+    color: t.text.secondary,
     textDecorationLine: 'underline',
   },
 });

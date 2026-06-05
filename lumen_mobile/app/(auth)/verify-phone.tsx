@@ -18,17 +18,13 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import api from '@/services/api';
-
-const colors = {
-  primary: '#1a365d',
-  white: '#ffffff',
-  gray: '#6b7280',
-  lightGray: '#f3f4f6',
-  error: '#ef4444',
-  success: '#22c55e',
-};
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
 export default function VerifyPhoneScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const params = useLocalSearchParams<{ phone: string; method: string; fullName: string }>();
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,7 +32,7 @@ export default function VerifyPhoneScreen() {
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [error, setError] = useState('');
-  
+
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
@@ -204,8 +200,8 @@ export default function VerifyPhoneScreen() {
               ref={(ref) => (inputRefs.current[index] = ref)}
               style={[
                 styles.codeInput,
-                digit && styles.codeInputFilled,
-                error && styles.codeInputError,
+                digit ? styles.codeInputFilled : null,
+                error ? styles.codeInputError : null,
               ]}
               value={digit}
               onChangeText={(value) => handleCodeChange(index, value)}
@@ -217,11 +213,11 @@ export default function VerifyPhoneScreen() {
           ))}
         </View>
 
-        {error && <Text style={styles.errorText}>{error}</Text>}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         {isLoading && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size="large" color={t.brand.primary} />
             <Text style={styles.loadingText}>Verificando...</Text>
           </View>
         )}
@@ -255,10 +251,10 @@ export default function VerifyPhoneScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: t.bg.screen,
   },
   content: {
     flex: 1,
@@ -270,7 +266,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: colors.primary,
+    color: t.text.primary,
     fontWeight: '500',
   },
   iconContainer: {
@@ -283,20 +279,20 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#171717',
+    color: t.text.primary,
     textAlign: 'center',
     marginBottom: 12,
   },
   subtitle: {
     fontSize: 16,
-    color: colors.gray,
+    color: t.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
   },
   phone: {
     fontWeight: '600',
-    color: '#171717',
+    color: t.text.primary,
   },
   codeContainer: {
     flexDirection: 'row',
@@ -309,23 +305,23 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#e5e5e5',
-    backgroundColor: colors.lightGray,
+    borderColor: t.border.subtle,
+    backgroundColor: t.bg.surface,
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
-    color: '#171717',
+    color: t.text.primary,
   },
   codeInputFilled: {
-    borderColor: colors.primary,
-    backgroundColor: '#eff6ff',
+    borderColor: t.brand.primary,
+    backgroundColor: t.bg.elevated,
   },
   codeInputError: {
-    borderColor: colors.error,
-    backgroundColor: '#fef2f2',
+    borderColor: t.status.error,
+    backgroundColor: t.status.errorBg,
   },
   errorText: {
-    color: colors.error,
+    color: t.status.error,
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 16,
@@ -337,7 +333,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: colors.gray,
+    color: t.text.secondary,
   },
   resendContainer: {
     alignItems: 'center',
@@ -345,11 +341,11 @@ const styles = StyleSheet.create({
   },
   countdownText: {
     fontSize: 14,
-    color: colors.gray,
+    color: t.text.secondary,
   },
   resendText: {
     fontSize: 16,
-    color: colors.primary,
+    color: t.brand.primary,
     fontWeight: '600',
   },
   changeMethodButton: {
@@ -358,7 +354,7 @@ const styles = StyleSheet.create({
   },
   changeMethodText: {
     fontSize: 14,
-    color: colors.gray,
+    color: t.text.secondary,
     textDecorationLine: 'underline',
   },
 });
