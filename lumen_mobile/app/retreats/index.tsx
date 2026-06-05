@@ -13,6 +13,8 @@ import { router, useFocusEffect, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { IoniconsName } from '@/types/icons';
 import api from '@/services/api';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
 const colors = {
   primary: '#1A859B',
@@ -56,6 +58,8 @@ interface Retreat {
 }
 
 export default function RetreatsScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   const [retreats, setRetreats] = useState<Retreat[]>([]);
   const [loading, setLoading]   = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -93,7 +97,7 @@ export default function RetreatsScreen() {
   };
 
   const renderItem = ({ item }: { item: Retreat }) => {
-    const statusMeta = STATUS_META[item.status] ?? { label: item.status, color: colors.gray };
+    const statusMeta = STATUS_META[item.status] ?? { label: item.status, color: t.text.secondary };
     const regMeta = item.my_registration ? REG_STATUS_META[item.my_registration.status] : null;
 
     return (
@@ -121,17 +125,17 @@ export default function RetreatsScreen() {
         {/* Meta */}
         <View style={styles.meta}>
           <View style={styles.metaRow}>
-            <Ionicons name="calendar-outline" size={14} color={colors.gray} />
+            <Ionicons name="calendar-outline" size={14} color={t.text.secondary} />
             <Text style={styles.metaText}>{formatDateRange(item.start_date, item.end_date)}</Text>
           </View>
           {item.location && (
             <View style={styles.metaRow}>
-              <Ionicons name="location-outline" size={14} color={colors.gray} />
+              <Ionicons name="location-outline" size={14} color={t.text.secondary} />
               <Text style={styles.metaText}>{item.location}</Text>
             </View>
           )}
           <View style={styles.metaRow}>
-            <Ionicons name="cash-outline" size={14} color={colors.gray} />
+            <Ionicons name="cash-outline" size={14} color={t.text.secondary} />
             <Text style={styles.metaText}>
               {item.price_brl ? `R$ ${item.price_brl}` : 'Gratuito'}
             </Text>
@@ -158,7 +162,7 @@ export default function RetreatsScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={t.brand.primary} />
       </View>
     );
   }
@@ -182,7 +186,7 @@ export default function RetreatsScreen() {
       renderItem={renderItem}
       contentContainerStyle={styles.list}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[t.brand.primary]} />
       }
       ListEmptyComponent={
         <View style={styles.center}>
@@ -195,11 +199,11 @@ export default function RetreatsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   list: { padding: 16, paddingBottom: 32 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: t.bg.elevated,
     borderRadius: 16,
     padding: 16,
     marginBottom: 14,
@@ -212,29 +216,29 @@ const styles = StyleSheet.create({
   },
   cardHeader: { flexDirection: 'row', gap: 8 },
   typeBadge: {
-    backgroundColor: `${colors.primary}18`,
+    backgroundColor: t.brand.primaryDim,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  typeText: { fontSize: 11, fontWeight: '600', color: colors.primary },
+  typeText: { fontSize: 11, fontWeight: '600', color: t.brand.primary },
   statusBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   statusText: { fontSize: 11, fontWeight: '600' },
   title: { fontSize: 17, fontWeight: '700', color: '#111827' },
-  description: { fontSize: 13, color: colors.gray, lineHeight: 18 },
+  description: { fontSize: 13, color: t.text.secondary, lineHeight: 18 },
   meta: { gap: 4 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  metaText: { fontSize: 13, color: colors.gray },
+  metaText: { fontSize: 13, color: t.text.secondary },
   regBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start',
   },
   regText: { fontSize: 12, fontWeight: '600' },
   cardFooter: { alignItems: 'flex-end' },
-  seeMore: { fontSize: 13, color: colors.primary, fontWeight: '600' },
+  seeMore: { fontSize: 13, color: t.brand.primary, fontWeight: '600' },
   errorText: { color: '#dc2626', textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 24, paddingVertical: 10 },
-  retryText: { color: colors.white, fontWeight: '600' },
+  retryBtn: { backgroundColor: t.brand.primary, borderRadius: 8, paddingHorizontal: 24, paddingVertical: 10 },
+  retryText: { color: t.text.inverse, fontWeight: '600' },
   emptyTitle: { fontSize: 17, fontWeight: '600', color: '#374151' },
-  emptySubtitle: { fontSize: 13, color: colors.gray, textAlign: 'center' },
+  emptySubtitle: { fontSize: 13, color: t.text.secondary, textAlign: 'center' },
 });

@@ -12,6 +12,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import api from '@/services/api';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
 const colors = {
   primary: '#1A859B',
@@ -21,6 +23,8 @@ const colors = {
 };
 
 export default function PaymentScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   const { id } = useLocalSearchParams<{ id: string }>();
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -109,7 +113,7 @@ export default function PaymentScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.infoBox}>
-        <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+        <Ionicons name="information-circle-outline" size={20} color={t.brand.primary} />
         <Text style={styles.infoText}>
           Tire uma foto ou selecione da galeria o comprovante do pagamento (Pix, transferência, etc.)
         </Text>
@@ -129,11 +133,11 @@ export default function PaymentScreen() {
           <Text style={styles.pickText}>Nenhuma imagem selecionada</Text>
           <View style={styles.pickBtns}>
             <TouchableOpacity style={styles.pickBtn} onPress={takePhoto}>
-              <Ionicons name="camera-outline" size={20} color={colors.primary} />
+              <Ionicons name="camera-outline" size={20} color={t.brand.primary} />
               <Text style={styles.pickBtnText}>Câmera</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.pickBtn} onPress={pickImage}>
-              <Ionicons name="images-outline" size={20} color={colors.primary} />
+              <Ionicons name="images-outline" size={20} color={t.brand.primary} />
               <Text style={styles.pickBtnText}>Galeria</Text>
             </TouchableOpacity>
           </View>
@@ -153,9 +157,9 @@ export default function PaymentScreen() {
         disabled={!imageUri || uploading}
       >
         {uploading
-          ? <ActivityIndicator color={colors.white} />
+          ? <ActivityIndicator color={t.text.inverse} />
           : <>
-              <Ionicons name="cloud-upload-outline" size={20} color={colors.white} />
+              <Ionicons name="cloud-upload-outline" size={20} color={t.text.inverse} />
               <Text style={styles.uploadBtnText}>Enviar comprovante</Text>
             </>
         }
@@ -164,12 +168,12 @@ export default function PaymentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.lightGray },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.screen },
   content: { padding: 20, gap: 16, paddingBottom: 40 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 },
   infoBox: {
-    flexDirection: 'row', gap: 10, backgroundColor: `${colors.primary}12`,
+    flexDirection: 'row', gap: 10, backgroundColor: t.brand.primaryDim,
     borderRadius: 12, padding: 14, alignItems: 'flex-start',
   },
   infoText: { fontSize: 13, color: '#1e3a5f', flex: 1, lineHeight: 18 },
@@ -177,33 +181,33 @@ const styles = StyleSheet.create({
   preview: { width: '100%', height: 260, borderRadius: 16, backgroundColor: '#e5e7eb' },
   changeBtn: {
     paddingHorizontal: 16, paddingVertical: 8,
-    borderWidth: 1, borderColor: colors.primary, borderRadius: 8,
+    borderWidth: 1, borderColor: t.brand.primary, borderRadius: 8,
   },
-  changeBtnText: { color: colors.primary, fontWeight: '600' },
+  changeBtnText: { color: t.brand.primary, fontWeight: '600' },
   pickArea: {
-    backgroundColor: colors.white, borderRadius: 16, padding: 32,
+    backgroundColor: t.bg.elevated, borderRadius: 16, padding: 32,
     alignItems: 'center', gap: 12, borderWidth: 2, borderColor: '#e5e7eb', borderStyle: 'dashed',
   },
-  pickText: { fontSize: 14, color: colors.gray },
+  pickText: { fontSize: 14, color: t.text.secondary },
   pickBtns: { flexDirection: 'row', gap: 12 },
   pickBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 16, paddingVertical: 10,
-    borderWidth: 1.5, borderColor: colors.primary, borderRadius: 10,
+    borderWidth: 1.5, borderColor: t.brand.primary, borderRadius: 10,
   },
-  pickBtnText: { color: colors.primary, fontWeight: '600' },
+  pickBtnText: { color: t.brand.primary, fontWeight: '600' },
   errorBox: {
     flexDirection: 'row', gap: 8, backgroundColor: '#fef2f2', borderRadius: 10,
     padding: 12, alignItems: 'center',
   },
   errorText: { color: '#dc2626', fontSize: 13, flex: 1 },
   uploadBtn: {
-    backgroundColor: colors.primary, borderRadius: 14, padding: 16,
+    backgroundColor: t.brand.primary, borderRadius: 14, padding: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  uploadBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  uploadBtnText: { color: t.text.inverse, fontSize: 16, fontWeight: '700' },
   successTitle: { fontSize: 22, fontWeight: '800', color: '#111827' },
-  successDesc: { fontSize: 14, color: colors.gray, textAlign: 'center', lineHeight: 20 },
-  btn: { backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 14 },
-  btnText: { color: colors.white, fontWeight: '700', fontSize: 15 },
+  successDesc: { fontSize: 14, color: t.text.secondary, textAlign: 'center', lineHeight: 20 },
+  btn: { backgroundColor: t.brand.primary, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 14 },
+  btnText: { color: t.text.inverse, fontWeight: '700', fontSize: 15 },
 });

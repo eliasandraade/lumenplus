@@ -12,6 +12,8 @@ import {
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '@/services/api';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
 const colors = {
   primary: '#1A859B',
@@ -57,7 +59,7 @@ const REG_STATUS_META: Record<string, { label: string; color: string; icon: stri
     icon: 'list-outline',
     desc: 'As vagas estão esgotadas. Você será notificado se uma vaga abrir.',
   },
-  CANCELLED: { label: 'Cancelada', color: colors.gray, icon: 'close-circle-outline', desc: '' },
+  CANCELLED: { label: 'Cancelada', color: '#6b7280', icon: 'close-circle-outline', desc: '' },
 };
 
 interface FeeTypeEntry {
@@ -112,6 +114,8 @@ interface RetreatDetail {
 }
 
 export default function RetreatDetailScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   const { id } = useLocalSearchParams<{ id: string }>();
   const [retreat, setRetreat]       = useState<RetreatDetail | null>(null);
   const [loading, setLoading]       = useState(true);
@@ -218,13 +222,13 @@ export default function RetreatDetailScreen() {
     new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+    return <View style={styles.center}><ActivityIndicator size="large" color={t.brand.primary} /></View>;
   }
 
   if (error || !retreat) {
     return (
       <View style={styles.center}>
-        <Ionicons name="alert-circle-outline" size={48} color={colors.red} />
+        <Ionicons name="alert-circle-outline" size={48} color={t.status.error} />
         <Text style={styles.errorText}>{error || 'Retiro não encontrado'}</Text>
         <TouchableOpacity style={styles.btn} onPress={() => router.back()}>
           <Text style={styles.btnText}>Voltar</Text>
@@ -246,7 +250,7 @@ export default function RetreatDetailScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[t.brand.primary]} />}
     >
       {/* Type + title */}
       <View style={styles.typeBadge}>
@@ -267,7 +271,7 @@ export default function RetreatDetailScreen() {
         {/* Modalidades disponíveis */}
         {retreat.available_modalities.length > 0 && (
           <View style={styles.infoRow}>
-            <Ionicons name="home-outline" size={18} color={colors.primary} />
+            <Ionicons name="home-outline" size={18} color={t.brand.primary} />
             <View style={{ flex: 1 }}>
               <Text style={styles.infoLabel}>Modalidades</Text>
               <View style={styles.modalityChips}>
@@ -284,7 +288,7 @@ export default function RetreatDetailScreen() {
         {/* Minha taxa */}
         {retreat.my_fee && (
           <View style={styles.feeRow}>
-            <Ionicons name="cash-outline" size={18} color={colors.primary} />
+            <Ionicons name="cash-outline" size={18} color={t.brand.primary} />
             <View>
               <Text style={styles.infoLabel}>Minha taxa</Text>
               <Text style={styles.infoValue}>{retreat.my_fee.fee_label}</Text>
@@ -341,7 +345,7 @@ export default function RetreatDetailScreen() {
         <View style={styles.actionMsg}>
           <Text style={styles.actionMsgText}>{actionMsg}</Text>
           <TouchableOpacity onPress={() => setActionMsg(null)}>
-            <Ionicons name="close" size={16} color={colors.gray} />
+            <Ionicons name="close" size={16} color={t.text.secondary} />
           </TouchableOpacity>
         </View>
       )}
@@ -349,13 +353,13 @@ export default function RetreatDetailScreen() {
       {/* CTA Buttons */}
       {!isClosed && canRegister && retreat.eligible_as_participant && (
         <TouchableOpacity style={styles.primaryBtn} onPress={() => openRegModal('PARTICIPANT')} disabled={submitting}>
-          <Ionicons name="person-add-outline" size={20} color={colors.white} />
+          <Ionicons name="person-add-outline" size={20} color={t.text.inverse} />
           <Text style={styles.primaryBtnText}>Inscrever-se como Participante</Text>
         </TouchableOpacity>
       )}
       {!isClosed && canRegister && retreat.eligible_as_service && (
         <TouchableOpacity style={[styles.primaryBtn, styles.serviceBtnColor]} onPress={() => openRegModal('SERVICE')} disabled={submitting}>
-          <Ionicons name="hammer-outline" size={20} color={colors.white} />
+          <Ionicons name="hammer-outline" size={20} color={t.text.inverse} />
           <Text style={styles.primaryBtnText}>Inscrever-se na Equipe de Serviço</Text>
         </TouchableOpacity>
       )}
@@ -365,7 +369,7 @@ export default function RetreatDetailScreen() {
           style={styles.primaryBtn}
           onPress={() => router.push(`/retreats/${retreat.id}/payment` as any)}
         >
-          <Ionicons name="cloud-upload-outline" size={20} color={colors.white} />
+          <Ionicons name="cloud-upload-outline" size={20} color={t.text.inverse} />
           <Text style={styles.primaryBtnText}>Enviar comprovante</Text>
         </TouchableOpacity>
       )}
@@ -427,11 +431,11 @@ export default function RetreatDetailScreen() {
                       <Ionicons
                         name={m === 'PRESENCIAL' ? 'home' : 'moon-outline'}
                         size={18}
-                        color={selectedModality === m ? colors.white : colors.primary}
+                        color={selectedModality === m ? t.text.inverse : t.brand.primary}
                       />
                       <Text style={[
                         styles.modalityOptionText,
-                        selectedModality === m && { color: colors.white },
+                        selectedModality === m && { color: t.text.inverse },
                       ]}>
                         {MODALITY_LABEL[m] ?? m}
                       </Text>
@@ -447,7 +451,7 @@ export default function RetreatDetailScreen() {
                 <Text style={styles.fieldLabel}>
                   Preferências de equipe ({teamPreferences.length}/3)
                 </Text>
-                <Text style={[styles.fieldLabel, { fontWeight: '400', color: colors.gray, fontSize: 12, marginBottom: 6 }]}>
+                <Text style={[styles.fieldLabel, { fontWeight: '400', color: t.text.secondary, fontSize: 12, marginBottom: 6 }]}>
                   Toque para escolher até 3 equipes em ordem de interesse.
                 </Text>
                 {serviceTeams.map(team => {
@@ -469,7 +473,7 @@ export default function RetreatDetailScreen() {
                       }}
                     >
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.teamOptionName, selected && { color: colors.white }]}>
+                        <Text style={[styles.teamOptionName, selected && { color: t.text.inverse }]}>
                           {team.name}
                         </Text>
                         {team.description ? (
@@ -506,7 +510,7 @@ export default function RetreatDetailScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.confirmBtn} onPress={handleRegister} disabled={submitting}>
                 {submitting
-                  ? <ActivityIndicator color={colors.white} size="small" />
+                  ? <ActivityIndicator color={t.text.inverse} size="small" />
                   : <Text style={styles.confirmBtnText}>Confirmar</Text>
                 }
               </TouchableOpacity>
@@ -519,14 +523,14 @@ export default function RetreatDetailScreen() {
       <Modal visible={showCancelConfirm} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <Ionicons name="warning-outline" size={40} color={colors.red} style={{ alignSelf: 'center', marginBottom: 12 }} />
+            <Ionicons name="warning-outline" size={40} color={t.status.error} style={{ alignSelf: 'center', marginBottom: 12 }} />
             <Text style={styles.modalTitle}>Cancelar inscrição?</Text>
             <Text style={styles.modalSubtitle}>Sua inscrição será cancelada. Você poderá se inscrever novamente se houver vagas.</Text>
             <View style={styles.row}>
               <TouchableOpacity style={styles.outlineBtn} onPress={() => setShowCancelConfirm(false)}>
                 <Text style={styles.outlineBtnText}>Voltar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: colors.red }]} onPress={handleCancel}>
+              <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: t.status.error }]} onPress={handleCancel}>
                 <Text style={styles.confirmBtnText}>Cancelar inscrição</Text>
               </TouchableOpacity>
             </View>
@@ -538,9 +542,11 @@ export default function RetreatDetailScreen() {
 }
 
 function InfoRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   return (
     <View style={styles.infoRow}>
-      <Ionicons name={icon as any} size={18} color={colors.primary} />
+      <Ionicons name={icon as any} size={18} color={t.brand.primary} />
       <View style={{ flex: 1 }}>
         <Text style={styles.infoLabel}>{label}</Text>
         <Text style={styles.infoValue}>{value}</Text>
@@ -549,86 +555,86 @@ function InfoRow({ icon, label, value }: { icon: string; label: string; value: s
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.lightGray },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.screen },
   content: { padding: 16, paddingBottom: 40, gap: 14 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
   typeBadge: {
-    backgroundColor: `${colors.primary}18`, borderRadius: 8,
+    backgroundColor: t.brand.primaryDim, borderRadius: 8,
     paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start',
   },
-  typeText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+  typeText: { fontSize: 12, fontWeight: '600', color: t.brand.primary },
   title: { fontSize: 22, fontWeight: '800', color: '#111827' },
-  description: { fontSize: 14, color: colors.gray, lineHeight: 20 },
+  description: { fontSize: 14, color: t.text.secondary, lineHeight: 20 },
   infoGrid: {
-    backgroundColor: colors.white, borderRadius: 16, padding: 16, gap: 12,
+    backgroundColor: t.bg.elevated, borderRadius: 16, padding: 16, gap: 12,
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
   infoRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   feeRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  infoLabel: { fontSize: 11, color: colors.gray, textTransform: 'uppercase', letterSpacing: 0.5 },
+  infoLabel: { fontSize: 11, color: t.text.secondary, textTransform: 'uppercase', letterSpacing: 0.5 },
   infoValue: { fontSize: 14, color: '#111827', fontWeight: '500', marginTop: 1 },
-  feeAmount: { fontSize: 16, fontWeight: '800', color: colors.primary, marginTop: 2 },
+  feeAmount: { fontSize: 16, fontWeight: '800', color: t.brand.primary, marginTop: 2 },
   modalityChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   modalityChip: {
-    backgroundColor: `${colors.primary}15`, borderRadius: 8,
+    backgroundColor: t.brand.primaryDim, borderRadius: 8,
     paddingHorizontal: 10, paddingVertical: 4,
   },
-  modalityChipText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
+  modalityChipText: { fontSize: 13, color: t.brand.primary, fontWeight: '600' },
   regCard: {
     flexDirection: 'row', gap: 12, padding: 14, borderRadius: 14, borderWidth: 1,
     alignItems: 'flex-start',
   },
   regCardText: { flex: 1, gap: 4 },
   regLabel: { fontSize: 15, fontWeight: '700' },
-  regDesc: { fontSize: 13, color: colors.gray, lineHeight: 18 },
-  rejectionText: { fontSize: 12, color: colors.red, marginTop: 4 },
+  regDesc: { fontSize: 13, color: t.text.secondary, lineHeight: 18 },
+  rejectionText: { fontSize: 12, color: t.status.error, marginTop: 4 },
   actionMsg: {
     backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
   actionMsgText: { fontSize: 13, color: '#166534', flex: 1 },
   primaryBtn: {
-    backgroundColor: colors.primary, borderRadius: 14, padding: 16,
+    backgroundColor: t.brand.primary, borderRadius: 14, padding: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  primaryBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  primaryBtnText: { color: t.text.inverse, fontSize: 16, fontWeight: '700' },
   serviceBtnColor: { backgroundColor: '#7c3aed' },
   cancelBtn: {
-    borderWidth: 1.5, borderColor: colors.red, borderRadius: 14, padding: 14,
+    borderWidth: 1.5, borderColor: t.status.error, borderRadius: 14, padding: 14,
     alignItems: 'center',
   },
-  cancelBtnText: { color: colors.red, fontSize: 15, fontWeight: '600' },
-  errorText: { color: colors.red, textAlign: 'center' },
-  btn: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 24, paddingVertical: 10 },
-  btnText: { color: colors.white, fontWeight: '600' },
+  cancelBtnText: { color: t.status.error, fontSize: 15, fontWeight: '600' },
+  errorText: { color: t.status.error, textAlign: 'center' },
+  btn: { backgroundColor: t.brand.primary, borderRadius: 8, paddingHorizontal: 24, paddingVertical: 10 },
+  btnText: { color: t.text.inverse, fontWeight: '600' },
   // Modal
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center', justifyContent: 'center', padding: 24,
   },
   modalBox: {
-    backgroundColor: colors.white, borderRadius: 20, padding: 24,
+    backgroundColor: t.bg.elevated, borderRadius: 20, padding: 24,
     width: '100%', gap: 12,
   },
   modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827', textAlign: 'center' },
-  modalSubtitle: { fontSize: 13, color: colors.gray, textAlign: 'center', lineHeight: 18 },
+  modalSubtitle: { fontSize: 13, color: t.text.secondary, textAlign: 'center', lineHeight: 18 },
   feeSummary: {
-    backgroundColor: `${colors.primary}0F`, borderRadius: 12, padding: 12, alignItems: 'center',
+    backgroundColor: t.brand.primaryDim, borderRadius: 12, padding: 12, alignItems: 'center',
   },
-  feeSummaryLabel: { fontSize: 12, color: colors.gray, textTransform: 'uppercase' },
-  feeSummaryAmount: { fontSize: 22, fontWeight: '800', color: colors.primary },
+  feeSummaryLabel: { fontSize: 12, color: t.text.secondary, textTransform: 'uppercase' },
+  feeSummaryAmount: { fontSize: 22, fontWeight: '800', color: t.brand.primary },
   feeSummaryFree: { fontSize: 16, fontWeight: '700', color: '#059669' },
-  feeSummaryHint: { fontSize: 11, color: colors.gray, marginTop: 4, textAlign: 'center' },
+  feeSummaryHint: { fontSize: 11, color: t.text.secondary, marginTop: 4, textAlign: 'center' },
   fieldLabel: { fontSize: 13, fontWeight: '600', color: '#374151' },
   modalitySelector: { flexDirection: 'row', gap: 8 },
   modalityOption: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    borderWidth: 1.5, borderColor: colors.primary, borderRadius: 10,
+    borderWidth: 1.5, borderColor: t.brand.primary, borderRadius: 10,
     paddingVertical: 10, paddingHorizontal: 8,
   },
-  modalityOptionSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
-  modalityOptionText: { fontSize: 13, fontWeight: '600', color: colors.primary },
+  modalityOptionSelected: { backgroundColor: t.brand.primary, borderColor: t.brand.primary },
+  modalityOptionText: { fontSize: 13, fontWeight: '600', color: t.brand.primary },
   textArea: {
     borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 10,
     minHeight: 70, textAlignVertical: 'top', fontSize: 14, color: '#111827',
@@ -640,10 +646,10 @@ const styles = StyleSheet.create({
   },
   outlineBtnText: { fontSize: 14, fontWeight: '600', color: '#374151' },
   confirmBtn: {
-    flex: 1, backgroundColor: colors.primary, borderRadius: 12,
+    flex: 1, backgroundColor: t.brand.primary, borderRadius: 12,
     padding: 12, alignItems: 'center', justifyContent: 'center',
   },
-  confirmBtnText: { fontSize: 14, fontWeight: '700', color: colors.white },
+  confirmBtnText: { fontSize: 14, fontWeight: '700', color: t.text.inverse },
   // Team preference selector
   teamOption: {
     borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 12,
@@ -651,10 +657,10 @@ const styles = StyleSheet.create({
   },
   teamOptionSelected: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
   teamOptionName: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  teamOptionDesc: { fontSize: 12, color: colors.gray, marginTop: 2 },
+  teamOptionDesc: { fontSize: 12, color: t.text.secondary, marginTop: 2 },
   teamOrderBadge: {
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center',
   },
-  teamOrderText: { fontSize: 13, fontWeight: '800', color: colors.white },
+  teamOrderText: { fontSize: 13, fontWeight: '800', color: t.text.inverse },
 });
