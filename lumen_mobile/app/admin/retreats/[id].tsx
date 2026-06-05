@@ -16,6 +16,7 @@ import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
 
 const ADMIN_COLOR = '#7c3aed';
+const ADMIN_TEXT_LIGHT = 'rgba(196, 181, 253, 0.9)'; // light purple for selected/active state
 
 // Static status colors kept as constants (not theme-dependent — semantic status colors)
 const STATUS_META: Record<string, { label: string; color: string }> = {
@@ -717,8 +718,8 @@ export default function AdminRetreatDetailScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.houseName}>{house.name}</Text>
                 <View style={styles.houseInfo}>
-                  <View style={[styles.modalityPill, { backgroundColor: house.modality === 'PRESENCIAL' ? '#dbeafe' : '#fef3c7' }]}>
-                    <Text style={[styles.modalityPillText, { color: house.modality === 'PRESENCIAL' ? t.status.info : '#d97706' }]}>
+                  <View style={[styles.modalityPill, { backgroundColor: house.modality === 'PRESENCIAL' ? t.status.infoBg : t.status.warningBg }]}>
+                    <Text style={[styles.modalityPillText, { color: house.modality === 'PRESENCIAL' ? t.status.info : t.status.warning }]}>
                       {MODALITY_LABEL[house.modality] ?? house.modality}
                     </Text>
                   </View>
@@ -973,12 +974,12 @@ export default function AdminRetreatDetailScreen() {
                   </View>
                 )}
                 {reg.fee_label && (
-                  <View style={[styles.tag, { backgroundColor: '#f3e8ff' }]}>
+                  <View style={[styles.tag, { backgroundColor: 'rgba(124, 58, 237, 0.12)' }]}>
                     <Text style={[styles.tagText, { color: ADMIN_COLOR }]}>{reg.fee_label}</Text>
                   </View>
                 )}
                 {reg.assigned_house_name && (
-                  <View style={[styles.tag, { backgroundColor: '#dcfce7' }]}>
+                  <View style={[styles.tag, { backgroundColor: t.status.successBg }]}>
                     <Ionicons name="home-outline" size={11} color={t.status.success} />
                     <Text style={[styles.tagText, { color: t.status.success }]}>{reg.assigned_house_name}</Text>
                   </View>
@@ -1263,7 +1264,7 @@ export default function AdminRetreatDetailScreen() {
                         <Text style={[styles.houseOptionText, selectedOrgUnit?.id === ou.id && { color: t.text.inverse }]}>
                           {ou.name}
                         </Text>
-                        <Text style={[styles.houseOptionSub, selectedOrgUnit?.id === ou.id && { color: '#e9d5ff' }]}>
+                        <Text style={[styles.houseOptionSub, selectedOrgUnit?.id === ou.id && { color: ADMIN_TEXT_LIGHT }]}>
                           {ou.unit_type}
                         </Text>
                       </TouchableOpacity>
@@ -1347,7 +1348,7 @@ export default function AdminRetreatDetailScreen() {
                       <Text style={[styles.houseOptionText, coordUserId === r.user_id && { color: t.text.inverse }]}>
                         {r.user_name || 'Membro'}
                       </Text>
-                      <Text style={[styles.houseOptionSub, coordUserId === r.user_id && { color: '#e9d5ff' }]}>
+                      <Text style={[styles.houseOptionSub, coordUserId === r.user_id && { color: ADMIN_TEXT_LIGHT }]}>
                         {r.retreat_role === 'EQUIPE_SERVICO' ? 'Equipe de Serviço' : 'Participante'}
                       </Text>
                     </View>
@@ -1487,7 +1488,7 @@ export default function AdminRetreatDetailScreen() {
                         {r.user_name || 'Membro'}
                       </Text>
                       {r.team_preferences && r.team_preferences.length > 0 && (
-                        <Text style={[styles.houseOptionSub, assignTeamRegId === r.id && { color: '#e9d5ff' }]}>
+                        <Text style={[styles.houseOptionSub, assignTeamRegId === r.id && { color: ADMIN_TEXT_LIGHT }]}>
                           Preferências: {r.team_preferences.map((p: any) => p.preference_order).join(', ')}
                         </Text>
                       )}
