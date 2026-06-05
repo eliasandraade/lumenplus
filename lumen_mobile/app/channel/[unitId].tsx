@@ -1,7 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -12,31 +11,48 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import {
   ChannelPost,
   ChannelPostDetail,
   ChannelSettings,
   channelService,
-} from '@/src/services/channel';
-import { useAuthStore } from '@/src/stores/authStore';
+} from '@/services/channel';
+import { useAuthStore } from '@/stores/authStore';
+import { useTheme } from '@/theme';
+import { radius } from '@/theme/tokens';
+import {
+  AvatarInitial,
+  StatusBadge,
+  SectionHeader,
+  HighlightCard,
+  PostCard,
+  EmptyFeed,
+  ChannelSkeleton,
+  ReplyItem,
+} from './components';
 
-type Screen = 'list' | 'post';
+type Screen = 'list' | 'post' | 'compose';
+
+type FeedItem =
+  | { kind: 'section'; label: string; id: string }
+  | { kind: 'highlight'; post: ChannelPost }
+  | { kind: 'post'; post: ChannelPost };
 
 export default function ChannelScreen() {
   const { unitId } = useLocalSearchParams<{ unitId: string }>();
   const { user } = useAuthStore();
-  const currentUserId = user?.id ?? '';
+  const { t } = useTheme();
+  const currentUserId = user?.user_id ?? '';
 
   const [screen, setScreen] = useState<Screen>('list');
   const [posts, setPosts] = useState<ChannelPost[]>([]);
-  const [totalPosts, setTotalPosts] = useState(0);
   const [selectedPost, setSelectedPost] = useState<ChannelPostDetail | null>(null);
   const [settings, setSettings] = useState<ChannelSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [showNewPost, setShowNewPost] = useState(false);
   const [postTitle, setPostTitle] = useState('');
   const [postBody, setPostBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -51,6 +67,8 @@ export default function ChannelScreen() {
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [editReplyBody, setEditReplyBody] = useState('');
 
+  // ── Data loading ─────────────────────────────────────────────────────────────
+
   const loadList = useCallback(async () => {
     try {
       const [list, cfg] = await Promise.all([
@@ -58,7 +76,6 @@ export default function ChannelScreen() {
         channelService.getSettings(unitId),
       ]);
       setPosts(list.posts);
-      setTotalPosts(list.total);
       setSettings(cfg);
       setError(null);
     } catch {
@@ -76,7 +93,7 @@ export default function ChannelScreen() {
       const detail = await channelService.getPost(unitId, postId);
       setSelectedPost(detail);
     } catch {
-      setError('Não foi possível carregar o post.');
+      setError('Não foi possível carregar a publicação.');
       setScreen('list');
     }
   };
@@ -87,23 +104,27 @@ export default function ChannelScreen() {
     loadPost(post.id);
   };
 
+  // ── Handlers (lógica inalterada) ─────────────────────────────────────────────
+
   const handleCreatePost = async () => {
     setFormError(null);
     if (!postTitle.trim() || postTitle.trim().length < 3) {
-      setFormError('Título deve ter pelo menos 3 caracteres.');
+      setFormError('O título deve ter pelo menos 3 caracteres.');
       return;
     }
     if (!postBody.trim()) {
-      setFormError('O corpo do post não pode estar vazio.');
+      setFormError('O conteúdo não pode estar vazio.');
       return;
     }
     setSubmitting(true);
     try {
       await channelService.createPost(unitId, postTitle.trim(), postBody.trim());
-      setPostTitle(''); setPostBody(''); setShowNewPost(false);
+      setPostTitle('');
+      setPostBody('');
+      setScreen('list');
       await loadList();
     } catch (e: any) {
-      setFormError(e?.response?.data?.detail?.message || 'Erro ao publicar post.');
+      setFormError(e?.response?.data?.detail?.message || 'Erro ao publicar.');
     } finally {
       setSubmitting(false);
     }
@@ -113,12 +134,15 @@ export default function ChannelScreen() {
     if (!editingPostId) return;
     setSubmitting(true);
     try {
-      await channelService.editPost(unitId, editingPostId, editTitle || undefined, editBody || undefined);
+      await channelService.editPost(
+        unitId, editingPostId,
+        editTitle || undefined, editBody || undefined,
+      );
       setEditingPostId(null);
       if (screen === 'list') await loadList();
       else if (selectedPost) await loadPost(selectedPost.id);
     } catch (e: any) {
-      setFormError(e?.response?.data?.detail?.message || 'Erro ao editar post.');
+      setFormError(e?.response?.data?.detail?.message || 'Erro ao editar.');
     } finally {
       setSubmitting(false);
     }
@@ -130,21 +154,24 @@ export default function ChannelScreen() {
       if (!reason || reason.trim().length < 3) return;
       channelService.deletePost(unitId, postId, reason.trim())
         .then(() => { if (screen === 'post') setScreen('list'); loadList(); })
-        .catch((e: any) => setError(e?.response?.data?.detail?.message || 'Erro ao remover post.'));
+        .catch((e: any) => setError(e?.response?.data?.detail?.message || 'Erro ao remover.'));
     }
   };
 
   const handleCreateReply = async () => {
     if (!selectedPost) return;
     setReplyError(null);
-    if (!replyBody.trim()) { setReplyError('A resposta não pode estar vazia.'); return; }
+    if (!replyBody.trim()) {
+      setReplyError('A contribuição não pode estar vazia.');
+      return;
+    }
     setSubmitting(true);
     try {
       await channelService.createReply(unitId, selectedPost.id, replyBody.trim());
       setReplyBody('');
       await loadPost(selectedPost.id);
     } catch (e: any) {
-      setReplyError(e?.response?.data?.detail?.message || 'Erro ao enviar resposta.');
+      setReplyError(e?.response?.data?.detail?.message || 'Erro ao enviar.');
     } finally {
       setSubmitting(false);
     }
@@ -154,11 +181,13 @@ export default function ChannelScreen() {
     if (!editingReplyId || !selectedPost) return;
     setSubmitting(true);
     try {
-      await channelService.editReply(unitId, selectedPost.id, editingReplyId, editReplyBody.trim());
+      await channelService.editReply(
+        unitId, selectedPost.id, editingReplyId, editReplyBody.trim(),
+      );
       setEditingReplyId(null);
       await loadPost(selectedPost.id);
     } catch (e: any) {
-      setReplyError(e?.response?.data?.detail?.message || 'Erro ao editar resposta.');
+      setReplyError(e?.response?.data?.detail?.message || 'Erro ao editar.');
     } finally {
       setSubmitting(false);
     }
@@ -171,247 +200,502 @@ export default function ChannelScreen() {
       if (!reason || reason.trim().length < 3) return;
       channelService.deleteReply(unitId, selectedPost.id, replyId, reason.trim())
         .then(() => loadPost(selectedPost.id))
-        .catch((e: any) => setReplyError(e?.response?.data?.detail?.message || 'Erro ao remover resposta.'));
+        .catch((e: any) => setReplyError(e?.response?.data?.detail?.message || 'Erro ao remover.'));
     }
   };
 
   const handleTogglePin = async (postId: string) => {
     try { await channelService.togglePin(unitId, postId); await loadList(); }
-    catch (e: any) { setError(e?.response?.data?.detail?.message || 'Erro ao alterar pin.'); }
+    catch (e: any) { setError(e?.response?.data?.detail?.message || 'Erro ao alterar.'); }
   };
 
   const handleToggleHighlight = async (postId: string) => {
     try { await channelService.toggleHighlight(unitId, postId); await loadList(); }
-    catch (e: any) { setError(e?.response?.data?.detail?.message || 'Erro ao alterar destaque.'); }
+    catch (e: any) { setError(e?.response?.data?.detail?.message || 'Erro ao alterar.'); }
   };
 
-  if (loading) {
-    return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator color="#7C3AED" /></View>;
-  }
+  // ── Loading ───────────────────────────────────────────────────────────────────
 
-  if (error && screen === 'list') {
+  if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-        <Text style={{ color: '#DC2626', textAlign: 'center', marginBottom: 16 }}>{error}</Text>
-        <Pressable onPress={loadList}><Text style={{ color: '#7C3AED' }}>Tentar novamente</Text></Pressable>
+      <View style={{ flex: 1, backgroundColor: t.bg.screen }}>
+        <ChannelSkeleton t={t} />
       </View>
     );
   }
 
-  // ── POST DETAIL ──────────────────────────────────────────────────────────────
+  // ── Erro ──────────────────────────────────────────────────────────────────────
+
+  if (error && screen === 'list') {
+    return (
+      <View style={{
+        flex: 1, backgroundColor: t.bg.screen,
+        justifyContent: 'center', alignItems: 'center', padding: 32,
+      }}>
+        <Ionicons name="cloud-offline-outline" size={48} color={t.status.error} style={{ marginBottom: 16 }} />
+        <Text style={{
+          fontFamily: 'Nunito-SemiBold', fontSize: 16,
+          color: t.text.primary, textAlign: 'center', marginBottom: 8,
+        }}>
+          Não foi possível carregar
+        </Text>
+        <Text style={{
+          fontFamily: 'Nunito-Regular', fontSize: 14,
+          color: t.text.secondary, textAlign: 'center', marginBottom: 24,
+        }}>
+          {error}
+        </Text>
+        <Pressable
+          onPress={loadList}
+          style={{
+            paddingHorizontal: 24, paddingVertical: 12,
+            backgroundColor: t.brand.primary, borderRadius: radius.md,
+          }}
+        >
+          <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 14, color: t.text.inverse }}>
+            Tentar novamente
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // ── Compose (nova publicação) ─────────────────────────────────────────────────
+
+  if (screen === 'compose') {
+    return (
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: t.bg.screen }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+          paddingHorizontal: 16, paddingVertical: 14,
+          borderBottomWidth: 1, borderBottomColor: t.border.subtle,
+        }}>
+          <Pressable onPress={() => { setScreen('list'); setFormError(null); setPostTitle(''); setPostBody(''); }}>
+            <Text style={{ fontFamily: 'Nunito-Regular', fontSize: 15, color: t.text.secondary }}>
+              Cancelar
+            </Text>
+          </Pressable>
+          <Text style={{ fontFamily: 'Nunito-Bold', fontSize: 16, color: t.text.primary }}>
+            Nova publicação
+          </Text>
+          <Pressable
+            onPress={handleCreatePost}
+            disabled={submitting}
+            style={{
+              paddingHorizontal: 18, paddingVertical: 8,
+              backgroundColor: submitting ? t.brand.primaryDim : t.brand.primary,
+              borderRadius: radius.full,
+            }}
+          >
+            <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 14, color: t.text.inverse }}>
+              {submitting ? 'Publicando...' : 'Publicar'}
+            </Text>
+          </Pressable>
+        </View>
+
+        <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
+          {formError && (
+            <View style={{ backgroundColor: t.status.errorBg, borderRadius: radius.md, padding: 12 }}>
+              <Text style={{ fontFamily: 'Nunito-Regular', fontSize: 13, color: t.status.error }}>
+                {formError}
+              </Text>
+            </View>
+          )}
+          <View style={{ gap: 6 }}>
+            <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 13, color: t.text.secondary }}>
+              Título
+            </Text>
+            <TextInput
+              value={postTitle}
+              onChangeText={setPostTitle}
+              placeholder="Dê um título claro à sua publicação"
+              placeholderTextColor={t.text.tertiary}
+              style={{
+                borderWidth: 1, borderColor: t.border.default,
+                borderRadius: radius.md, padding: 14,
+                fontFamily: 'Nunito-Regular', fontSize: 16,
+                color: t.text.primary, backgroundColor: t.bg.surface,
+              }}
+            />
+          </View>
+          <View style={{ gap: 6 }}>
+            <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 13, color: t.text.secondary }}>
+              Conteúdo
+            </Text>
+            <TextInput
+              value={postBody}
+              onChangeText={setPostBody}
+              placeholder="Escreva o conteúdo da publicação..."
+              placeholderTextColor={t.text.tertiary}
+              multiline
+              style={{
+                borderWidth: 1, borderColor: t.border.default,
+                borderRadius: radius.md, padding: 14,
+                minHeight: 180, fontFamily: 'Nunito-Regular', fontSize: 15,
+                color: t.text.primary, backgroundColor: t.bg.surface,
+                textAlignVertical: 'top',
+              }}
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  // ── Post Detail ───────────────────────────────────────────────────────────────
+
   if (screen === 'post') {
     if (!selectedPost) {
-      return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator color="#7C3AED" /></View>;
+      return (
+        <View style={{ flex: 1, backgroundColor: t.bg.screen }}>
+          <ChannelSkeleton t={t} />
+        </View>
+      );
     }
+
     const isAuthorPost = selectedPost.author_user_id === currentUserId;
     const canEditPost = isAuthorPost || (settings?.can_moderate ?? false);
 
     return (
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={{ padding: 16 }}>
-          <Pressable onPress={() => { setScreen('list'); setSelectedPost(null); }} style={{ marginBottom: 12 }}>
-            <Text style={{ color: '#7C3AED' }}>← Voltar</Text>
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: t.bg.screen }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
+
+          <Pressable
+            onPress={() => { setScreen('list'); setSelectedPost(null); }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 16 }}
+          >
+            <Ionicons name="chevron-back" size={18} color={t.brand.primary} />
+            <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 14, color: t.brand.primary }}>
+              Voltar
+            </Text>
           </Pressable>
 
-          {selectedPost.is_institutional_highlight && (
-            <View style={{ backgroundColor: '#DBEAFE', borderRadius: 6, padding: 6, marginBottom: 6 }}>
-              <Text style={{ color: '#1D4ED8', fontSize: 12, fontWeight: '600' }}>⭐ Destaque Institucional</Text>
-            </View>
-          )}
-          {selectedPost.is_pinned && !selectedPost.is_institutional_highlight && (
-            <View style={{ backgroundColor: '#FEF9C3', borderRadius: 6, padding: 6, marginBottom: 6 }}>
-              <Text style={{ color: '#92400E', fontSize: 12 }}>📌 Fixado</Text>
+          {(selectedPost.is_institutional_highlight || selectedPost.is_pinned) && (
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+              {selectedPost.is_institutional_highlight && <StatusBadge kind="highlight" t={t} />}
+              {selectedPost.is_pinned && !selectedPost.is_institutional_highlight && (
+                <StatusBadge kind="pinned" t={t} />
+              )}
             </View>
           )}
 
           {editingPostId === selectedPost.id ? (
-            <View>
-              <TextInput value={editTitle} onChangeText={setEditTitle}
-                style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 8, marginBottom: 6, fontSize: 16, fontWeight: '600' }} />
-              <TextInput value={editBody} onChangeText={setEditBody} multiline
-                style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 8, minHeight: 80, marginBottom: 8 }} />
-              {formError && <Text style={{ color: '#DC2626', fontSize: 12, marginBottom: 6 }}>{formError}</Text>}
+            <View style={{ gap: 10, marginBottom: 16 }}>
+              <TextInput
+                value={editTitle}
+                onChangeText={setEditTitle}
+                style={{
+                  borderWidth: 1, borderColor: t.border.default,
+                  borderRadius: radius.md, padding: 14,
+                  fontFamily: 'Nunito-Bold', fontSize: 20,
+                  color: t.text.primary, backgroundColor: t.bg.surface,
+                }}
+              />
+              <TextInput
+                value={editBody}
+                onChangeText={setEditBody}
+                multiline
+                style={{
+                  borderWidth: 1, borderColor: t.border.default,
+                  borderRadius: radius.md, padding: 14, minHeight: 120,
+                  fontFamily: 'Nunito-Regular', fontSize: 15,
+                  color: t.text.primary, backgroundColor: t.bg.surface,
+                  textAlignVertical: 'top',
+                }}
+              />
+              {formError && (
+                <Text style={{ fontFamily: 'Nunito-Regular', fontSize: 13, color: t.status.error }}>
+                  {formError}
+                </Text>
+              )}
               <View style={{ flexDirection: 'row', gap: 8 }}>
-                <Pressable onPress={() => { setEditingPostId(null); setFormError(null); }}
-                  style={{ flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#D1D5DB', alignItems: 'center' }}>
-                  <Text>Cancelar</Text>
+                <Pressable
+                  onPress={() => { setEditingPostId(null); setFormError(null); }}
+                  style={{
+                    flex: 1, padding: 12, borderRadius: radius.md,
+                    borderWidth: 1, borderColor: t.border.default, alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 14, color: t.text.secondary }}>
+                    Cancelar
+                  </Text>
                 </Pressable>
-                <Pressable onPress={handleSaveEditPost} disabled={submitting}
-                  style={{ flex: 1, padding: 10, borderRadius: 8, backgroundColor: submitting ? '#C4B5FD' : '#7C3AED', alignItems: 'center' }}>
-                  <Text style={{ color: '#fff' }}>{submitting ? 'Salvando...' : 'Salvar'}</Text>
+                <Pressable
+                  onPress={handleSaveEditPost}
+                  disabled={submitting}
+                  style={{
+                    flex: 1, padding: 12, borderRadius: radius.md, alignItems: 'center',
+                    backgroundColor: submitting ? t.brand.primaryDim : t.brand.primary,
+                  }}
+                >
+                  <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 14, color: t.text.inverse }}>
+                    {submitting ? 'Salvando...' : 'Salvar'}
+                  </Text>
                 </Pressable>
               </View>
             </View>
           ) : (
-            <View>
-              <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 4 }}>{selectedPost.title}</Text>
-              <Text style={{ color: '#6B7280', fontSize: 12, marginBottom: 4 }}>
-                {selectedPost.author_name} · {new Date(selectedPost.created_at).toLocaleDateString('pt-BR')}
-                {selectedPost.edited_at ? ' · editado' : ''}
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{
+                fontFamily: 'Nunito-Bold', fontSize: 22,
+                color: t.text.primary, marginBottom: 14, lineHeight: 30,
+              }}>
+                {selectedPost.title}
               </Text>
-              <Text style={{ fontSize: 15, lineHeight: 22, marginBottom: 8 }}>{selectedPost.body}</Text>
-              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-                {canEditPost && (
-                  <Pressable onPress={() => { setEditingPostId(selectedPost.id); setEditTitle(selectedPost.title); setEditBody(selectedPost.body); }}
-                    style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#EDE9FE', borderRadius: 12 }}>
-                    <Text style={{ color: '#7C3AED', fontSize: 12 }}>Editar</Text>
-                  </Pressable>
-                )}
-                {settings?.can_moderate && (
-                  <>
-                    <Pressable onPress={() => handleTogglePin(selectedPost.id)}
-                      style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#FEF9C3', borderRadius: 12 }}>
-                      <Text style={{ color: '#92400E', fontSize: 12 }}>{selectedPost.is_pinned ? 'Desafixar' : 'Fixar'}</Text>
-                    </Pressable>
-                    <Pressable onPress={() => handleToggleHighlight(selectedPost.id)}
-                      style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#DBEAFE', borderRadius: 12 }}>
-                      <Text style={{ color: '#1D4ED8', fontSize: 12 }}>{selectedPost.is_institutional_highlight ? 'Remover destaque' : 'Destacar'}</Text>
-                    </Pressable>
-                    <Pressable onPress={() => handleDeletePost(selectedPost.id)}
-                      style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#FEE2E2', borderRadius: 12 }}>
-                      <Text style={{ color: '#DC2626', fontSize: 12 }}>Remover</Text>
-                    </Pressable>
-                  </>
-                )}
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+                <AvatarInitial
+                  name={selectedPost.author_name}
+                  userId={selectedPost.author_user_id}
+                  size={38}
+                  t={t}
+                />
+                <View>
+                  <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 14, color: t.text.primary }}>
+                    {selectedPost.author_name}
+                  </Text>
+                  <Text style={{ fontFamily: 'Nunito-Regular', fontSize: 12, color: t.text.tertiary }}>
+                    {new Date(selectedPost.created_at).toLocaleDateString('pt-BR', {
+                      day: '2-digit', month: 'long', year: 'numeric',
+                    })}
+                    {selectedPost.edited_at ? ' · editado' : ''}
+                  </Text>
+                </View>
               </View>
+
+              <Text style={{
+                fontFamily: 'Nunito-Regular', fontSize: 16,
+                color: t.text.primary, lineHeight: 26, marginBottom: 20,
+              }}>
+                {selectedPost.body}
+              </Text>
+
+              {(canEditPost || (settings?.can_moderate ?? false)) && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                  {canEditPost && (
+                    <Pressable
+                      onPress={() => {
+                        setEditingPostId(selectedPost.id);
+                        setEditTitle(selectedPost.title);
+                        setEditBody(selectedPost.body);
+                      }}
+                      style={{
+                        paddingHorizontal: 14, paddingVertical: 7,
+                        backgroundColor: t.brand.adminDim, borderRadius: radius.full,
+                      }}
+                    >
+                      <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 12, color: t.brand.admin }}>
+                        Editar
+                      </Text>
+                    </Pressable>
+                  )}
+                  {settings?.can_moderate && (
+                    <>
+                      <Pressable
+                        onPress={() => handleTogglePin(selectedPost.id)}
+                        style={{
+                          paddingHorizontal: 14, paddingVertical: 7,
+                          backgroundColor: t.brand.secondaryDim, borderRadius: radius.full,
+                        }}
+                      >
+                        <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 12, color: t.brand.secondary }}>
+                          {selectedPost.is_pinned ? 'Desafixar' : 'Fixar'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleToggleHighlight(selectedPost.id)}
+                        style={{
+                          paddingHorizontal: 14, paddingVertical: 7,
+                          backgroundColor: t.brand.primaryDim, borderRadius: radius.full,
+                        }}
+                      >
+                        <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 12, color: t.brand.primary }}>
+                          {selectedPost.is_institutional_highlight ? 'Remover destaque' : 'Destacar'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleDeletePost(selectedPost.id)}
+                        style={{
+                          paddingHorizontal: 14, paddingVertical: 7,
+                          backgroundColor: t.status.errorBg, borderRadius: radius.full,
+                        }}
+                      >
+                        <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 12, color: t.status.error }}>
+                          Remover
+                        </Text>
+                      </Pressable>
+                    </>
+                  )}
+                </View>
+              )}
             </View>
           )}
 
-          <View style={{ height: 1, backgroundColor: '#E5E7EB', marginVertical: 12 }} />
-          <Text style={{ fontWeight: '600', marginBottom: 12 }}>
-            {selectedPost.replies.length} resposta{selectedPost.replies.length !== 1 ? 's' : ''}
+          <View style={{ height: 1, backgroundColor: t.border.subtle, marginBottom: 14 }} />
+
+          <Text style={{
+            fontFamily: 'Nunito-SemiBold', fontSize: 14,
+            color: t.text.secondary, marginBottom: 10,
+          }}>
+            {selectedPost.replies.length === 0
+              ? 'Nenhuma resposta ainda'
+              : `${selectedPost.replies.length} ${selectedPost.replies.length === 1 ? 'resposta' : 'respostas'}`}
           </Text>
 
-          {selectedPost.replies.map((r) => {
-            const isAuthorReply = r.author_user_id === currentUserId;
-            const canEditReply = isAuthorReply || (settings?.can_moderate ?? false);
-            return (
-              <View key={r.id} style={{ borderLeftWidth: 3, borderLeftColor: '#7C3AED', paddingLeft: 12, marginBottom: 16 }}>
-                {editingReplyId === r.id ? (
-                  <View>
-                    <TextInput value={editReplyBody} onChangeText={setEditReplyBody} multiline
-                      style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 8, minHeight: 60, marginBottom: 6 }} />
-                    <View style={{ flexDirection: 'row', gap: 6 }}>
-                      <Pressable onPress={() => setEditingReplyId(null)} style={{ padding: 6, borderRadius: 6, borderWidth: 1, borderColor: '#D1D5DB' }}>
-                        <Text style={{ fontSize: 12 }}>Cancelar</Text>
-                      </Pressable>
-                      <Pressable onPress={handleSaveEditReply} disabled={submitting} style={{ padding: 6, borderRadius: 6, backgroundColor: '#7C3AED' }}>
-                        <Text style={{ color: '#fff', fontSize: 12 }}>{submitting ? '...' : 'Salvar'}</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                ) : (
-                  <View>
-                    <Text style={{ fontWeight: '600', fontSize: 13 }}>{r.author_name}</Text>
-                    <Text style={{ color: '#6B7280', fontSize: 11, marginBottom: 2 }}>
-                      {new Date(r.created_at).toLocaleDateString('pt-BR')}{r.edited_at ? ' · editado' : ''}
-                    </Text>
-                    <Text style={{ fontSize: 14, marginBottom: 4 }}>{r.body}</Text>
-                    <View style={{ flexDirection: 'row', gap: 6 }}>
-                      {canEditReply && (
-                        <Pressable onPress={() => { setEditingReplyId(r.id); setEditReplyBody(r.body); }}
-                          style={{ paddingHorizontal: 8, paddingVertical: 2, backgroundColor: '#EDE9FE', borderRadius: 10 }}>
-                          <Text style={{ color: '#7C3AED', fontSize: 11 }}>Editar</Text>
-                        </Pressable>
-                      )}
-                      {settings?.can_moderate && (
-                        <Pressable onPress={() => handleDeleteReply(r.id)}
-                          style={{ paddingHorizontal: 8, paddingVertical: 2, backgroundColor: '#FEE2E2', borderRadius: 10 }}>
-                          <Text style={{ color: '#DC2626', fontSize: 11 }}>Remover</Text>
-                        </Pressable>
-                      )}
-                    </View>
-                  </View>
-                )}
-              </View>
-            );
-          })}
-
-          {replyError && (
-            <View style={{ backgroundColor: '#FEE2E2', padding: 8, borderRadius: 6, marginBottom: 8 }}>
-              <Text style={{ color: '#DC2626', fontSize: 13 }}>{replyError}</Text>
+          {selectedPost.replies.length > 0 && (
+            <View style={{
+              backgroundColor: t.bg.elevated,
+              borderRadius: radius.lg,
+              paddingHorizontal: 16,
+              marginBottom: 20,
+              shadowColor: t.shadow.sm.shadowColor,
+              shadowOffset: t.shadow.sm.shadowOffset,
+              shadowOpacity: t.shadow.sm.shadowOpacity,
+              shadowRadius: t.shadow.sm.shadowRadius,
+              elevation: t.shadow.sm.elevation,
+            }}>
+              {selectedPost.replies.map((reply, idx) => (
+                <ReplyItem
+                  key={reply.id}
+                  reply={reply}
+                  canEdit={reply.author_user_id === currentUserId}
+                  canModerate={settings?.can_moderate ?? false}
+                  isEditing={editingReplyId === reply.id}
+                  editBody={editReplyBody}
+                  onEditBodyChange={setEditReplyBody}
+                  onStartEdit={() => { setEditingReplyId(reply.id); setEditReplyBody(reply.body); }}
+                  onSaveEdit={handleSaveEditReply}
+                  onCancelEdit={() => setEditingReplyId(null)}
+                  onDelete={() => handleDeleteReply(reply.id)}
+                  submitting={submitting}
+                  t={t}
+                  isLast={idx === selectedPost.replies.length - 1}
+                />
+              ))}
             </View>
           )}
-          <TextInput value={replyBody} onChangeText={setReplyBody} placeholder="Escreva uma resposta..." multiline
-            style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 10, minHeight: 80, fontSize: 14, marginBottom: 8 }} />
-          <Pressable onPress={handleCreateReply} disabled={submitting}
-            style={{ backgroundColor: submitting ? '#C4B5FD' : '#7C3AED', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 32 }}>
-            <Text style={{ color: '#fff', fontWeight: '600' }}>{submitting ? 'Enviando...' : 'Responder'}</Text>
+
+          {replyError && (
+            <View style={{
+              backgroundColor: t.status.errorBg,
+              borderRadius: radius.md, padding: 12, marginBottom: 12,
+            }}>
+              <Text style={{ fontFamily: 'Nunito-Regular', fontSize: 13, color: t.status.error }}>
+                {replyError}
+              </Text>
+            </View>
+          )}
+
+          <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 13, color: t.text.secondary, marginBottom: 6 }}>
+            Sua contribuição
+          </Text>
+          <TextInput
+            value={replyBody}
+            onChangeText={setReplyBody}
+            placeholder="Escreva sua contribuição..."
+            placeholderTextColor={t.text.tertiary}
+            multiline
+            style={{
+              borderWidth: 1, borderColor: t.border.default,
+              borderRadius: radius.md, padding: 14, minHeight: 90,
+              fontFamily: 'Nunito-Regular', fontSize: 15,
+              color: t.text.primary, backgroundColor: t.bg.surface,
+              textAlignVertical: 'top', marginBottom: 10,
+            }}
+          />
+          <Pressable
+            onPress={handleCreateReply}
+            disabled={submitting}
+            style={{
+              backgroundColor: submitting ? t.brand.primaryDim : t.brand.primary,
+              padding: 14, borderRadius: radius.md, alignItems: 'center',
+            }}
+          >
+            <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 15, color: t.text.inverse }}>
+              {submitting ? 'Enviando...' : 'Responder'}
+            </Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     );
   }
 
-  // ── POST LIST ────────────────────────────────────────────────────────────────
-  return (
-    <View style={{ flex: 1, backgroundColor: '#F9FAFB' }}>
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadList(); }} />}
-        contentContainerStyle={{ padding: 16 }}
-        ListEmptyComponent={
-          <Text style={{ textAlign: 'center', color: '#9CA3AF', marginTop: 40 }}>Nenhum post ainda.</Text>
-        }
-        renderItem={({ item }) => (
-          <Pressable onPress={() => openPost(item)}
-            style={{
-              backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12,
-              shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
-              borderLeftWidth: item.is_institutional_highlight ? 4 : 0,
-              borderLeftColor: '#7C3AED',
-            }}>
-            {item.is_institutional_highlight && (
-              <Text style={{ color: '#1D4ED8', fontSize: 11, fontWeight: '600', marginBottom: 4 }}>⭐ Destaque Institucional</Text>
-            )}
-            {item.is_pinned && !item.is_institutional_highlight && (
-              <Text style={{ color: '#92400E', fontSize: 11, marginBottom: 4 }}>📌 Fixado</Text>
-            )}
-            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 4 }}>{item.title}</Text>
-            <Text style={{ color: '#6B7280', fontSize: 12 }}>
-              {item.author_name} · {new Date(item.created_at).toLocaleDateString('pt-BR')} · {item.reply_count} resposta{item.reply_count !== 1 ? 's' : ''}
-              {item.edited_at ? ' · editado' : ''}
-            </Text>
-          </Pressable>
-        )}
-      />
+  // ── Feed (list) ───────────────────────────────────────────────────────────────
 
-      {showNewPost && (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={{ padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#E5E7EB' }}>
-            {formError && (
-              <View style={{ backgroundColor: '#FEE2E2', padding: 8, borderRadius: 6, marginBottom: 8 }}>
-                <Text style={{ color: '#DC2626', fontSize: 13 }}>{formError}</Text>
-              </View>
-            )}
-            <TextInput value={postTitle} onChangeText={setPostTitle} placeholder="Título"
-              style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 10, marginBottom: 8 }} />
-            <TextInput value={postBody} onChangeText={setPostBody} placeholder="Mensagem..." multiline
-              style={{ borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 10, minHeight: 80, marginBottom: 8 }} />
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Pressable onPress={() => { setShowNewPost(false); setFormError(null); setPostTitle(''); setPostBody(''); }}
-                style={{ flex: 1, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#D1D5DB', alignItems: 'center' }}>
-                <Text>Cancelar</Text>
-              </Pressable>
-              <Pressable onPress={handleCreatePost} disabled={submitting}
-                style={{ flex: 1, backgroundColor: submitting ? '#C4B5FD' : '#7C3AED', padding: 12, borderRadius: 8, alignItems: 'center' }}>
-                <Text style={{ color: '#fff', fontWeight: '600' }}>{submitting ? 'Publicando...' : 'Publicar'}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
+  const highlightPosts = posts.filter(p => p.is_institutional_highlight);
+  const pinnedPosts = posts.filter(p => p.is_pinned && !p.is_institutional_highlight);
+  const normalPosts = posts.filter(p => !p.is_pinned && !p.is_institutional_highlight);
+
+  const feedItems: FeedItem[] = [];
+  if (highlightPosts.length > 0) {
+    feedItems.push({ kind: 'section', label: 'Destaques', id: 'sec-highlights' });
+    highlightPosts.forEach(p => feedItems.push({ kind: 'highlight', post: p }));
+  }
+  if (pinnedPosts.length > 0) {
+    feedItems.push({ kind: 'section', label: 'Fixados', id: 'sec-pinned' });
+    pinnedPosts.forEach(p => feedItems.push({ kind: 'post', post: p }));
+  }
+  if (normalPosts.length > 0) {
+    if (highlightPosts.length > 0 || pinnedPosts.length > 0) {
+      feedItems.push({ kind: 'section', label: 'Publicações', id: 'sec-normal' });
+    }
+    normalPosts.forEach(p => feedItems.push({ kind: 'post', post: p }));
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: t.bg.screen }}>
+      {posts.length === 0 ? (
+        <EmptyFeed t={t} />
+      ) : (
+        <FlatList
+          data={feedItems}
+          keyExtractor={(item) => item.kind === 'section' ? item.id : item.post.id}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => { setRefreshing(true); loadList(); }}
+              tintColor={t.brand.primary}
+            />
+          }
+          contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+          renderItem={({ item }) => {
+            if (item.kind === 'section') {
+              return <SectionHeader label={item.label} t={t} />;
+            }
+            if (item.kind === 'highlight') {
+              return <HighlightCard item={item.post} onPress={() => openPost(item.post)} t={t} />;
+            }
+            return <PostCard item={item.post} onPress={() => openPost(item.post)} t={t} />;
+          }}
+        />
       )}
 
-      {!showNewPost && settings?.can_post && (
-        <Pressable onPress={() => setShowNewPost(true)}
+      {settings?.can_post && (
+        <Pressable
+          onPress={() => setScreen('compose')}
           style={{
-            position: 'absolute', bottom: 24, right: 24,
-            backgroundColor: '#7C3AED', width: 56, height: 56,
-            borderRadius: 28, alignItems: 'center', justifyContent: 'center',
-            shadowColor: '#7C3AED', shadowOpacity: 0.4, shadowRadius: 8, elevation: 6,
-          }}>
-          <Text style={{ color: '#fff', fontSize: 28, lineHeight: 32 }}>+</Text>
+            position: 'absolute', bottom: 28, right: 20,
+            flexDirection: 'row', alignItems: 'center', gap: 8,
+            backgroundColor: t.brand.primary,
+            paddingHorizontal: 20, paddingVertical: 14,
+            borderRadius: radius.full,
+            shadowColor: t.shadow.lg.shadowColor,
+            shadowOffset: t.shadow.lg.shadowOffset,
+            shadowOpacity: t.shadow.lg.shadowOpacity,
+            shadowRadius: t.shadow.lg.shadowRadius,
+            elevation: t.shadow.lg.elevation,
+          }}
+        >
+          <Ionicons name="create-outline" size={18} color={t.text.inverse} />
+          <Text style={{ fontFamily: 'Nunito-Bold', fontSize: 14, color: t.text.inverse }}>
+            Publicar
+          </Text>
         </Pressable>
       )}
     </View>
