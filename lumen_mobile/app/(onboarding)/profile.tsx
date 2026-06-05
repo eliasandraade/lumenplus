@@ -60,15 +60,15 @@ const INSTRUMENTS = [
 ];
 
 const colors = {
-  primary: '#1a365d',
-  primaryLight: '#2c5282',
+  primary: '#1A859B',
+  primaryLight: '#5cc8de',
   white: '#ffffff',
   gray: '#6b7280',
   lightGray: '#f3f4f6',
   error: '#ef4444',
   success: '#22c55e',
-  border: '#e5e5e5',
-  background: '#f9fafb',
+  border: '#e5e7eb',
+  background: '#f3f4f6',
 };
 
 interface CatalogItem {
@@ -485,16 +485,33 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>Complete seu perfil</Text>
+        {/* Barra de progresso decorativa */}
+        <View style={{ paddingTop: 20, paddingBottom: 8 }}>
+          <Text style={{
+            fontSize: 14, color: colors.gray,
+            marginBottom: 10, textAlign: 'center', lineHeight: 20,
+          }}>
+            Não se preocupe — você poderá editar depois.
+          </Text>
+          <View style={{ height: 4, backgroundColor: '#e5e7eb', borderRadius: 9999 }}>
+            <View style={{
+              height: 4, width: '40%',
+              backgroundColor: colors.primary,
+              borderRadius: 9999,
+            }} />
+          </View>
+        </View>
+
+        <Text style={styles.title}>Vamos te conhecer</Text>
         <Text style={styles.subtitle}>
-          Precisamos de algumas informações para finalizar seu cadastro.
+          Algumas informações para personalizar sua experiência na comunidade.
         </Text>
 
         {/* ============================================ */}
         {/* FOTO DE PERFIL */}
         {/* ============================================ */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📷 Foto de Perfil</Text>
+          <Text style={styles.sectionTitle}>Uma foto sua</Text>
           <TouchableOpacity style={styles.photoContainer} onPress={showPhotoOptions}>
             {photoUri ? (
               <Image source={{ uri: photoUri }} style={styles.photo} />
@@ -511,7 +528,7 @@ export default function ProfileScreen() {
         {/* DADOS PESSOAIS */}
         {/* ============================================ */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>👤 Dados Pessoais</Text>
+          <Text style={styles.sectionTitle}>Sobre você</Text>
 
           <Text style={styles.label}>Nome completo *</Text>
           <TextInput
@@ -593,7 +610,7 @@ export default function ProfileScreen() {
         {/* LOCALIZAÇÃO */}
         {/* ============================================ */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📍 Localização</Text>
+          <Text style={styles.sectionTitle}>Onde você mora</Text>
 
           {/* Toggle: mora fora do Brasil */}
           <View style={styles.switchRow}>
@@ -689,7 +706,7 @@ export default function ProfileScreen() {
         {/* INFORMAÇÕES DA COMUNIDADE */}
         {/* ============================================ */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⛪ Informações da Comunidade</Text>
+          <Text style={styles.sectionTitle}>Sua jornada na comunidade</Text>
 
           <Text style={styles.label}>Estado de Vida *</Text>
           <View style={[styles.picker, errors.lifeState && styles.pickerError]}>
@@ -766,7 +783,7 @@ export default function ProfileScreen() {
         {/* ============================================ */}
         {realidadeAtualOptions.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🌟 Realidade Atual</Text>
+            <Text style={styles.sectionTitle}>Onde você está agora</Text>
             <Text style={styles.label}>Selecione todas que se aplicam:</Text>
             <View style={styles.chipsRow}>
               {realidadeAtualOptions.map((opt) => {
@@ -795,7 +812,7 @@ export default function ProfileScreen() {
         {/* MISSÃO */}
         {/* ============================================ */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>✈️ Missão</Text>
+          <Text style={styles.sectionTitle}>Missão</Text>
 
           <View style={styles.switchRow}>
             <Text style={styles.switchLabel}>
@@ -850,7 +867,7 @@ export default function ProfileScreen() {
         {/* INTERESSE EM MINISTÉRIO */}
         {/* ============================================ */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>💼 Interesse em Ministério</Text>
+          <Text style={styles.sectionTitle}>Como você quer servir</Text>
 
           <View style={styles.switchRow}>
             <Text style={styles.switchLabel}>Você se sente chamado a servir em um ministério?</Text>
@@ -912,7 +929,7 @@ export default function ProfileScreen() {
         {/* DISPONIBILIDADE DE ACOMODAÇÃO */}
         {/* ============================================ */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🛏️ Disponibilidade de Acomodação</Text>
+          <Text style={styles.sectionTitle}>Para cuidar de você</Text>
           <Text style={styles.label}>Selecione todas as formas que você aceita:</Text>
           <View style={styles.chipsRow}>
             {[
@@ -944,7 +961,7 @@ export default function ProfileScreen() {
         {/* INFORMAÇÕES EXTRAS */}
         {/* ============================================ */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⭐ Informações Extras</Text>
+          <Text style={styles.sectionTitle}>Últimos detalhes</Text>
           <Text style={styles.sectionHint}>Todos os campos abaixo são opcionais.</Text>
 
           {/* Instagram */}
@@ -1086,7 +1103,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#171717', marginBottom: 16 },
+  sectionTitle: { fontSize: 20, fontFamily: 'Nunito-Bold', color: '#0f1923', marginBottom: 16 },
   sectionHint: { fontSize: 13, color: colors.gray, marginBottom: 12, fontStyle: 'italic' },
   label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8, marginTop: 12 },
   input: {

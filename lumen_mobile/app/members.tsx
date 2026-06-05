@@ -22,19 +22,19 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '@/services/api';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
+import { radius, typography } from '@/theme/tokens';
 
-const colors = {
-  primary: '#1a365d',
-  primaryLight: '#2c5282',
-  white: '#ffffff',
-  gray: '#6b7280',
-  lightGray: '#f3f4f6',
-  background: '#f9fafb',
-  border: '#e5e5e5',
-  success: '#22c55e',
-  error: '#ef4444',
-  warning: '#f59e0b',
-};
+// ── Helper: máscara de e-mail ─────────────────────────────────────────────────
+
+function maskEmail(email: string): string {
+  const atIdx = email.indexOf('@');
+  if (atIdx < 2) return email;
+  return `${email.slice(0, 2)}***${email.slice(atIdx)}`;
+}
+
+// ── Tipos locais ──────────────────────────────────────────────────────────────
 
 interface Member {
   user_id: string;
@@ -63,17 +63,261 @@ const ROLE_LABELS: Record<string, string> = {
   MEMBER: 'Membro',
 };
 
+// ── Estilos dinâmicos ─────────────────────────────────────────────────────────
+
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.screen },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: t.bg.screen },
+  loadingText: { marginTop: 12, fontSize: typography.size.md, color: t.text.secondary, fontFamily: typography.family.regular },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: t.bg.elevated,
+    borderBottomWidth: 1,
+    borderBottomColor: t.border.subtle,
+  },
+  headerTitle: { flex: 1, marginLeft: 12 },
+  headerTitleText: { fontSize: typography.size.lg, fontFamily: typography.family.bold, color: t.text.primary },
+  headerSubtitle: { fontSize: typography.size.sm, color: t.text.secondary, marginTop: 2, fontFamily: typography.family.regular },
+
+  canalButton: {
+    backgroundColor: t.brand.primaryDim,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    marginRight: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  canalButtonText: { color: t.brand.primary, fontFamily: typography.family.bold, fontSize: 13 },
+  inviteButton: { backgroundColor: t.brand.primary, padding: 10, borderRadius: radius.md },
+
+  listContent: { padding: 16 },
+
+  sectionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: radius.full,
+    marginBottom: 12,
+  },
+  sectionChipCoord: { backgroundColor: '#fffbeb' },
+  sectionChipMember: { backgroundColor: t.brand.primaryDim, marginTop: 16 },
+  sectionChipText: { fontSize: typography.size.xs, fontFamily: typography.family.bold },
+  sectionChipTextCoord: { color: '#d97706' },
+  sectionChipTextMember: { color: t.brand.primary },
+  sectionChipCount: {
+    fontSize: typography.size.xs,
+    fontFamily: typography.family.bold,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  sectionChipCountCoord: { backgroundColor: '#fef9c3', color: '#a16207' },
+  sectionChipCountMember: { backgroundColor: t.brand.primary, color: t.text.inverse },
+
+  memberCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: t.bg.elevated,
+    padding: 14,
+    borderRadius: radius.lg,
+    marginBottom: 10,
+    ...t.shadow.sm,
+  },
+  memberAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: t.brand.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: t.brand.primaryDim,
+  },
+  memberAvatarCoord: {
+    borderColor: '#fde68a',
+    backgroundColor: '#d97706',
+  },
+  avatarText: { fontSize: 18, fontFamily: typography.family.bold, color: t.text.inverse },
+  memberInfo: { flex: 1, marginLeft: 12 },
+  memberName: { fontSize: typography.size.md, fontFamily: typography.family.bold, color: t.text.primary },
+  memberEmailMasked: { fontSize: typography.size.xs, color: t.text.tertiary, marginTop: 2, fontFamily: typography.family.regular },
+  memberJoined: { fontSize: typography.size.xs, color: t.text.tertiary, marginTop: 2, fontFamily: typography.family.regular },
+  coordBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    backgroundColor: '#fffbeb',
+  },
+  coordBadgeText: { fontSize: 11, fontFamily: typography.family.bold, color: '#d97706' },
+
+  emptyContainer: { alignItems: 'center', paddingVertical: 40 },
+  emptyText: { fontSize: typography.size.sm, color: t.text.secondary, marginTop: 12, fontFamily: typography.family.regular },
+
+  // Modais
+  modalOverlay: { flex: 1, backgroundColor: t.bg.overlay, justifyContent: 'flex-end' },
+  modalContent: {
+    backgroundColor: t.bg.elevated,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: 24,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 8,
+  },
+  modalTitle: { fontSize: typography.size.xl, fontFamily: typography.family.bold, color: t.text.primary },
+  label: { fontSize: typography.size.sm, fontFamily: typography.family.bold, color: t.text.primary, marginBottom: 8, marginTop: 16 },
+
+  searchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: t.bg.surface,
+    borderRadius: radius.full,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: t.border.subtle,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: typography.size.md,
+    color: t.text.primary,
+    marginLeft: 8,
+    fontFamily: typography.family.regular,
+  },
+  input: {
+    backgroundColor: t.bg.surface,
+    borderRadius: radius.md,
+    padding: 14,
+    fontSize: typography.size.md,
+    borderWidth: 1,
+    borderColor: t.border.subtle,
+    color: t.text.primary,
+    fontFamily: typography.family.regular,
+  },
+  textArea: { minHeight: 80, textAlignVertical: 'top' },
+  searchLoader: { marginTop: 12 },
+  searchResults: { marginTop: 4, maxHeight: 200 },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: t.border.subtle,
+  },
+  searchResultAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: t.brand.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchResultInfo: { flex: 1, marginLeft: 12 },
+  searchResultName: { fontSize: typography.size.md, fontFamily: typography.family.semibold, color: t.text.primary },
+  roleOptions: { flexDirection: 'row', gap: 12 },
+  roleOption: {
+    flex: 1,
+    padding: 14,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: t.border.subtle,
+    alignItems: 'center',
+    backgroundColor: t.bg.surface,
+  },
+  roleOptionActive: { borderColor: t.brand.primary, backgroundColor: t.brand.primaryDim },
+  roleOptionText: { fontSize: typography.size.md, fontFamily: typography.family.semibold, color: t.text.secondary },
+  roleOptionTextActive: { color: t.brand.primary },
+
+  confirmContainer: { alignItems: 'center', paddingVertical: 16, gap: 16 },
+  confirmAvatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: t.brand.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmAvatarText: { fontSize: 28, fontFamily: typography.family.bold, color: t.text.inverse },
+  confirmQuestion: {
+    fontSize: typography.size.lg,
+    color: t.text.secondary,
+    textAlign: 'center',
+    lineHeight: 26,
+    fontFamily: typography.family.regular,
+  },
+  confirmHighlight: { fontFamily: typography.family.bold, color: t.brand.primary },
+  confirmMessage: {
+    fontSize: typography.size.sm,
+    color: t.text.tertiary,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    fontFamily: typography.family.italic,
+  },
+  confirmButton: {
+    width: '100%',
+    backgroundColor: t.brand.primary,
+    borderRadius: radius.lg,
+    padding: 16,
+    alignItems: 'center',
+  },
+  confirmButtonText: { color: t.text.inverse, fontSize: typography.size.lg, fontFamily: typography.family.bold },
+  cancelConfirmButton: { padding: 12, alignItems: 'center' },
+  cancelConfirmText: { color: t.text.secondary, fontSize: typography.size.md, fontFamily: typography.family.regular },
+
+  actionsModal: {
+    backgroundColor: t.bg.elevated,
+    margin: 20,
+    borderRadius: radius.xl,
+    padding: 20,
+  },
+  actionsTitle: { fontSize: typography.size.lg, fontFamily: typography.family.bold, color: t.text.primary, textAlign: 'center' },
+  actionsSubtitle: { fontSize: typography.size.sm, color: t.text.secondary, textAlign: 'center', marginBottom: 20, fontFamily: typography.family.regular },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: radius.lg,
+    backgroundColor: t.bg.surface,
+    marginBottom: 10,
+  },
+  actionButtonText: { fontSize: typography.size.md, fontFamily: typography.family.semibold, color: t.brand.primary },
+  actionButtonDanger: { backgroundColor: '#fef2f2' },
+  actionButtonTextDanger: { color: '#ef4444' },
+  cancelButton: { padding: 16, alignItems: 'center' },
+  cancelButtonText: { fontSize: typography.size.md, color: t.text.secondary, fontFamily: typography.family.regular },
+});
+
+// ── Componente principal ──────────────────────────────────────────────────────
+
 export default function MembersScreen() {
-  const params = useLocalSearchParams<{ 
-    org_unit_id: string; 
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
+  const params = useLocalSearchParams<{
+    org_unit_id: string;
     org_unit_name: string;
   }>();
-  
+
   const [members, setMembers] = useState<Member[]>([]);
   const [permissions, setPermissions] = useState<Permissions | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  
+
   // Modal de convite
   const [showInvite, setShowInvite] = useState(false);
   const [inviteStep, setInviteStep] = useState<'search' | 'confirm'>('search');
@@ -84,7 +328,7 @@ export default function MembersScreen() {
   const [inviteRole, setInviteRole] = useState<'MEMBER' | 'COORDINATOR'>('MEMBER');
   const [inviteMessage, setInviteMessage] = useState('');
   const [isSendingInvite, setIsSendingInvite] = useState(false);
-  
+
   // Modal de ações do membro
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [showMemberActions, setShowMemberActions] = useState(false);
@@ -98,7 +342,7 @@ export default function MembersScreen() {
         api.get<{ members: Member[] }>(`/org/units/${params.org_unit_id}/members`),
         api.get<Permissions>(`/org/units/${params.org_unit_id}/permissions`),
       ]);
-      
+
       setMembers(membersData.members);
       setPermissions(permissionsData);
     } catch (err) {
@@ -126,7 +370,7 @@ export default function MembersScreen() {
         setSearchResults([]);
         return;
       }
-      
+
       try {
         setIsSearching(true);
         const results = await api.get<UserSearchResult[]>(
@@ -181,7 +425,7 @@ export default function MembersScreen() {
   const handlePromote = async (member: Member) => {
     const newRole = member.role === 'COORDINATOR' ? 'MEMBER' : 'COORDINATOR';
     const action = member.role === 'COORDINATOR' ? 'rebaixar' : 'promover';
-    
+
     Alert.alert(
       `${action.charAt(0).toUpperCase() + action.slice(1)} Membro`,
       `Deseja ${action} ${member.user_name} para ${ROLE_LABELS[newRole]}?`,
@@ -237,44 +481,62 @@ export default function MembersScreen() {
     });
   };
 
-  const renderMember = ({ item }: { item: Member }) => {
-    const isCoord = item.role === 'COORDINATOR';
-    
+  const coordinators = members.filter(m => m.role === 'COORDINATOR');
+  const regularMembers = members.filter(m => m.role === 'MEMBER');
+
+  // Lista com sentinela para separar coordenadores de membros
+  type SentinelItem = { __separator: true; user_id: string };
+  const listData: (Member | SentinelItem)[] = [
+    ...coordinators,
+    ...(regularMembers.length > 0 ? [{ __separator: true as const, user_id: '__sep__' }] : []),
+    ...regularMembers,
+  ];
+
+  const renderMember = ({ item }: { item: Member | SentinelItem }) => {
+    if ('__separator' in item) {
+      return (
+        <View style={[styles.sectionChip, styles.sectionChipMember]}>
+          <Text style={[styles.sectionChipText, styles.sectionChipTextMember]}>Membros</Text>
+          <Text style={[styles.sectionChipCount, styles.sectionChipCountMember]}>{regularMembers.length}</Text>
+        </View>
+      );
+    }
+
+    const member = item as Member;
+    const isCoord = member.role === 'COORDINATOR';
+
     return (
       <TouchableOpacity
         style={styles.memberCard}
         onPress={() => {
           if (permissions?.can_manage_members) {
-            setSelectedMember(item);
+            setSelectedMember(member);
             setShowMemberActions(true);
           }
         }}
         disabled={!permissions?.can_manage_members}
       >
-        <View style={styles.memberAvatar}>
+        <View style={[styles.memberAvatar, isCoord ? styles.memberAvatarCoord : null]}>
           <Text style={styles.avatarText}>
-            {item.user_name.charAt(0).toUpperCase()}
+            {member.user_name.charAt(0).toUpperCase()}
           </Text>
         </View>
-        
+
         <View style={styles.memberInfo}>
-          <Text style={styles.memberName}>{item.user_name}</Text>
-          {item.user_email && (
-            <Text style={styles.memberEmail}>{item.user_email}</Text>
-          )}
+          <Text style={styles.memberName}>{member.user_name}</Text>
+          {member.user_email ? (
+            <Text style={styles.memberEmailMasked}>{maskEmail(member.user_email)}</Text>
+          ) : null}
           <Text style={styles.memberJoined}>
-            Desde {formatDate(item.joined_at)}
+            Desde {formatDate(member.joined_at)}
           </Text>
         </View>
-        
-        <View style={styles.memberBadge}>
-          {isCoord && (
-            <Ionicons name="star" size={16} color={colors.warning} />
-          )}
-          <Text style={[styles.memberRole, isCoord && styles.memberRoleCoord]}>
-            {ROLE_LABELS[item.role]}
-          </Text>
-        </View>
+
+        {isCoord && (
+          <View style={styles.coordBadge}>
+            <Text style={styles.coordBadgeText}>Coord.</Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -294,7 +556,7 @@ export default function MembersScreen() {
         >
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={inviteStep === 'confirm' ? handleCancelConfirm : () => setShowInvite(false)}>
-              <Ionicons name={inviteStep === 'confirm' ? 'arrow-back' : 'close'} size={24} color={colors.gray} />
+              <Ionicons name={inviteStep === 'confirm' ? 'arrow-back' : 'close'} size={24} color={t.text.secondary} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>
               {inviteStep === 'confirm' ? 'Confirmar Convite' : 'Convidar Membro'}
@@ -326,7 +588,7 @@ export default function MembersScreen() {
                 disabled={isSendingInvite}
               >
                 {isSendingInvite
-                  ? <ActivityIndicator color={colors.white} />
+                  ? <ActivityIndicator color={t.text.inverse} />
                   : <Text style={styles.confirmButtonText}>Confirmar</Text>
                 }
               </TouchableOpacity>
@@ -336,77 +598,77 @@ export default function MembersScreen() {
             </View>
           ) : (
             <>
-          <Text style={styles.label}>Buscar usuário</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Digite o nome..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor={colors.gray}
-          />
+              <Text style={styles.label}>Buscar usuário</Text>
+              <View style={styles.searchInputWrapper}>
+                <Ionicons name="search-outline" size={18} color={t.text.tertiary} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Digite o nome..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholderTextColor={t.text.tertiary}
+                />
+              </View>
 
-          {isSearching && (
-            <ActivityIndicator style={styles.searchLoader} color={colors.primary} />
-          )}
+              {isSearching && (
+                <ActivityIndicator style={styles.searchLoader} color={t.brand.primary} />
+              )}
 
-          {searchResults.length > 0 && (
-            <View style={styles.searchResults}>
-              {searchResults.map(user => (
+              {searchResults.length > 0 && (
+                <View style={styles.searchResults}>
+                  {searchResults.map(user => (
+                    <TouchableOpacity
+                      key={user.id}
+                      style={styles.searchResultItem}
+                      onPress={() => handleSelectUser(user)}
+                      disabled={isSendingInvite}
+                    >
+                      <View style={styles.searchResultAvatar}>
+                        <Text style={styles.avatarText}>
+                          {user.name.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={styles.searchResultInfo}>
+                        <Text style={styles.searchResultName}>{user.name}</Text>
+                      </View>
+                      <Ionicons name="add-circle" size={24} color={t.brand.primary} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              <Text style={styles.label}>Convidar como</Text>
+              <View style={styles.roleOptions}>
                 <TouchableOpacity
-                  key={user.id}
-                  style={styles.searchResultItem}
-                  onPress={() => handleSelectUser(user)}
-                  disabled={isSendingInvite}
+                  style={[styles.roleOption, inviteRole === 'MEMBER' && styles.roleOptionActive]}
+                  onPress={() => setInviteRole('MEMBER')}
                 >
-                  <View style={styles.searchResultAvatar}>
-                    <Text style={styles.avatarText}>
-                      {user.name.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={styles.searchResultInfo}>
-                    <Text style={styles.searchResultName}>{user.name}</Text>
-                    {user.email && (
-                      <Text style={styles.searchResultEmail}>{user.email}</Text>
-                    )}
-                  </View>
-                  <Ionicons name="add-circle" size={24} color={colors.primary} />
+                  <Text style={[styles.roleOptionText, inviteRole === 'MEMBER' && styles.roleOptionTextActive]}>
+                    Membro
+                  </Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-          )}
+                {!permissions?.is_coordinator && (
+                  <TouchableOpacity
+                    style={[styles.roleOption, inviteRole === 'COORDINATOR' && styles.roleOptionActive]}
+                    onPress={() => setInviteRole('COORDINATOR')}
+                  >
+                    <Text style={[styles.roleOptionText, inviteRole === 'COORDINATOR' && styles.roleOptionTextActive]}>
+                      Coordenador
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
 
-          <Text style={styles.label}>Convidar como</Text>
-          <View style={styles.roleOptions}>
-            <TouchableOpacity
-              style={[styles.roleOption, inviteRole === 'MEMBER' && styles.roleOptionActive]}
-              onPress={() => setInviteRole('MEMBER')}
-            >
-              <Text style={[styles.roleOptionText, inviteRole === 'MEMBER' && styles.roleOptionTextActive]}>
-                Membro
-              </Text>
-            </TouchableOpacity>
-            {!permissions?.is_coordinator && (
-              <TouchableOpacity
-                style={[styles.roleOption, inviteRole === 'COORDINATOR' && styles.roleOptionActive]}
-                onPress={() => setInviteRole('COORDINATOR')}
-              >
-                <Text style={[styles.roleOptionText, inviteRole === 'COORDINATOR' && styles.roleOptionTextActive]}>
-                  Coordenador
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <Text style={styles.label}>Mensagem (opcional)</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Adicione uma mensagem ao convite..."
-            value={inviteMessage}
-            onChangeText={setInviteMessage}
-            multiline
-            numberOfLines={3}
-            placeholderTextColor={colors.gray}
-          />
+              <Text style={styles.label}>Mensagem (opcional)</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Adicione uma mensagem ao convite..."
+                value={inviteMessage}
+                onChangeText={setInviteMessage}
+                multiline
+                numberOfLines={3}
+                placeholderTextColor={t.text.tertiary}
+              />
             </>
           )}
         </ScrollView>
@@ -416,9 +678,8 @@ export default function MembersScreen() {
 
   const renderMemberActionsModal = () => {
     if (!selectedMember) return null;
-    
     const isCoord = selectedMember.role === 'COORDINATOR';
-    
+
     return (
       <Modal
         visible={showMemberActions}
@@ -442,7 +703,7 @@ export default function MembersScreen() {
               <Ionicons
                 name={isCoord ? 'arrow-down' : 'arrow-up'}
                 size={20}
-                color={colors.primary}
+                color={t.brand.primary}
               />
               <Text style={styles.actionButtonText}>
                 {isCoord ? 'Rebaixar para Membro' : 'Promover a Coordenador'}
@@ -453,7 +714,7 @@ export default function MembersScreen() {
               style={[styles.actionButton, styles.actionButtonDanger]}
               onPress={() => handleRemovePress(selectedMember)}
             >
-              <Ionicons name="person-remove" size={20} color={colors.error} />
+              <Ionicons name="person-remove" size={20} color="#ef4444" />
               <Text style={[styles.actionButtonText, styles.actionButtonTextDanger]}>
                 Remover da Unidade
               </Text>
@@ -474,21 +735,18 @@ export default function MembersScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={t.brand.primary} />
         <Text style={styles.loadingText}>Carregando membros...</Text>
       </View>
     );
   }
-
-  const coordinators = members.filter(m => m.role === 'COORDINATOR');
-  const regularMembers = members.filter(m => m.role === 'MEMBER');
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={colors.primary} />
+          <Ionicons name="arrow-back" size={24} color={t.brand.primary} />
         </TouchableOpacity>
         <View style={styles.headerTitle}>
           <Text style={styles.headerTitleText}>{params.org_unit_name}</Text>
@@ -496,30 +754,23 @@ export default function MembersScreen() {
         </View>
         <TouchableOpacity
           onPress={() => router.push(`/channel/${params.org_unit_id}` as any)}
-          style={{
-            backgroundColor: '#EDE9FE',
-            paddingHorizontal: 12,
-            paddingVertical: 6,
-            borderRadius: 20,
-            marginRight: 8,
-            flexDirection: 'row',
-            alignItems: 'center',
-          }}
+          style={styles.canalButton}
         >
-          <Text style={{ color: '#7C3AED', fontWeight: '600', fontSize: 13 }}>💬 Canal</Text>
+          <Ionicons name="chatbubble-outline" size={13} color={t.brand.primary} />
+          <Text style={styles.canalButtonText}>Canal</Text>
         </TouchableOpacity>
         {permissions?.can_invite && (
           <TouchableOpacity
             style={styles.inviteButton}
             onPress={() => setShowInvite(true)}
           >
-            <Ionicons name="person-add" size={20} color={colors.white} />
+            <Ionicons name="person-add" size={20} color={t.text.inverse} />
           </TouchableOpacity>
         )}
       </View>
 
       <FlatList
-        data={[...coordinators, ...regularMembers]}
+        data={listData}
         renderItem={renderMember}
         keyExtractor={(item) => item.user_id}
         contentContainerStyle={styles.listContent}
@@ -527,19 +778,20 @@ export default function MembersScreen() {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={handleRefresh}
-            colors={[colors.primary]}
+            colors={[t.brand.primary]}
           />
         }
         ListHeaderComponent={
           coordinators.length > 0 ? (
-            <Text style={styles.sectionTitle}>
-              ⭐ Coordenadores ({coordinators.length})
-            </Text>
+            <View style={[styles.sectionChip, styles.sectionChipCoord]}>
+              <Text style={[styles.sectionChipText, styles.sectionChipTextCoord]}>Coordenadores</Text>
+              <Text style={[styles.sectionChipCount, styles.sectionChipCountCoord]}>{coordinators.length}</Text>
+            </View>
           ) : null
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="people-outline" size={48} color={colors.gray} />
+            <Ionicons name="people-outline" size={48} color={t.text.tertiary} />
             <Text style={styles.emptyText}>Nenhum membro encontrado</Text>
           </View>
         }
@@ -557,25 +809,31 @@ export default function MembersScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.actionsModal}>
-            <View style={[styles.confirmAvatar, { backgroundColor: '#fef2f2' }]}>
-              <Ionicons name="person-remove" size={28} color={colors.error} />
+            <View style={[styles.confirmAvatar, { backgroundColor: '#fef2f2', width: 64, height: 64, borderRadius: 32 }]}>
+              <Ionicons name="person-remove" size={28} color="#ef4444" />
             </View>
             <Text style={[styles.actionsTitle, { marginTop: 12 }]}>Remover Membro</Text>
-            <Text style={{ textAlign: 'center', color: '#374151', marginTop: 8, marginBottom: 20, lineHeight: 22 }}>
-              Deseja remover{' '}
-              <Text style={{ fontWeight: '700' }}>{memberToRemove?.user_name}</Text>
+            <Text style={{
+              textAlign: 'center',
+              color: t.text.secondary,
+              marginTop: 8,
+              marginBottom: 20,
+              lineHeight: 22,
+              fontFamily: typography.family.regular,
+            }}>
+              Remover{' '}
+              <Text style={{ fontFamily: typography.family.bold, color: t.text.primary }}>{memberToRemove?.user_name}</Text>
               {' '}de{' '}
-              <Text style={{ fontWeight: '700' }}>{params.org_unit_name}</Text>?
-              {'\n'}Esta ação não pode ser desfeita.
+              <Text style={{ fontFamily: typography.family.bold, color: t.text.primary }}>{params.org_unit_name}</Text>?
             </Text>
             <TouchableOpacity
-              style={[styles.confirmButton, { backgroundColor: colors.error }]}
+              style={[styles.confirmButton, { backgroundColor: '#ef4444' }]}
               onPress={handleConfirmRemove}
               disabled={isRemoving}
             >
               {isRemoving
-                ? <ActivityIndicator color={colors.white} />
-                : <Text style={styles.confirmButtonText}>Remover</Text>
+                ? <ActivityIndicator color={t.text.inverse} />
+                : <Text style={styles.confirmButtonText}>Sim, remover</Text>
               }
             </TouchableOpacity>
             <TouchableOpacity
@@ -590,69 +848,3 @@ export default function MembersScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
-  loadingText: { marginTop: 12, fontSize: 16, color: colors.gray },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border },
-  headerTitle: { flex: 1, marginLeft: 12 },
-  headerTitleText: { fontSize: 18, fontWeight: '600', color: '#171717' },
-  headerSubtitle: { fontSize: 13, color: colors.gray, marginTop: 2 },
-  inviteButton: { backgroundColor: colors.primary, padding: 10, borderRadius: 10 },
-  listContent: { padding: 16 },
-  sectionTitle: { fontSize: 14, fontWeight: '600', color: colors.gray, marginBottom: 12 },
-  memberCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, padding: 14, borderRadius: 12, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
-  memberAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  avatarText: { fontSize: 18, fontWeight: '600', color: colors.white },
-  memberInfo: { flex: 1, marginLeft: 12 },
-  memberName: { fontSize: 15, fontWeight: '500', color: '#171717' },
-  memberEmail: { fontSize: 13, color: colors.gray, marginTop: 2 },
-  memberJoined: { fontSize: 12, color: colors.gray, marginTop: 2 },
-  memberBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  memberRole: { fontSize: 12, color: colors.gray },
-  memberRoleCoord: { color: colors.warning, fontWeight: '500' },
-  emptyContainer: { alignItems: 'center', paddingVertical: 40 },
-  emptyText: { fontSize: 14, color: colors.gray, marginTop: 12 },
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 8 },
-  modalTitle: { fontSize: 20, fontWeight: '600', color: '#171717' },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8, marginTop: 16 },
-  input: { backgroundColor: colors.lightGray, borderRadius: 12, padding: 14, fontSize: 16, borderWidth: 1, borderColor: colors.border },
-  textArea: { minHeight: 80, textAlignVertical: 'top' },
-  searchLoader: { marginTop: 12 },
-  searchResults: { marginTop: 12, maxHeight: 200 },
-  searchResultItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  searchResultAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  searchResultInfo: { flex: 1, marginLeft: 12 },
-  searchResultName: { fontSize: 15, fontWeight: '500', color: '#171717' },
-  searchResultEmail: { fontSize: 13, color: colors.gray },
-  roleOptions: { flexDirection: 'row', gap: 12 },
-  roleOption: { flex: 1, padding: 14, borderRadius: 12, borderWidth: 2, borderColor: colors.border, alignItems: 'center' },
-  roleOptionActive: { borderColor: colors.primary, backgroundColor: '#eff6ff' },
-  roleOptionText: { fontSize: 15, fontWeight: '500', color: colors.gray },
-  roleOptionTextActive: { color: colors.primary },
-  // Confirm step
-  confirmContainer: { alignItems: 'center', paddingVertical: 16, gap: 16 },
-  confirmAvatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  confirmAvatarText: { fontSize: 28, fontWeight: '700', color: colors.white },
-  confirmQuestion: { fontSize: 16, color: '#374151', textAlign: 'center', lineHeight: 26 },
-  confirmHighlight: { fontWeight: '700', color: colors.primary },
-  confirmMessage: { fontSize: 13, color: colors.gray, fontStyle: 'italic', textAlign: 'center' },
-  confirmButton: { width: '100%', backgroundColor: colors.primary, borderRadius: 12, padding: 16, alignItems: 'center' },
-  confirmButtonText: { color: colors.white, fontSize: 16, fontWeight: '600' },
-  cancelConfirmButton: { padding: 12, alignItems: 'center' },
-  cancelConfirmText: { color: colors.gray, fontSize: 15 },
-  // Actions Modal
-  actionsModal: { backgroundColor: colors.white, margin: 20, borderRadius: 16, padding: 20 },
-  actionsTitle: { fontSize: 18, fontWeight: '600', color: '#171717', textAlign: 'center' },
-  actionsSubtitle: { fontSize: 14, color: colors.gray, textAlign: 'center', marginBottom: 20 },
-  actionButton: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 12, backgroundColor: colors.lightGray, marginBottom: 10 },
-  actionButtonText: { fontSize: 15, fontWeight: '500', color: colors.primary },
-  actionButtonDanger: { backgroundColor: '#fef2f2' },
-  actionButtonTextDanger: { color: colors.error },
-  cancelButton: { padding: 16, alignItems: 'center' },
-  cancelButtonText: { fontSize: 15, color: colors.gray },
-});

@@ -21,11 +21,14 @@ import { auth } from '@/config/firebase';
 import { profileService } from '@/services';
 import brasilApi, { type Municipio } from '@/services/brasilApi';
 import type { CatalogItem, Profile } from '@/types';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
 // =============================================================================
 // CONSTANTES
 // =============================================================================
 
+// Cores tokens — instanciadas em useTokenColors() dentro dos componentes
 const PRIMARY = '#1A859B';
 const WHITE = '#ffffff';
 const GRAY = '#6b7280';
@@ -105,6 +108,8 @@ const formatDate = (v: string): string => {
 // =============================================================================
 
 export default function ProfileScreen() {
+  const { t } = useTheme();
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(true);
@@ -406,14 +411,61 @@ export default function ProfileScreen() {
       >
         {/* ── Header ── */}
         <View style={styles.headerCard}>
+          {/* Avatar com anel teal */}
           <View style={styles.avatarContainer}>
-            {profile?.photo_url
-              ? <Image source={{ uri: profile.photo_url }} style={styles.avatar} />
-              : <View style={styles.avatarPlaceholder}><Ionicons name="person" size={48} color={WHITE} /></View>
-            }
+            <View style={{
+              width: 92, height: 92, borderRadius: 46,
+              borderWidth: 2.5, borderColor: t.brand.primary,
+              alignItems: 'center', justifyContent: 'center',
+              ...t.shadow.sm,
+            }}>
+              {profile?.photo_url
+                ? <Image source={{ uri: profile.photo_url }} style={styles.avatar} />
+                : <View style={styles.avatarPlaceholder}>
+                    <Ionicons name="person" size={40} color={WHITE} />
+                  </View>
+              }
+            </View>
           </View>
+
           <Text style={styles.userName}>{profile?.full_name || 'Nome não informado'}</Text>
           <Text style={styles.userEmail}>{email}</Text>
+
+          {/* Faixa de pertencimento comunitário */}
+          {(profile?.vocational_reality_label || profile?.life_state_label ||
+            (profile?.is_from_mission && profile?.mission_name) ||
+            profile?.despertar_encounter) ? (
+            <View style={{
+              flexDirection: 'row', flexWrap: 'wrap', gap: 8,
+              justifyContent: 'center', marginBottom: 12, paddingHorizontal: 8,
+            }}>
+              {profile?.vocational_reality_label ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: t.brand.primaryDim, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999 }}>
+                  <Ionicons name="star-outline" size={11} color={t.brand.primary} />
+                  <Text style={{ fontSize: 11, fontFamily: 'Nunito-SemiBold', color: t.brand.primary }}>{profile.vocational_reality_label}</Text>
+                </View>
+              ) : null}
+              {profile?.life_state_label ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: t.brand.primaryDim, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999 }}>
+                  <Ionicons name="heart-outline" size={11} color={t.brand.primary} />
+                  <Text style={{ fontSize: 11, fontFamily: 'Nunito-SemiBold', color: t.brand.primary }}>{profile.life_state_label}</Text>
+                </View>
+              ) : null}
+              {profile?.is_from_mission && profile?.mission_name ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: t.brand.primaryDim, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999 }}>
+                  <Ionicons name="globe-outline" size={11} color={t.brand.primary} />
+                  <Text style={{ fontSize: 11, fontFamily: 'Nunito-SemiBold', color: t.brand.primary }}>{profile.mission_name}</Text>
+                </View>
+              ) : null}
+              {profile?.despertar_encounter ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: t.brand.primaryDim, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999 }}>
+                  <Ionicons name="flame-outline" size={11} color={t.brand.primary} />
+                  <Text style={{ fontSize: 11, fontFamily: 'Nunito-SemiBold', color: t.brand.primary }}>{profile.despertar_encounter}</Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
           <View style={[styles.statusChip, isComplete ? styles.statusComplete : styles.statusPending]}>
             <Text style={[styles.statusText, { color: isComplete ? '#16a34a' : '#d97706' }]}>
               {isComplete ? '✓ Perfil Completo' : '⏳ Perfil Incompleto'}
@@ -459,7 +511,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Retiros e Eventos ── */}
-        <SectionTitle>Retiros e Eventos</SectionTitle>
+        <SectionTitle sensitive t={t}>Retiros e Eventos</SectionTitle>
         <View style={styles.card}>
           <InfoRow icon="bed-outline" label="Disponibilidade de Acomodação"
             value={profile?.accommodation_options?.length
@@ -517,7 +569,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Contato de Emergência ── */}
-        <SectionTitle>Contato de Emergência</SectionTitle>
+        <SectionTitle sensitive t={t}>Contato de Emergência</SectionTitle>
         <View style={styles.card}>
           <InfoRow icon="person-add-outline" label="Nome" value={ec?.name} />
           <InfoRow icon="heart-circle-outline" label="Parentesco" value={ec?.relationship} />
@@ -543,7 +595,16 @@ export default function ProfileScreen() {
               <Ionicons name="arrow-back" size={24} color="#171717" />
             </TouchableOpacity>
             <Text style={styles.editHeaderTitle}>Editar Perfil</Text>
-            <View style={{ width: 40 }} />
+            <TouchableOpacity
+              style={[{
+                paddingHorizontal: 16, paddingVertical: 8,
+                backgroundColor: PRIMARY, borderRadius: 20,
+              }, saving ? { opacity: 0.5 } : null]}
+              onPress={handleSaveProfile}
+              disabled={saving}
+            >
+              <Text style={{ color: WHITE, fontSize: 13, fontWeight: '700' }}>Salvar</Text>
+            </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.editBody} contentContainerStyle={styles.editBodyContent} keyboardShouldPersistTaps="handled">
@@ -638,7 +699,8 @@ export default function ProfileScreen() {
               placeholder="@usuario" autoCapitalize="none" />
 
             {/* ─ Informações da Comunidade ─ */}
-            <Text style={[styles.editSection, { marginTop: 8 }]}>Informações da Comunidade</Text>
+            <View style={{ height: 1, backgroundColor: '#e5e7eb', marginTop: 24, marginBottom: 4 }} />
+            <Text style={styles.editSection}>Informações da Comunidade</Text>
 
             <Text style={styles.editLabel}>Estado de Vida</Text>
             <TouchableOpacity style={styles.editSelector}
@@ -761,7 +823,8 @@ export default function ProfileScreen() {
             )}
 
             {/* ─ Acompanhamento Vocacional ─ */}
-            <Text style={[styles.editSection, { marginTop: 8 }]}>Acompanhamento Vocacional</Text>
+            <View style={{ height: 1, backgroundColor: '#e5e7eb', marginTop: 24, marginBottom: 4 }} />
+            <Text style={styles.editSection}>Acompanhamento Vocacional</Text>
 
             <View style={styles.toggleRow}>
               <Text style={styles.toggleLabel}>Possui acompanhamento vocacional?</Text>
@@ -772,7 +835,8 @@ export default function ProfileScreen() {
             </View>
 
             {/* ─ Interesse em Ministério ─ */}
-            <Text style={[styles.editSection, { marginTop: 8 }]}>Interesse em Ministério</Text>
+            <View style={{ height: 1, backgroundColor: '#e5e7eb', marginTop: 24, marginBottom: 4 }} />
+            <Text style={styles.editSection}>Interesse em Ministério</Text>
 
             <View style={styles.toggleRow}>
               <Text style={styles.toggleLabel}>Tem interesse em ministério?</Text>
@@ -818,7 +882,8 @@ export default function ProfileScreen() {
             )}
 
             {/* ─ Música e Ministério Musical ─ */}
-            <Text style={[styles.editSection, { marginTop: 8 }]}>Música e Ministério Musical</Text>
+            <View style={{ height: 1, backgroundColor: '#e5e7eb', marginTop: 24, marginBottom: 4 }} />
+            <Text style={styles.editSection}>Música e Ministério Musical</Text>
 
             <View style={styles.toggleRow}>
               <Text style={styles.toggleLabel}>Toca instrumento ou canta?</Text>
@@ -910,7 +975,8 @@ export default function ProfileScreen() {
             )}
 
             {/* ─ Retiros e Eventos ─ */}
-            <Text style={[styles.editSection, { marginTop: 8 }]}>Retiros e Eventos</Text>
+            <View style={{ height: 1, backgroundColor: '#e5e7eb', marginTop: 24, marginBottom: 4 }} />
+            <Text style={styles.editSection}>Retiros e Eventos</Text>
 
             <Text style={styles.editLabel}>Disponibilidade de Acomodação</Text>
             <View style={styles.chipsContainer}>
@@ -966,7 +1032,8 @@ export default function ProfileScreen() {
             )}
 
             {/* ─ Contato de Emergência ─ */}
-            <Text style={[styles.editSection, { marginTop: 8 }]}>Contato de Emergência</Text>
+            <View style={{ height: 1, backgroundColor: '#e5e7eb', marginTop: 24, marginBottom: 4 }} />
+            <Text style={styles.editSection}>Contato de Emergência</Text>
 
             <Text style={styles.editLabel}>Nome</Text>
             <TextInput style={styles.editInput} value={editEmergency.name}
@@ -1157,19 +1224,35 @@ export default function ProfileScreen() {
 // SUB-COMPONENTES
 // =============================================================================
 
-const SectionTitle = memo(function SectionTitle({ children }: { children: string }) {
+const SectionTitle = memo(function SectionTitle({
+  children, sensitive = false, t,
+}: {
+  children: string; sensitive?: boolean; t?: SemanticTokens;
+}) {
+  if (sensitive && t) {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, marginBottom: 6, paddingHorizontal: 2 }}>
+        <Text style={styles.sectionTitle}>{children}</Text>
+        <Ionicons name="shield-checkmark-outline" size={13} color={t.brand.primary} style={{ opacity: 0.5 }} />
+      </View>
+    );
+  }
   return <Text style={styles.sectionTitle}>{children}</Text>;
 });
 
 const InfoRow = memo(function InfoRow({ icon, label, value, last }: {
   icon: string; label: string; value?: string | null; last?: boolean;
 }) {
+  const isEmpty = !value;
   return (
     <View style={[styles.row, last ? styles.rowLast : null]}>
-      <Ionicons name={icon as IoniconsName} size={20} color={GRAY} />
+      <Ionicons name={icon as IoniconsName} size={18} color={PRIMARY} style={{ opacity: 0.7 }} />
       <View style={styles.rowContent}>
         <Text style={styles.rowLabel}>{label}</Text>
-        <Text style={styles.rowValue}>{value || 'Não informado'}</Text>
+        {isEmpty
+          ? <Text style={[styles.rowValue, { color: GRAY, fontStyle: 'italic', fontSize: 14 }]}>—</Text>
+          : <Text style={styles.rowValue}>{value}</Text>
+        }
       </View>
     </View>
   );
@@ -1214,10 +1297,9 @@ const styles = StyleSheet.create({
 
   logoutButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    marginTop: 24, padding: 16, borderRadius: 12,
-    borderWidth: 2, borderColor: '#ef4444', gap: 8,
+    marginTop: 24, padding: 14, gap: 8,
   },
-  logoutText: { color: '#ef4444', fontSize: 16, fontWeight: '600' },
+  logoutText: { color: '#ef4444', fontSize: 14, fontWeight: '600' },
   version: { textAlign: 'center', fontSize: 12, color: GRAY, marginTop: 16 },
 
   editModal: { flex: 1, backgroundColor: BG },

@@ -1,8 +1,8 @@
 /**
  * Profile Update Gate Screen
  * ==========================
- * Tela semestral obrigatória (13/Jun e 13/Dez).
- * Mostra dados atuais e pede confirmação para destravar o app.
+ * Tela semestral — mostra dados atuais e pede confirmação para destravar o app.
+ * Tom: "vamos revisar juntos", não "atualize ou não acessa".
  */
 
 import { useEffect, useState } from 'react';
@@ -13,12 +13,97 @@ import {
   ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { profileService } from '@/services';
 import { Button, Loading, Card } from '@/components';
-import theme from '@/theme';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
+import { radius, typography } from '@/theme/tokens';
 import type { Profile } from '@/types';
 
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: t.bg.screen,
+  },
+  scrollView: { flex: 1 },
+  scrollContent: { padding: 16 },
+
+  headerCard: { marginBottom: 16 },
+  headerIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: t.brand.primaryDim,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  headerTitle: {
+    fontSize: typography.size.xl,
+    fontFamily: typography.family.bold,
+    color: t.text.primary,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  headerDescription: {
+    fontSize: typography.size.sm,
+    color: t.text.secondary,
+    lineHeight: 22,
+    textAlign: 'center',
+    fontFamily: typography.family.regular,
+  },
+
+  summaryCard: { marginBottom: 16 },
+  summaryTitle: {
+    fontSize: typography.size.md,
+    fontFamily: typography.family.semibold,
+    color: t.text.primary,
+    marginBottom: 12,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: t.border.subtle,
+  },
+  rowLabel: {
+    fontSize: typography.size.sm,
+    color: t.text.secondary,
+    flex: 1,
+    fontFamily: typography.family.regular,
+  },
+  rowValue: {
+    fontSize: typography.size.sm,
+    color: t.text.primary,
+    fontFamily: typography.family.semibold,
+    flex: 2,
+    textAlign: 'right',
+  },
+
+  error: {
+    color: '#ef4444',
+    fontSize: typography.size.sm,
+    textAlign: 'center',
+    marginBottom: 16,
+    fontFamily: typography.family.regular,
+  },
+
+  footer: {
+    padding: 16,
+    backgroundColor: t.bg.elevated,
+    borderTopWidth: 1,
+    borderTopColor: t.border.subtle,
+  },
+  editButton: { marginTop: 8 },
+});
+
 export default function ProfileUpdateScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -55,24 +140,26 @@ export default function ProfileUpdateScreen() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
+        {/* Header pastoral */}
         <Card style={styles.headerCard}>
-          <Text style={styles.headerTitle}>Atualização Semestral</Text>
+          <View style={styles.headerIconCircle}>
+            <Ionicons name="heart-circle-outline" size={36} color={t.brand.primary} />
+          </View>
+          <Text style={styles.headerTitle}>Vamos revisar seus dados?</Text>
           <Text style={styles.headerDescription}>
-            Revise seus dados abaixo e confirme para continuar usando o app.
-            Esta atualização é obrigatória duas vezes ao ano (13/Jun e 13/Dez).
+            De tempos em tempos revisamos suas informações para cuidar melhor da sua caminhada na comunidade.
           </Text>
         </Card>
 
-        {/* Profile summary */}
+        {/* Resumo dos dados */}
         {profile && (
           <Card style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>Seus dados atuais</Text>
-            <Row label="Nome" value={profile.full_name} />
-            <Row label="Cidade" value={profile.city ? `${profile.city} / ${profile.state}` : null} />
-            <Row label="Estado de Vida" value={profile.life_state_label} />
-            <Row label="Estado Civil" value={profile.marital_status_label} />
-            <Row label="Realidade Vocacional" value={profile.vocational_reality_label} />
+            <Text style={styles.summaryTitle}>Tudo como você deixou?</Text>
+            <Row label="Nome" value={profile.full_name} styles={styles} />
+            <Row label="Cidade" value={profile.city ? `${profile.city}${profile.state ? ` / ${profile.state}` : ''}` : null} styles={styles} />
+            <Row label="Estado de Vida" value={profile.life_state_label} styles={styles} />
+            <Row label="Estado Civil" value={profile.marital_status_label} styles={styles} />
+            <Row label="Realidade Vocacional" value={profile.vocational_reality_label} styles={styles} />
           </Card>
         )}
 
@@ -81,14 +168,14 @@ export default function ProfileUpdateScreen() {
 
       <View style={styles.footer}>
         <Button
-          title="Confirmar dados"
+          title="Confirmar, está tudo certo ✓"
           onPress={handleConfirm}
           loading={isConfirming}
           fullWidth
           size="lg"
         />
         <Button
-          title="Editar perfil"
+          title="Preciso atualizar algo"
           onPress={handleEdit}
           variant="ghost"
           fullWidth
@@ -101,7 +188,13 @@ export default function ProfileUpdateScreen() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string | null | undefined }) {
+function Row({
+  label, value, styles,
+}: {
+  label: string;
+  value: string | null | undefined;
+  styles: ReturnType<typeof makeStyles>;
+}) {
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
@@ -109,73 +202,3 @@ function Row({ label, value }: { label: string; value: string | null | undefined
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background.secondary,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: theme.spacing.md,
-  },
-  headerCard: {
-    marginBottom: theme.spacing.md,
-  },
-  headerTitle: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.sm,
-  },
-  headerDescription: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
-    lineHeight: 20,
-  },
-  summaryCard: {
-    marginBottom: theme.spacing.md,
-  },
-  summaryTitle: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.md,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.neutral[100],
-  },
-  rowLabel: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
-    flex: 1,
-  },
-  rowValue: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.primary,
-    fontWeight: theme.fontWeight.medium,
-    flex: 2,
-    textAlign: 'right',
-  },
-  error: {
-    color: theme.colors.error.main,
-    fontSize: theme.fontSize.sm,
-    textAlign: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  footer: {
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.white,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.neutral[200],
-  },
-  editButton: {
-    marginTop: theme.spacing.xs,
-  },
-});

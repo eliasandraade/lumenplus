@@ -733,28 +733,8 @@ function ServiceSection({
 // ── 5. Rodapé Espiritual ──────────────────────────────────────
 function SpiritualFooter({ t }: { t: SemanticTokens }) {
   return (
-    <View
-      style={{ alignItems: 'center', paddingVertical: 32, paddingHorizontal: 32 }}
-    >
-      <View
-        style={{
-          width: 32,
-          height: 1,
-          backgroundColor: t.border.subtle,
-          marginBottom: 16,
-        }}
-      />
-      <Text
-        style={{
-          fontSize: 12,
-          fontFamily: 'Nunito-Italic',
-          color: t.text.tertiary,
-          textAlign: 'center',
-          lineHeight: 20,
-        }}
-      >
-        Obra Lumen · Formação e Missão
-      </Text>
+    <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+      <View style={{ width: 32, height: 1, backgroundColor: t.border.subtle }} />
     </View>
   );
 }

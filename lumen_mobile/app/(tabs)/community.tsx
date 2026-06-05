@@ -1,8 +1,12 @@
 /**
- * Invites Screen (Convites)
- * =========================
+ * Community / Invites Screen
+ * ==========================
  * Lista convites pendentes para ministérios/grupos.
  * O usuário pode aceitar ou recusar cada convite.
+ *
+ * BUG-SEMÂNTICO (não corrigir neste CP): este arquivo é nomeado community.tsx
+ * e a tab tem title="Comunidade", mas o conteúdo é inviteService.getMyInvites().
+ * Rota, serviço e chamada de API permanecem intocados.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -19,18 +23,17 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { inviteService } from '@/services';
 import { Invite } from '@/types';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
+import { radius, typography } from '@/theme/tokens';
 
-const colors = {
-  primary: '#1A859B',
-  primaryLight: 'rgba(26, 133, 155, 0.1)',
-  success: '#16a34a',
-  successLight: 'rgba(22, 163, 74, 0.1)',
-  danger: '#dc2626',
-  dangerLight: 'rgba(220, 38, 38, 0.1)',
-  gray: '#6b7280',
-  lightGray: '#E8E8E8',
-  white: '#ffffff',
-  dark: '#171717',
+// ── Mapa de cores por tipo de unidade organizacional ──────────────────────────
+
+const ORG_TYPE_COLORS: Record<string, { bg: string; text: string }> = {
+  MINISTERIO:     { bg: '#e6f4f7', text: '#1A859B' },
+  GRUPO:          { bg: '#f3ecfd', text: '#7C3AED' },
+  SETOR:          { bg: '#eff6ff', text: '#2563EB' },
+  CONSELHO_GERAL: { bg: '#fffbeb', text: '#d97706' },
 };
 
 const ORG_UNIT_TYPE_LABEL: Record<string, string> = {
@@ -45,7 +48,139 @@ const ROLE_LABEL: Record<string, string> = {
   MEMBER: 'Membro',
 };
 
+// ── Estilos dinâmicos ─────────────────────────────────────────────────────────
+
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.screen },
+  list: { padding: 16, gap: 12 },
+
+  centered: {
+    flex: 1,
+    backgroundColor: t.bg.screen,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  emptyIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: t.brand.primaryDim,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: typography.size.xl,
+    fontFamily: typography.family.bold,
+    color: t.text.primary,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyDescription: {
+    fontSize: typography.size.sm,
+    color: t.text.secondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    fontFamily: typography.family.regular,
+  },
+
+  card: {
+    backgroundColor: t.bg.elevated,
+    borderRadius: radius.lg,
+    padding: 16,
+    gap: 10,
+    ...t.shadow.sm,
+  },
+  cardTypePill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+  },
+  cardTypePillText: {
+    fontSize: 10,
+    fontFamily: typography.family.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  orgName: {
+    fontSize: typography.size.lg,
+    fontFamily: typography.family.bold,
+    color: t.text.primary,
+    marginTop: 2,
+  },
+  orgMeta: {
+    fontSize: typography.size.sm,
+    color: t.text.secondary,
+    fontFamily: typography.family.regular,
+    marginTop: 1,
+  },
+  invitedByRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  invitedBy: {
+    fontSize: typography.size.sm,
+    color: t.text.tertiary,
+    fontFamily: typography.family.regular,
+  },
+  invitedByName: {
+    fontFamily: typography.family.semibold,
+    color: t.text.secondary,
+  },
+  message: {
+    fontSize: typography.size.sm,
+    color: t.text.tertiary,
+    fontStyle: 'italic',
+    lineHeight: 18,
+    fontFamily: typography.family.italic,
+    borderLeftWidth: 2,
+    borderLeftColor: t.border.subtle,
+    paddingLeft: 10,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: t.border.subtle,
+    marginVertical: 2,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 2,
+  },
+  btn: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnReject: {
+    backgroundColor: 'transparent',
+  },
+  btnRejectText: {
+    color: '#dc2626',
+    fontFamily: typography.family.semibold,
+    fontSize: typography.size.sm,
+  },
+  btnAccept: {
+    backgroundColor: t.brand.primary,
+  },
+  btnAcceptText: {
+    color: t.text.inverse,
+    fontFamily: typography.family.bold,
+    fontSize: typography.size.sm,
+  },
+});
+
+// ── Componente principal ──────────────────────────────────────────────────────
+
 export default function InvitesScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -108,7 +243,7 @@ export default function InvitesScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={t.brand.primary} />
       </View>
     );
   }
@@ -117,11 +252,12 @@ export default function InvitesScreen() {
     return (
       <View style={styles.centered}>
         <View style={styles.emptyIconContainer}>
-          <Ionicons name="mail-open-outline" size={48} color={colors.primary} />
+          <Ionicons name="mail-open-outline" size={48} color={t.brand.primary} />
         </View>
-        <Text style={styles.emptyTitle}>Nenhum convite pendente</Text>
+        <Text style={styles.emptyTitle}>Nenhum convite ainda</Text>
         <Text style={styles.emptyDescription}>
-          Quando alguém te convidar para um ministério ou grupo, ele aparecerá aqui.
+          Quando alguém te convidar para um ministério,{'\n'}
+          grupo ou setor, o convite aparecerá aqui.
         </Text>
       </View>
     );
@@ -137,29 +273,40 @@ export default function InvitesScreen() {
         const isActing = actionLoading === item.id;
         const unitTypeLabel = ORG_UNIT_TYPE_LABEL[item.org_unit_type] ?? item.org_unit_type;
         const roleLabel = ROLE_LABEL[item.role] ?? item.role;
+        const typeColors = ORG_TYPE_COLORS[item.org_unit_type] ?? { bg: t.brand.primaryDim, text: t.brand.primary };
 
         return (
           <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.iconBadge}>
-                <Ionicons name="people" size={20} color={colors.primary} />
-              </View>
-              <View style={styles.cardHeaderText}>
-                <Text style={styles.orgName}>{item.org_unit_name}</Text>
-                <Text style={styles.orgMeta}>
-                  {unitTypeLabel} · {roleLabel}
-                </Text>
-              </View>
+            {/* Pill do tipo de unidade */}
+            <View style={[styles.cardTypePill, { backgroundColor: typeColors.bg }]}>
+              <Text style={[styles.cardTypePillText, { color: typeColors.text }]}>
+                {unitTypeLabel}
+              </Text>
             </View>
 
-            <Text style={styles.invitedBy}>
-              Convidado por <Text style={styles.invitedByName}>{item.invited_by_name}</Text>
-            </Text>
+            {/* Nome e papel */}
+            <View>
+              <Text style={styles.orgName}>{item.org_unit_name}</Text>
+              <Text style={styles.orgMeta}>Você seria: {roleLabel}</Text>
+            </View>
 
+            {/* Convidado por */}
+            <View style={styles.invitedByRow}>
+              <Ionicons name="person-outline" size={13} color={t.text.tertiary} />
+              <Text style={styles.invitedBy}>
+                Convidado por{' '}
+                <Text style={styles.invitedByName}>{item.invited_by_name}</Text>
+              </Text>
+            </View>
+
+            {/* Mensagem opcional */}
             {item.message ? (
               <Text style={styles.message}>"{item.message}"</Text>
             ) : null}
 
+            <View style={styles.divider} />
+
+            {/* Ações */}
             <View style={styles.actions}>
               <TouchableOpacity
                 style={[styles.btn, styles.btnReject]}
@@ -174,9 +321,9 @@ export default function InvitesScreen() {
                 disabled={isActing}
               >
                 {isActing ? (
-                  <ActivityIndicator size="small" color={colors.white} />
+                  <ActivityIndicator size="small" color={t.text.inverse} />
                 ) : (
-                  <Text style={styles.btnAcceptText}>Aceitar</Text>
+                  <Text style={styles.btnAcceptText}>Aceitar →</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -186,121 +333,3 @@ export default function InvitesScreen() {
     />
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.lightGray,
-  },
-  list: {
-    padding: 16,
-    gap: 12,
-  },
-  centered: {
-    flex: 1,
-    backgroundColor: colors.lightGray,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-  },
-  emptyIconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.dark,
-    marginBottom: 8,
-  },
-  emptyDescription: {
-    fontSize: 14,
-    color: colors.gray,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardHeaderText: {
-    flex: 1,
-  },
-  orgName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.dark,
-  },
-  orgMeta: {
-    fontSize: 13,
-    color: colors.gray,
-    marginTop: 2,
-  },
-  invitedBy: {
-    fontSize: 13,
-    color: colors.gray,
-  },
-  invitedByName: {
-    fontWeight: '600',
-    color: colors.dark,
-  },
-  message: {
-    fontSize: 13,
-    color: colors.gray,
-    fontStyle: 'italic',
-    lineHeight: 18,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
-  },
-  btn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnReject: {
-    backgroundColor: colors.dangerLight,
-  },
-  btnRejectText: {
-    color: colors.danger,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  btnAccept: {
-    backgroundColor: colors.primary,
-  },
-  btnAcceptText: {
-    color: colors.white,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-});

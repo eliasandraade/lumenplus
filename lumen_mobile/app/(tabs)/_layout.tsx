@@ -53,7 +53,7 @@ export default function TabsLayout() {
         ),
       }}
     >
-      <Tabs.Screen name="service"   options={{ title: 'Servir'     }} />
+      <Tabs.Screen name="service"   options={{ title: 'Orações'    }} />
       <Tabs.Screen name="community" options={{ title: 'Comunidade' }} />
       <Tabs.Screen name="home"      options={{ title: 'Início'     }} />
       <Tabs.Screen name="invites"   options={{ title: 'Inbox'      }} />
