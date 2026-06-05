@@ -34,6 +34,8 @@ import {
 import { Picker } from '@react-native-picker/picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 import { Ionicons } from '@expo/vector-icons';
 import api from '@/services/api';
 import { profileService } from '@/services';
@@ -118,6 +120,8 @@ interface ExistingProfile {
 }
 
 export default function ProfileScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   const params = useLocalSearchParams<{ fullName?: string; phone?: string }>();
   const phoneVerified = !!params.phone;
   const [isLoading, setIsLoading] = useState(true);
@@ -472,7 +476,7 @@ export default function ProfileScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={t.brand.primary} />
         <Text style={styles.loadingText}>Carregando...</Text>
       </View>
     );
@@ -488,7 +492,7 @@ export default function ProfileScreen() {
         {/* Barra de progresso decorativa */}
         <View style={{ paddingTop: 20, paddingBottom: 8 }}>
           <Text style={{
-            fontSize: 14, color: colors.gray,
+            fontSize: 14, color: t.text.secondary,
             marginBottom: 10, textAlign: 'center', lineHeight: 20,
           }}>
             Não se preocupe — você poderá editar depois.
@@ -496,7 +500,7 @@ export default function ProfileScreen() {
           <View style={{ height: 4, backgroundColor: '#e5e7eb', borderRadius: 9999 }}>
             <View style={{
               height: 4, width: '40%',
-              backgroundColor: colors.primary,
+              backgroundColor: t.brand.primary,
               borderRadius: 9999,
             }} />
           </View>
@@ -537,7 +541,7 @@ export default function ProfileScreen() {
             value={fullName}
             onChangeText={setFullName}
             autoCapitalize="words"
-            placeholderTextColor={colors.gray}
+            placeholderTextColor={t.text.tertiary}
           />
           {errors.fullName && <Text style={styles.errorText}>{errors.fullName}</Text>}
 
@@ -549,7 +553,7 @@ export default function ProfileScreen() {
             onChangeText={(v) => setBirthDate(formatDate(v))}
             keyboardType="numeric"
             maxLength={10}
-            placeholderTextColor={colors.gray}
+            placeholderTextColor={t.text.tertiary}
           />
           {errors.birthDate && <Text style={styles.errorText}>{errors.birthDate}</Text>}
 
@@ -561,7 +565,7 @@ export default function ProfileScreen() {
             onChangeText={(v) => setCpf(formatCPF(v))}
             keyboardType="numeric"
             maxLength={14}
-            placeholderTextColor={colors.gray}
+            placeholderTextColor={t.text.tertiary}
           />
           {errors.cpf && <Text style={styles.errorText}>{errors.cpf}</Text>}
 
@@ -571,7 +575,7 @@ export default function ProfileScreen() {
             placeholder="Seu RG"
             value={rg}
             onChangeText={setRg}
-            placeholderTextColor={colors.gray}
+            placeholderTextColor={t.text.tertiary}
           />
           {errors.rg && <Text style={styles.errorText}>{errors.rg}</Text>}
 
@@ -582,10 +586,10 @@ export default function ProfileScreen() {
                 style={[styles.input, styles.inputLocked]}
                 value={phone}
                 editable={false}
-                placeholderTextColor={colors.gray}
+                placeholderTextColor={t.text.tertiary}
               />
               <View style={styles.lockedBadge}>
-                <Ionicons name="lock-closed" size={14} color={colors.success} />
+                <Ionicons name="lock-closed" size={14} color={t.status.success} />
                 <Text style={styles.lockedText}>Verificado</Text>
               </View>
             </View>
@@ -597,7 +601,7 @@ export default function ProfileScreen() {
               onChangeText={(v) => setPhone(formatPhone(v))}
               keyboardType="phone-pad"
               maxLength={15}
-              placeholderTextColor={colors.gray}
+              placeholderTextColor={t.text.tertiary}
             />
           )}
           {!phoneVerified && errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
@@ -628,8 +632,8 @@ export default function ProfileScreen() {
                   setCity('');
                 }
               }}
-              trackColor={{ false: colors.border, true: colors.primaryLight }}
-              thumbColor={moraFora ? colors.primary : colors.lightGray}
+              trackColor={{ false: t.border.subtle, true: t.brand.primaryLight }}
+              thumbColor={moraFora ? t.brand.primary : t.bg.surface}
             />
           </View>
 
@@ -642,7 +646,7 @@ export default function ProfileScreen() {
                 value={paisFora}
                 onChangeText={setPaisFora}
                 autoCapitalize="words"
-                placeholderTextColor={colors.gray}
+                placeholderTextColor={t.text.tertiary}
               />
               {errors.paisFora && <Text style={styles.errorText}>{errors.paisFora}</Text>}
 
@@ -653,7 +657,7 @@ export default function ProfileScreen() {
                 value={city}
                 onChangeText={setCity}
                 autoCapitalize="words"
-                placeholderTextColor={colors.gray}
+                placeholderTextColor={t.text.tertiary}
               />
               {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
             </>
@@ -679,7 +683,7 @@ export default function ProfileScreen() {
 
               <Text style={styles.label}>Cidade *</Text>
               {loadingMunicipios ? (
-                <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 8 }} />
+                <ActivityIndicator size="small" color={t.brand.primary} style={{ marginVertical: 8 }} />
               ) : (
                 <View style={[styles.picker, errors.city && styles.pickerError]}>
                   <Picker
@@ -744,8 +748,8 @@ export default function ProfileScreen() {
               <Switch
                 value={spouseInCommunity ?? false}
                 onValueChange={setSpouseInCommunity}
-                trackColor={{ false: colors.border, true: colors.primaryLight }}
-                thumbColor={spouseInCommunity ? colors.primary : colors.lightGray}
+                trackColor={{ false: t.border.subtle, true: t.brand.primaryLight }}
+                thumbColor={spouseInCommunity ? t.brand.primary : t.bg.surface}
               />
             </View>
           )}
@@ -771,7 +775,7 @@ export default function ProfileScreen() {
                 onChangeText={setConsecrationYear}
                 keyboardType="numeric"
                 maxLength={4}
-                placeholderTextColor={colors.gray}
+                placeholderTextColor={t.text.tertiary}
               />
               {errors.consecrationYear && <Text style={styles.errorText}>{errors.consecrationYear}</Text>}
             </>
@@ -824,8 +828,8 @@ export default function ProfileScreen() {
                 setIsFromMission(v);
                 if (!v) { setMissionOrgUnitId(null); setMissionName(''); }
               }}
-              trackColor={{ false: colors.border, true: colors.primaryLight }}
-              thumbColor={isFromMission ? colors.primary : colors.lightGray}
+              trackColor={{ false: t.border.subtle, true: t.brand.primaryLight }}
+              thumbColor={isFromMission ? t.brand.primary : t.bg.surface}
             />
           </View>
 
@@ -856,7 +860,7 @@ export default function ProfileScreen() {
                   placeholder="Nome da missão (se não listada)"
                   value={missionName}
                   onChangeText={setMissionName}
-                  placeholderTextColor={colors.gray}
+                  placeholderTextColor={t.text.tertiary}
                 />
               )}
             </>
@@ -877,8 +881,8 @@ export default function ProfileScreen() {
                 setInterestedInMinistry(v);
                 if (!v) { setSelectedSectorIds([]); setMinistryNotes(''); }
               }}
-              trackColor={{ false: colors.border, true: colors.primaryLight }}
-              thumbColor={interestedInMinistry ? colors.primary : colors.lightGray}
+              trackColor={{ false: t.border.subtle, true: t.brand.primaryLight }}
+              thumbColor={interestedInMinistry ? t.brand.primary : t.bg.surface}
             />
           </View>
 
@@ -918,7 +922,7 @@ export default function ProfileScreen() {
                 onChangeText={setMinistryNotes}
                 multiline
                 numberOfLines={3}
-                placeholderTextColor={colors.gray}
+                placeholderTextColor={t.text.tertiary}
               />
               {errors.ministry && <Text style={styles.errorText}>{errors.ministry}</Text>}
             </>
@@ -972,7 +976,7 @@ export default function ProfileScreen() {
             value={instagram}
             onChangeText={setInstagram}
             autoCapitalize="none"
-            placeholderTextColor={colors.gray}
+            placeholderTextColor={t.text.tertiary}
           />
 
           {/* Restrição alimentar */}
@@ -981,8 +985,8 @@ export default function ProfileScreen() {
             <Switch
               value={dietaryRestriction}
               onValueChange={(v) => { setDietaryRestriction(v); if (!v) setDietaryNotes(''); }}
-              trackColor={{ false: colors.border, true: colors.primaryLight }}
-              thumbColor={dietaryRestriction ? colors.primary : colors.lightGray}
+              trackColor={{ false: t.border.subtle, true: t.brand.primaryLight }}
+              thumbColor={dietaryRestriction ? t.brand.primary : t.bg.surface}
             />
           </View>
           {dietaryRestriction && (
@@ -991,7 +995,7 @@ export default function ProfileScreen() {
               placeholder="Quais restrições alimentares?"
               value={dietaryNotes}
               onChangeText={setDietaryNotes}
-              placeholderTextColor={colors.gray}
+              placeholderTextColor={t.text.tertiary}
             />
           )}
 
@@ -1001,8 +1005,8 @@ export default function ProfileScreen() {
             <Switch
               value={healthInsurance}
               onValueChange={(v) => { setHealthInsurance(v); if (!v) setHealthInsuranceName(''); }}
-              trackColor={{ false: colors.border, true: colors.primaryLight }}
-              thumbColor={healthInsurance ? colors.primary : colors.lightGray}
+              trackColor={{ false: t.border.subtle, true: t.brand.primaryLight }}
+              thumbColor={healthInsurance ? t.brand.primary : t.bg.surface}
             />
           </View>
           {healthInsurance && (
@@ -1011,7 +1015,7 @@ export default function ProfileScreen() {
               placeholder="Qual plano de saúde?"
               value={healthInsuranceName}
               onChangeText={setHealthInsuranceName}
-              placeholderTextColor={colors.gray}
+              placeholderTextColor={t.text.tertiary}
             />
           )}
 
@@ -1021,8 +1025,8 @@ export default function ProfileScreen() {
             <Switch
               value={playsInstrument}
               onValueChange={(v) => { setPlaysInstrument(v); if (!v) setInstrumentNames([]); }}
-              trackColor={{ false: colors.border, true: colors.primaryLight }}
-              thumbColor={playsInstrument ? colors.primary : colors.lightGray}
+              trackColor={{ false: t.border.subtle, true: t.brand.primaryLight }}
+              thumbColor={playsInstrument ? t.brand.primary : t.bg.surface}
             />
           </View>
           {playsInstrument && (
@@ -1078,7 +1082,7 @@ export default function ProfileScreen() {
           disabled={isSaving}
         >
           {isSaving ? (
-            <ActivityIndicator color={colors.white} />
+            <ActivityIndicator color={t.text.inverse} />
           ) : (
             <Text style={styles.submitButtonText}>Salvar e Continuar</Text>
           )}
@@ -1090,58 +1094,58 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
-  loadingText: { marginTop: 12, fontSize: 16, color: colors.gray },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.screen },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: t.bg.screen },
+  loadingText: { marginTop: 12, fontSize: 16, color: t.text.secondary },
   scrollView: { flex: 1 },
   scrollContent: { padding: 20 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#171717', marginBottom: 8, marginTop: 20 },
-  subtitle: { fontSize: 16, color: colors.gray, marginBottom: 24, lineHeight: 22 },
+  title: { fontSize: 28, fontFamily: 'Nunito-Bold', color: t.text.primary, marginBottom: 8, marginTop: 20 },
+  subtitle: { fontSize: 16, color: t.text.secondary, marginBottom: 24, lineHeight: 22 },
   section: {
-    backgroundColor: colors.white, borderRadius: 16, padding: 20, marginBottom: 16,
+    backgroundColor: t.bg.elevated, borderRadius: 16, padding: 20, marginBottom: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
-  sectionTitle: { fontSize: 20, fontFamily: 'Nunito-Bold', color: '#0f1923', marginBottom: 16 },
-  sectionHint: { fontSize: 13, color: colors.gray, marginBottom: 12, fontStyle: 'italic' },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8, marginTop: 12 },
+  sectionTitle: { fontSize: 20, fontFamily: 'Nunito-Bold', color: t.text.primary, marginBottom: 16 },
+  sectionHint: { fontSize: 13, color: t.text.tertiary, marginBottom: 12, fontStyle: 'italic' },
+  label: { fontSize: 14, fontWeight: '600', color: t.text.primary, marginBottom: 8, marginTop: 12 },
   input: {
-    backgroundColor: colors.lightGray, borderRadius: 12, padding: 16,
-    fontSize: 16, borderWidth: 1, borderColor: colors.border, color: '#171717',
+    backgroundColor: t.bg.surface, borderRadius: 12, padding: 16,
+    fontSize: 16, borderWidth: 1, borderColor: t.border.subtle, color: t.text.primary,
   },
-  inputError: { borderColor: colors.error },
+  inputError: { borderColor: t.status.error },
   textArea: { minHeight: 80, textAlignVertical: 'top' },
-  errorText: { color: colors.error, fontSize: 13, marginTop: 4 },
-  picker: { backgroundColor: colors.lightGray, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  pickerError: { borderColor: colors.error },
+  errorText: { color: t.status.error, fontSize: 13, marginTop: 4 },
+  picker: { backgroundColor: t.bg.surface, borderRadius: 12, borderWidth: 1, borderColor: t.border.subtle, overflow: 'hidden' },
+  pickerError: { borderColor: t.status.error },
   photoContainer: { alignSelf: 'center', marginBottom: 8 },
   photo: { width: 120, height: 120, borderRadius: 60 },
   photoPlaceholder: {
     width: 120, height: 120, borderRadius: 60,
-    backgroundColor: colors.lightGray, borderWidth: 2,
-    borderColor: colors.border, borderStyle: 'dashed',
+    backgroundColor: t.bg.surface, borderWidth: 2,
+    borderColor: t.border.subtle, borderStyle: 'dashed',
     justifyContent: 'center', alignItems: 'center',
   },
-  photoPlaceholderText: { fontSize: 40, color: colors.gray },
-  photoHint: { fontSize: 14, color: colors.gray, textAlign: 'center' },
+  photoPlaceholderText: { fontSize: 40, color: t.text.tertiary },
+  photoHint: { fontSize: 14, color: t.text.secondary, textAlign: 'center' },
   switchRow: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', paddingVertical: 8,
   },
-  switchLabel: { fontSize: 15, color: '#374151', flex: 1, marginRight: 12 },
-  submitButton: { backgroundColor: colors.primary, borderRadius: 12, padding: 18, alignItems: 'center', marginTop: 8 },
+  switchLabel: { fontSize: 15, color: t.text.primary, flex: 1, marginRight: 12 },
+  submitButton: { backgroundColor: t.brand.primary, borderRadius: 12, padding: 18, alignItems: 'center', marginTop: 8 },
   submitButtonDisabled: { opacity: 0.6 },
-  submitButtonText: { color: colors.white, fontSize: 18, fontWeight: '600' },
+  submitButtonText: { color: t.text.inverse, fontSize: 18, fontWeight: '600' },
   spacer: { height: 40 },
   lockedField: { position: 'relative' },
-  inputLocked: { backgroundColor: '#f0fdf4', borderColor: colors.success, borderWidth: 1, color: colors.gray },
+  inputLocked: { backgroundColor: t.status.successBg, borderColor: t.status.success, borderWidth: 1, color: t.text.secondary },
   lockedBadge: { position: 'absolute', right: 14, top: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  lockedText: { fontSize: 12, color: colors.success, fontWeight: '600' },
-  lockedHint: { fontSize: 12, color: colors.gray, marginTop: 4, marginLeft: 4, fontStyle: 'italic' },
+  lockedText: { fontSize: 12, color: t.status.success, fontWeight: '600' },
+  lockedHint: { fontSize: 12, color: t.text.tertiary, marginTop: 4, marginLeft: 4, fontStyle: 'italic' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.white },
-  chipSelected: { borderColor: colors.primary, backgroundColor: colors.primary },
-  chipText: { fontSize: 13, color: colors.gray, fontWeight: '500' },
-  chipTextSelected: { color: colors.white, fontWeight: '700' },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: t.border.subtle, backgroundColor: t.bg.surface },
+  chipSelected: { borderColor: t.brand.primary, backgroundColor: t.brand.primary },
+  chipText: { fontSize: 13, color: t.text.secondary, fontWeight: '500' },
+  chipTextSelected: { color: t.text.inverse, fontWeight: '700' },
 });
