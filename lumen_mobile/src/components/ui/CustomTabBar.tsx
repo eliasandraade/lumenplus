@@ -29,8 +29,9 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
 
   useEffect(() => {
     if (tabWidth === 0) return;
-    pillX.value = withSpring(state.index * tabWidth, PILL_SPRING);
-  }, [state.index, tabWidth]);
+    pillX.value = withSpring(state.index * tabWidth + 8, PILL_SPRING);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.index, tabWidth]); // pillX is a stable Reanimated shared value ref — safe to omit
 
   const pillStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: pillX.value }],
@@ -53,7 +54,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
       onLayout={(e) => {
         const w = e.nativeEvent.layout.width / tabCount;
         setTabWidth(w);
-        pillX.value = state.index * w;
+        pillX.value = state.index * w + 8;
       }}
     >
       {tabWidth > 0 && (
@@ -63,7 +64,6 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
             pillStyle,
             {
               width: tabWidth - 16,
-              marginHorizontal: 8,
               backgroundColor: t.brand.primary,
               borderRadius: r.xl,
               height: TAB_HEIGHT - 16,
@@ -80,7 +80,6 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
           const isFocused = state.index === index;
 
           const iconColor = isFocused ? '#ffffff' : t.text.tertiary;
-          const textColor = isFocused ? '#ffffff' : t.text.tertiary;
 
           const iconName = getIconName(route.name, isFocused);
 
@@ -106,7 +105,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
             >
               <Ionicons name={iconName} size={22} color={iconColor} />
               <Text
-                style={[styles.label, { color: textColor }]}
+                style={[styles.label, { color: iconColor }]}
                 numberOfLines={1}
               >
                 {label}
