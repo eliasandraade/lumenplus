@@ -51,11 +51,15 @@ Redesign visual das telas de autenticação (login + register), Home e Tab Bar c
 
 ### Componentes e tokens
 - Inputs: fundo `rgba(255,255,255,0.08)`, borda `rgba(255,255,255,0.15)`, focus borda `teal[400]`
-- Placeholder: `rgba(255,255,255,0.45)`
-- Texto: `#ffffff`
-- Botão Entrar: `brand.primary` (teal), Nunito-Bold, borderRadius `r.xl`
-- Erro: `status.error` com bg `status.errorBg` em pill acima do botão
-- Reset sucesso: `status.success` com ícone check
+- Placeholder: `rgba(255,255,255,0.45)` — contraste mínimo AA garantido
+- Texto: `#ffffff` — contraste AA/AAA em fundo `#0d1a2e`
+- Botão Entrar: `brand.primary` (teal), Nunito-Bold, borderRadius `r.xl`, minHeight 52, área de toque confortável
+- **Acessibilidade obrigatória:** erros e sucessos NUNCA dependem apenas de cor:
+  - Erro de campo: ícone `alert-circle` + texto explícito abaixo do input
+  - Erro de autenticação: ícone `close-circle` + mensagem textual
+  - Reset sucesso: ícone `checkmark-circle` + mensagem textual
+  - Inputs com erro recebem borda colorida + ícone lateral (não só cor)
+- `accessibilityLabel` em todos os botões e inputs interativos
 
 ### Register
 - Mantém a lógica multi-step intacta
@@ -144,13 +148,24 @@ Funciona em web e mobile. Performance garantida via `react-native-reanimated`.
 - O pill se move horizontalmente via `useSharedValue` + `withSpring`
 - Ícones trocam entre outline e filled com fade rápido
 
+### Labels das tabs (definitivos)
+| Arquivo | Label | Ícone |
+|---|---|---|
+| `service.tsx` | **Servir** | `book` / `book-outline` |
+| `community.tsx` | **Comunidade** | `people` / `people-outline` |
+| `home.tsx` | **Início** | `home` / `home-outline` |
+| `invites.tsx` | **Inbox** | `mail` / `mail-outline` |
+| `profile.tsx` | **Perfil** | `person` / `person-outline` |
+
 ### Arquitetura de navegação
-A Tab Bar custom resolve o problema de escala: em vez de adicionar tabs indefinidamente, mantém 5 tabs fixas e usa navegação dentro das tabs para novos módulos:
-- **Orações** → `service.tsx` (liturgia, bíblia acessível via botão interno)
-- **Convites** → `community.tsx` (Canal + Inbox unificados futuramente)
+A Tab Bar custom resolve o problema de escala: mantém 5 tabs fixas, módulos futuros entram como sub-rotas:
+- **Servir** → `service.tsx` (liturgia, bíblia acessível via botão interno)
+- **Comunidade** → `community.tsx` (Canal + Inbox unificados futuramente)
 - **Início** → `home.tsx` (hub de tudo)
 - **Inbox** → `invites.tsx`
 - **Perfil** → `profile.tsx` (Projeto de Vida, configurações)
+
+Módulos futuros (Canal, Projeto de Vida, Retiros, Bíblia) **nunca viram novas tabs** — entram sempre como sub-rotas dentro das tabs existentes.
 
 Módulos futuros (Canal, Projeto de Vida, Retiros, Bíblia) entram como sub-rotas dentro das tabs existentes, não como novas tabs.
 
@@ -159,6 +174,8 @@ Módulos futuros (Canal, Projeto de Vida, Retiros, Bíblia) entram como sub-rota
 - `tabBar` prop do `<Tabs>` recebe o componente custom
 - `useBottomTabBarHeight()` para safe area no iOS
 - Web: `height: 60px`, sem safe area padding extra
+- **Fallback web:** se `useSharedValue`/Reanimated causar incompatibilidade no Expo Web, o pill usa `useState` + transição CSS (`transition: left 250ms ease`). Navegação nunca quebra independente do path.
+- Sem bounce (`overshootClamping: true` no spring), sem glow, sem neon
 
 ---
 
