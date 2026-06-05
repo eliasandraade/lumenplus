@@ -87,12 +87,13 @@ function isValidCpf(cpf: string): boolean {
 }
 
 const colors = {
-  primary: '#1A859B',
-  white: '#ffffff',
-  orange: '#F5A623',
-  gray: '#6b7280',
-  inputBg: 'rgba(255, 255, 255, 0.9)',
-  error: '#ef4444',
+  primary:   '#1A859B',
+  teal:      '#2da8c0',
+  white:     '#ffffff',
+  gray:      '#6b7280',
+  inputBg:   'rgba(255, 255, 255, 0.92)',
+  error:     '#ef4444',
+  bgDark:    '#0d1a2e',
 };
 
 export default function RegisterScreen() {
@@ -1021,7 +1022,7 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.primary },
+  container: { flex: 1, backgroundColor: colors.bgDark },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 50, paddingBottom: 40 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
@@ -1033,7 +1034,7 @@ const styles = StyleSheet.create({
   stepLine: { width: 32, height: 2, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 6 },
   stepLineActive: { backgroundColor: colors.white },
   logoSection: { alignItems: 'center', marginBottom: 28, gap: 8 },
-  title: { fontSize: 26, fontWeight: 'bold', color: colors.white },
+  title: { fontSize: 26, fontFamily: 'Nunito-Bold', color: colors.white },
   subtitle: { fontSize: 15, color: colors.white, opacity: 0.85, textAlign: 'center' },
   form: { flex: 1 },
   input: {
@@ -1051,15 +1052,15 @@ const styles = StyleSheet.create({
   errorBox: { backgroundColor: '#FEE2E2', borderRadius: 8, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#FECACA' },
   errorBoxText: { color: '#B91C1C', fontSize: 13, textAlign: 'center' },
   primaryButton: {
-    backgroundColor: colors.orange, borderRadius: 25, paddingVertical: 16,
+    backgroundColor: colors.teal, borderRadius: 25, paddingVertical: 16,
     alignItems: 'center', marginTop: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3,
   },
   buttonDisabled: { opacity: 0.6 },
-  primaryButtonText: { color: colors.white, fontSize: 18, fontWeight: '600' },
+  primaryButtonText: { color: colors.white, fontSize: 18, fontFamily: 'Nunito-SemiBold' },
   footer: { flexDirection: 'row', justifyContent: 'center', paddingTop: 20 },
   footerText: { fontSize: 14, color: colors.white },
-  footerLink: { fontSize: 14, color: colors.white, fontWeight: 'bold', textDecorationLine: 'underline' },
+  footerLink: { fontSize: 14, color: colors.white, fontFamily: 'Nunito-Bold', textDecorationLine: 'underline' },
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 25,
@@ -1067,7 +1068,7 @@ const styles = StyleSheet.create({
   },
   toggleLabel: { fontSize: 15, color: '#333', flex: 1, marginRight: 8 },
   sectionLabel: {
-    fontSize: 13, fontWeight: '600', color: colors.white,
+    fontSize: 13, fontFamily: 'Nunito-SemiBold', color: colors.white,
     marginBottom: 4, marginTop: 8, marginLeft: 4, opacity: 0.9,
   },
   sectionHint: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 8, marginLeft: 4 },
@@ -1077,12 +1078,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)',
   },
   chipSelected: { backgroundColor: colors.primary, borderColor: colors.white },
-  chipText: { fontSize: 13, color: colors.white, fontWeight: '500' },
-  chipTextSelected: { color: colors.white, fontWeight: '700' },
+  chipText: { fontSize: 13, color: colors.white, fontFamily: 'Nunito-Regular' },
+  chipTextSelected: { color: colors.white, fontFamily: 'Nunito-Bold' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: colors.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#e5e5e5' },
-  modalTitle: { fontSize: 18, fontWeight: '600', color: '#171717' },
+  modalTitle: { fontSize: 18, fontFamily: 'Nunito-SemiBold', color: '#171717' },
   modalSearch: {
     margin: 12, padding: 12, backgroundColor: '#f3f4f6',
     borderRadius: 10, fontSize: 15, color: '#171717',
@@ -1090,6 +1091,6 @@ const styles = StyleSheet.create({
   modalItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   modalItemSelected: { backgroundColor: 'rgba(26,133,155,0.08)' },
   modalItemText: { fontSize: 16, color: '#171717' },
-  modalItemTextSelected: { color: colors.primary, fontWeight: '600' },
+  modalItemTextSelected: { color: colors.primary, fontFamily: 'Nunito-SemiBold' },
   modalEmpty: { textAlign: 'center', padding: 24, color: colors.gray, fontSize: 15 },
 });
