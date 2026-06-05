@@ -12,20 +12,13 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { IoniconsName } from '@/types/icons';
+import { useTheme } from '@/theme';
 import projetoVidaMensalApi, {
   MESES, SEMANAS, SEMANA_LABELS, DIAS, DIA_LABELS, TIPOS_PRATICA,
   type CompromissoIn, type PraticaIn,
   type EventoItem, type OutroItemComunidade,
   type CuidadoEventoItem, type OutroItemCuidado,
 } from '@/services/projetoVidaMensal';
-
-const colors = {
-  primary: '#1A859B', primaryLight: '#E8F4F7',
-  white: '#ffffff', gray: '#6b7280',
-  lightGray: '#f3f4f6', dark: '#171717', border: '#e5e7eb', error: '#ef4444',
-  gold: '#b45309', goldLight: '#fef3c7',
-  teal: '#0f766e',
-};
 
 // ── Tipos locais ─────────────────────────────────────────────────────────────
 
@@ -73,6 +66,7 @@ const STEP_TITLES = [
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 export default function WizardScreen() {
+  const { t, r } = useTheme();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizardData>(defaultData());
   const [activeSemana, setActiveSemana] = useState('s1');
@@ -217,6 +211,20 @@ export default function WizardScreen() {
     }
   };
 
+  // ── Input style helper ────────────────────────────────────────────────────────
+  const inputStyle = {
+    backgroundColor: t.bg.surface,
+    borderRadius: r.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: t.border.subtle,
+    padding: 12,
+    fontSize: 15,
+    fontFamily: 'Nunito-Regular',
+    color: t.text.primary,
+    minHeight: 48,
+    marginBottom: 10,
+  };
+
   // ── Render steps ─────────────────────────────────────────────────────────────
 
   const renderStep = () => {
@@ -226,20 +234,29 @@ export default function WizardScreen() {
       case 0:
         return (
           <View style={styles.stepContent}>
-            <View style={styles.introQuoteCard}>
-              <Ionicons name={'sparkles' as IoniconsName} size={20} color={colors.gold} style={{ marginBottom: 12 }} />
-              <Text style={styles.introQuoteText}>
+            <View style={{ padding: 24, alignItems: 'center', gap: 16 }}>
+              <Ionicons name={'compass-outline' as IoniconsName} size={48} color={t.brand.primary} />
+              <Text style={{ fontSize: 22, fontFamily: 'Nunito-ExtraBold', color: t.text.primary, textAlign: 'center' }}>
+                Novo Ciclo
+              </Text>
+              <Text style={{ fontSize: 15, fontFamily: 'Nunito-Italic', color: t.text.secondary, textAlign: 'center', lineHeight: 24 }}>
+                Reserve um momento de silêncio antes de começar. Este é um tempo sagrado.
+              </Text>
+            </View>
+            <View style={{ backgroundColor: '#fef3c7', borderRadius: 14, padding: 20, marginBottom: 20, alignItems: 'center', borderWidth: 1, borderColor: '#fde68a' }}>
+              <Ionicons name={'sparkles' as IoniconsName} size={20} color={'#b45309'} style={{ marginBottom: 12 }} />
+              <Text style={{ fontSize: 16, color: '#b45309', fontFamily: 'Nunito-Italic', textAlign: 'center', lineHeight: 24 }}>
                 "O Projeto de Vida não é um check list do que eu consegui ou não pontuar,
                 mas é um ponto de partida para que eu possa amar a Deus segundo a segundo no meu dia."
               </Text>
             </View>
-            <Text style={styles.introSubtitle}>
+            <Text style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.secondary, textAlign: 'center', marginBottom: 20, lineHeight: 22 }}>
               Este é um caminho mensal de conversão, organização e fidelidade ao chamado de Deus.
             </Text>
-            <View style={styles.privacyCard}>
-              <Ionicons name={'shield-checkmark-outline' as IoniconsName} size={18} color={colors.primary} style={{ marginBottom: 8 }} />
-              <Text style={styles.privacyTitle}>Privacidade garantida</Text>
-              <Text style={styles.privacyText}>
+            <View style={{ backgroundColor: t.bg.elevated, borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: t.border.subtle }}>
+              <Ionicons name={'shield-checkmark-outline' as IoniconsName} size={18} color={t.brand.primary} style={{ marginBottom: 8 }} />
+              <Text style={{ fontSize: 14, fontFamily: 'Nunito-Bold', color: t.brand.primary, marginBottom: 6 }}>Privacidade garantida</Text>
+              <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.secondary, textAlign: 'center', lineHeight: 18 }}>
                 A partir deste momento, tudo o que você escrever será protegido pela sua senha.
                 A Equipe Lumen+ não terá acesso ao conteúdo que você escrever.
               </Text>
@@ -251,16 +268,23 @@ export default function WizardScreen() {
       case 1:
         return (
           <View style={styles.stepContent}>
-            <Text style={styles.fieldLabel}>Mês *</Text>
+            <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary, marginBottom: 4 }}>Mês *</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
               <View style={styles.chipRow}>
                 {MESES.map((m, i) => (
                   <TouchableOpacity
                     key={m}
-                    style={[styles.chip, data.mes === String(i + 1) && styles.chipActive]}
+                    style={[
+                      styles.chip,
+                      { borderColor: t.border.default, backgroundColor: t.bg.elevated },
+                      data.mes === String(i + 1) && { backgroundColor: t.brand.primary, borderColor: t.brand.primary },
+                    ]}
                     onPress={() => update({ mes: String(i + 1) })}
                   >
-                    <Text style={[styles.chipText, data.mes === String(i + 1) && styles.chipTextActive]}>
+                    <Text style={[
+                      { fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.secondary },
+                      data.mes === String(i + 1) && { color: '#ffffff', fontFamily: 'Nunito-SemiBold' },
+                    ]}>
                       {m.slice(0, 3)}
                     </Text>
                   </TouchableOpacity>
@@ -268,13 +292,14 @@ export default function WizardScreen() {
               </View>
             </ScrollView>
 
-            <Text style={styles.fieldLabel}>Ano *</Text>
+            <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary, marginBottom: 4 }}>Ano *</Text>
             <TextInput
-              style={styles.input}
+              style={inputStyle}
               value={data.ano}
               onChangeText={v => update({ ano: v })}
               keyboardType="numeric"
               maxLength={4}
+              placeholderTextColor={t.text.tertiary}
             />
           </View>
         );
@@ -284,8 +309,8 @@ export default function WizardScreen() {
         return (
           <View style={styles.stepContent}>
             {/* Partilha com acompanhador */}
-            <SectionTitle label="Partilha com acompanhador" />
-            <Text style={styles.fieldHint}>
+            <SectionTitle label="Partilha com acompanhador" t={t} />
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
               Indique a data do próximo encontro de partilha com seu acompanhador espiritual.
             </Text>
             {data.comunidade.partilha_acompanhador.map((item, idx) => (
@@ -295,15 +320,16 @@ export default function WizardScreen() {
                 item={item}
                 onRemove={() => removeEventoItem('partilha_acompanhador', idx)}
                 onChange={patch => updateEventoItem('partilha_acompanhador', idx, patch)}
+                t={t} r={r}
               />
             ))}
-            <AddButton label="+ Adicionar data de partilha" onPress={() => addEventoItem('partilha_acompanhador')} />
+            <AddButton label="+ Adicionar data de partilha" onPress={() => addEventoItem('partilha_acompanhador')} t={t} />
 
-            <View style={styles.separator} />
+            <View style={{ height: 1, backgroundColor: t.border.subtle, marginVertical: 20 }} />
 
             {/* Encontro com família vocacional */}
-            <SectionTitle label="Encontro com a família vocacional" />
-            <Text style={styles.fieldHint}>
+            <SectionTitle label="Encontro com a família vocacional" t={t} />
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
               Informe a data do próximo encontro do grupo da família vocacional.
             </Text>
             {data.comunidade.encontro_familia.map((item, idx) => (
@@ -313,15 +339,16 @@ export default function WizardScreen() {
                 item={item}
                 onRemove={() => removeEventoItem('encontro_familia', idx)}
                 onChange={patch => updateEventoItem('encontro_familia', idx, patch)}
+                t={t} r={r}
               />
             ))}
-            <AddButton label="+ Adicionar encontro" onPress={() => addEventoItem('encontro_familia')} />
+            <AddButton label="+ Adicionar encontro" onPress={() => addEventoItem('encontro_familia')} t={t} />
 
-            <View style={styles.separator} />
+            <View style={{ height: 1, backgroundColor: t.border.subtle, marginVertical: 20 }} />
 
             {/* Dias do grupo */}
-            <SectionTitle label="Dias do grupo no mês" />
-            <Text style={styles.fieldHint}>
+            <SectionTitle label="Dias do grupo no mês" t={t} />
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
               Informe todos os dias/horários em que o seu grupo se reúne no mês.{'\n'}
               Ex.: 04/04 às 19h na Sede Mater Dei; 19/04 às 10h no Oásis da Paz.{'\n'}
               Adicione diversos dias/horários se necessário.
@@ -333,15 +360,16 @@ export default function WizardScreen() {
                 item={item}
                 onRemove={() => removeEventoItem('dias_grupo', idx)}
                 onChange={patch => updateEventoItem('dias_grupo', idx, patch)}
+                t={t} r={r}
               />
             ))}
-            <AddButton label="+ Adicionar dia de grupo" onPress={() => addEventoItem('dias_grupo')} />
+            <AddButton label="+ Adicionar dia de grupo" onPress={() => addEventoItem('dias_grupo')} t={t} />
 
-            <View style={styles.separator} />
+            <View style={{ height: 1, backgroundColor: t.border.subtle, marginVertical: 20 }} />
 
             {/* Outros */}
-            <SectionTitle label="Outros compromissos comunitários" />
-            <Text style={styles.fieldHint}>
+            <SectionTitle label="Outros compromissos comunitários" t={t} />
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
               Descreva outros compromissos comunitários que você assume (exemplo: serviço, ministério, retiros, etc).
             </Text>
             {data.comunidade.outros.map((item, idx) => (
@@ -351,9 +379,10 @@ export default function WizardScreen() {
                 item={item}
                 onRemove={() => removeOutroComunidade(idx)}
                 onChange={patch => updateOutroComunidade(idx, patch)}
+                t={t} r={r}
               />
             ))}
-            <AddButton label="+ Adicionar outro compromisso" onPress={addOutroComunidade} />
+            <AddButton label="+ Adicionar outro compromisso" onPress={addOutroComunidade} t={t} />
           </View>
         );
 
@@ -362,8 +391,8 @@ export default function WizardScreen() {
         return (
           <View style={styles.stepContent}>
             {/* Consultas */}
-            <SectionTitle label="Consultas" />
-            <Text style={styles.fieldHint}>
+            <SectionTitle label="Consultas" t={t} />
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
               Liste aqui consultas médicas, acompanhamentos ou outros atendimentos de saúde.
             </Text>
             {data.cuidado.consultas.map((item, idx) => (
@@ -373,15 +402,16 @@ export default function WizardScreen() {
                 item={item}
                 onRemove={() => removeCuidadoItem('consultas', idx)}
                 onChange={patch => updateCuidadoItem('consultas', idx, patch)}
+                t={t} r={r}
               />
             ))}
-            <AddButton label="+ Adicionar consulta" onPress={() => addCuidadoItem('consultas')} />
+            <AddButton label="+ Adicionar consulta" onPress={() => addCuidadoItem('consultas')} t={t} />
 
-            <View style={styles.separator} />
+            <View style={{ height: 1, backgroundColor: t.border.subtle, marginVertical: 20 }} />
 
             {/* Exames */}
-            <SectionTitle label="Exames" />
-            <Text style={styles.fieldHint}>
+            <SectionTitle label="Exames" t={t} />
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
               Descreva exames ou procedimentos importantes para sua saúde.
             </Text>
             {data.cuidado.exames.map((item, idx) => (
@@ -391,15 +421,16 @@ export default function WizardScreen() {
                 item={item}
                 onRemove={() => removeCuidadoItem('exames', idx)}
                 onChange={patch => updateCuidadoItem('exames', idx, patch)}
+                t={t} r={r}
               />
             ))}
-            <AddButton label="+ Adicionar exame" onPress={() => addCuidadoItem('exames')} />
+            <AddButton label="+ Adicionar exame" onPress={() => addCuidadoItem('exames')} t={t} />
 
-            <View style={styles.separator} />
+            <View style={{ height: 1, backgroundColor: t.border.subtle, marginVertical: 20 }} />
 
             {/* Descanso */}
-            <SectionTitle label="Descanso" />
-            <Text style={styles.fieldHint}>
+            <SectionTitle label="Descanso" t={t} />
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
               Inclua períodos de descanso, férias ou pausas importantes para seu bem-estar.
             </Text>
             {data.cuidado.descanso.map((item, idx) => (
@@ -409,15 +440,16 @@ export default function WizardScreen() {
                 item={item}
                 onRemove={() => removeCuidadoItem('descanso', idx)}
                 onChange={patch => updateCuidadoItem('descanso', idx, patch)}
+                t={t} r={r}
               />
             ))}
-            <AddButton label="+ Adicionar período de descanso" onPress={() => addCuidadoItem('descanso')} />
+            <AddButton label="+ Adicionar período de descanso" onPress={() => addCuidadoItem('descanso')} t={t} />
 
-            <View style={styles.separator} />
+            <View style={{ height: 1, backgroundColor: t.border.subtle, marginVertical: 20 }} />
 
             {/* Outros */}
-            <SectionTitle label="Outros compromissos pessoais" />
-            <Text style={styles.fieldHint}>
+            <SectionTitle label="Outros compromissos pessoais" t={t} />
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
               Registre outros compromissos pessoais que sejam relevantes para seu cuidado integral.
             </Text>
             {data.cuidado.outros.map((item, idx) => (
@@ -427,9 +459,10 @@ export default function WizardScreen() {
                 item={item}
                 onRemove={() => removeOutroCuidado(idx)}
                 onChange={patch => updateOutroCuidado(idx, patch)}
+                t={t} r={r}
               />
             ))}
-            <AddButton label="+ Adicionar outro compromisso" onPress={addOutroCuidado} />
+            <AddButton label="+ Adicionar outro compromisso" onPress={addOutroCuidado} t={t} />
           </View>
         );
 
@@ -445,10 +478,17 @@ export default function WizardScreen() {
                 {SEMANAS.map(s => (
                   <TouchableOpacity
                     key={s}
-                    style={[styles.chip, activeSemana === s && styles.chipActive]}
+                    style={[
+                      styles.chip,
+                      { borderColor: t.border.default, backgroundColor: t.bg.elevated },
+                      activeSemana === s && { backgroundColor: t.brand.primary, borderColor: t.brand.primary },
+                    ]}
                     onPress={() => setActiveSemana(s)}
                   >
-                    <Text style={[styles.chipText, activeSemana === s && styles.chipTextActive]}>
+                    <Text style={[
+                      { fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.secondary },
+                      activeSemana === s && { color: '#ffffff', fontFamily: 'Nunito-SemiBold' },
+                    ]}>
                       {SEMANA_LABELS[s]}
                     </Text>
                   </TouchableOpacity>
@@ -457,30 +497,30 @@ export default function WizardScreen() {
             </ScrollView>
 
             {semanaIndexes.map(({ c, i }, localIdx) => (
-              <View key={i} style={styles.itemCard}>
+              <View key={i} style={[styles.itemCard, { backgroundColor: t.bg.elevated, borderColor: t.border.subtle }]}>
                 <View style={styles.itemCardHeader}>
-                  <Text style={styles.itemCardTitle}>Compromisso {localIdx + 1}</Text>
+                  <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary }}>Compromisso {localIdx + 1}</Text>
                   <TouchableOpacity onPress={() => removeCompromisso(i)}>
-                    <Ionicons name={'trash-outline' as IoniconsName} size={18} color={colors.error} />
+                    <Ionicons name={'trash-outline' as IoniconsName} size={18} color={t.status.error} />
                   </TouchableOpacity>
                 </View>
-                <TextInput style={styles.input} placeholder="Título" placeholderTextColor={colors.gray}
+                <TextInput style={inputStyle} placeholder="Título" placeholderTextColor={t.text.tertiary}
                   value={c.titulo} onChangeText={v => updateCompromisso(i, { titulo: v })} />
                 <View style={styles.row}>
-                  <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="Dia"
-                    placeholderTextColor={colors.gray} value={c.dia}
+                  <TextInput style={[inputStyle, { flex: 1, marginRight: 8 }]} placeholder="Dia"
+                    placeholderTextColor={t.text.tertiary} value={c.dia}
                     onChangeText={v => updateCompromisso(i, { dia: v })} />
-                  <TextInput style={[styles.input, { flex: 1 }]} placeholder="Horário"
-                    placeholderTextColor={colors.gray} value={c.horario}
+                  <TextInput style={[inputStyle, { flex: 1 }]} placeholder="Horário"
+                    placeholderTextColor={t.text.tertiary} value={c.horario}
                     onChangeText={v => updateCompromisso(i, { horario: v })} />
                 </View>
-                <TextInput style={[styles.input, styles.textarea]} placeholder="Observações"
-                  placeholderTextColor={colors.gray} value={c.obs}
+                <TextInput style={[inputStyle, styles.textarea]} placeholder="Observações"
+                  placeholderTextColor={t.text.tertiary} value={c.obs}
                   onChangeText={v => updateCompromisso(i, { obs: v })} multiline numberOfLines={2} />
               </View>
             ))}
 
-            <AddButton label={`+ Adicionar compromisso em ${SEMANA_LABELS[activeSemana]}`} onPress={addCompromisso} />
+            <AddButton label={`+ Adicionar compromisso em ${SEMANA_LABELS[activeSemana]}`} onPress={addCompromisso} t={t} />
           </View>
         );
       }
@@ -493,15 +533,15 @@ export default function WizardScreen() {
         return (
           <View style={styles.stepContent}>
             {/* Comunhão Comunitária — destaque */}
-            <View style={styles.comunhaoCard}>
-              <Text style={styles.comunhaoLabel}>✦ COMUNHÃO COMUNITÁRIA</Text>
-              <Text style={styles.comunhaoTitle}>Momento de Evangelização Ser Feliz</Text>
-              <Text style={styles.comunhaoText}>
+            <View style={{ backgroundColor: '#f97316', borderRadius: 14, padding: 18, marginBottom: 20 }}>
+              <Text style={{ fontSize: 11, fontFamily: 'Nunito-Bold', color: 'rgba(255,255,255,0.8)', letterSpacing: 1, marginBottom: 6 }}>✦ COMUNHÃO COMUNITÁRIA</Text>
+              <Text style={{ fontSize: 16, fontFamily: 'Nunito-Bold', color: '#ffffff', marginBottom: 10 }}>Momento de Evangelização Ser Feliz</Text>
+              <Text style={{ fontSize: 14, fontFamily: 'Nunito-Regular', color: 'rgba(255,255,255,0.95)', lineHeight: 21 }}>
                 Meu irmão, a comunidade propõe que cada membro disponha de, no mínimo,{' '}
-                <Text style={styles.comunhaoEmphasis}>30 minutos por dia</Text> para a Evangelização Ser Feliz,
+                <Text style={{ fontFamily: 'Nunito-Bold' }}>30 minutos por dia</Text> para a Evangelização Ser Feliz,
                 podendo ser fracionado ao longo de todo o dia. É uma forma de correspondermos ao chamado do
                 Emanuel para nós como comunidade. O desejo do nosso coração é que todos os membros cresçam
-                até <Text style={styles.comunhaoEmphasis}>1 hora ou mais</Text> por dia de acordo com a
+                até <Text style={{ fontFamily: 'Nunito-Bold' }}>1 hora ou mais</Text> por dia de acordo com a
                 possibilidade de cada um. Agradecemos desde já pela comunhão e permanecemos unidos em oração.
               </Text>
             </View>
@@ -512,10 +552,17 @@ export default function WizardScreen() {
                 {DIAS.map(d => (
                   <TouchableOpacity
                     key={d}
-                    style={[styles.chip, activeDia === d && styles.chipActive]}
+                    style={[
+                      styles.chip,
+                      { borderColor: t.border.default, backgroundColor: t.bg.elevated },
+                      activeDia === d && { backgroundColor: t.brand.primary, borderColor: t.brand.primary },
+                    ]}
                     onPress={() => setActiveDia(d)}
                   >
-                    <Text style={[styles.chipText, activeDia === d && styles.chipTextActive]}>
+                    <Text style={[
+                      { fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.secondary },
+                      activeDia === d && { color: '#ffffff', fontFamily: 'Nunito-SemiBold' },
+                    ]}>
                       {DIA_LABELS[d].slice(0, 3)}
                     </Text>
                   </TouchableOpacity>
@@ -524,38 +571,45 @@ export default function WizardScreen() {
             </ScrollView>
 
             {diaIndexes.map(({ p, i }, idx) => (
-              <View key={i} style={styles.itemCard}>
+              <View key={i} style={[styles.itemCard, { backgroundColor: t.bg.elevated, borderColor: t.border.subtle }]}>
                 <View style={styles.itemCardHeader}>
-                  <Text style={styles.itemCardTitle}>Prática {idx + 1}</Text>
+                  <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary }}>Prática {idx + 1}</Text>
                   <TouchableOpacity onPress={() => removePratica(i)}>
-                    <Ionicons name={'trash-outline' as IoniconsName} size={18} color={colors.error} />
+                    <Ionicons name={'trash-outline' as IoniconsName} size={18} color={t.status.error} />
                   </TouchableOpacity>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
                   <View style={styles.chipRow}>
-                    {TIPOS_PRATICA.map(t => (
-                      <TouchableOpacity key={t} style={[styles.chip, p.tipo === t && styles.chipActive]}
-                        onPress={() => updatePratica(i, { tipo: t })}>
-                        <Text style={[styles.chipText, p.tipo === t && styles.chipTextActive]}>{t}</Text>
+                    {TIPOS_PRATICA.map(tp => (
+                      <TouchableOpacity key={tp} style={[
+                        styles.chip,
+                        { borderColor: t.border.default, backgroundColor: t.bg.elevated },
+                        p.tipo === tp && { backgroundColor: t.brand.primary, borderColor: t.brand.primary },
+                      ]}
+                        onPress={() => updatePratica(i, { tipo: tp })}>
+                        <Text style={[
+                          { fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.secondary },
+                          p.tipo === tp && { color: '#ffffff', fontFamily: 'Nunito-SemiBold' },
+                        ]}>{tp}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
                 </ScrollView>
                 <View style={styles.row}>
-                  <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="Horário"
-                    placeholderTextColor={colors.gray} value={p.horario}
+                  <TextInput style={[inputStyle, { flex: 1, marginRight: 8 }]} placeholder="Horário"
+                    placeholderTextColor={t.text.tertiary} value={p.horario}
                     onChangeText={v => updatePratica(i, { horario: v })} />
-                  <TextInput style={[styles.input, { flex: 1 }]} placeholder="Duração (ex.: 30min)"
-                    placeholderTextColor={colors.gray} value={p.duracao}
+                  <TextInput style={[inputStyle, { flex: 1 }]} placeholder="Duração (ex.: 30min)"
+                    placeholderTextColor={t.text.tertiary} value={p.duracao}
                     onChangeText={v => updatePratica(i, { duracao: v })} />
                 </View>
-                <TextInput style={[styles.input, styles.textarea]} placeholder="Observação (opcional)"
-                  placeholderTextColor={colors.gray} value={p.obs}
+                <TextInput style={[inputStyle, styles.textarea]} placeholder="Observação (opcional)"
+                  placeholderTextColor={t.text.tertiary} value={p.obs}
                   onChangeText={v => updatePratica(i, { obs: v })} multiline numberOfLines={2} />
               </View>
             ))}
 
-            <AddButton label={`+ Adicionar prática em ${DIA_LABELS[activeDia]}`} onPress={addPratica} />
+            <AddButton label={`+ Adicionar prática em ${DIA_LABELS[activeDia]}`} onPress={addPratica} t={t} />
           </View>
         );
       }
@@ -565,9 +619,9 @@ export default function WizardScreen() {
         return (
           <View style={styles.stepContent}>
             {/* Bloco de privacidade */}
-            <View style={styles.privacyFullCard}>
-              <Text style={styles.privacyFullTitle}>🔒 Sua privacidade é sagrada</Text>
-              <Text style={styles.privacyFullText}>
+            <View style={{ backgroundColor: t.bg.elevated, borderRadius: 14, padding: 18, marginBottom: 24, borderWidth: 1, borderColor: t.border.subtle }}>
+              <Text style={{ fontSize: 17, fontFamily: 'Nunito-Bold', color: t.text.primary, marginBottom: 12 }}>🔒 Sua privacidade é sagrada</Text>
+              <Text style={{ fontSize: 14, fontFamily: 'Nunito-Regular', color: t.text.primary, lineHeight: 21, marginBottom: 12 }}>
                 O seu Projeto de Vida é um espaço íntimo entre você e Deus. Tudo o que você escrever aqui
                 será protegido.{'\n\n'}
                 O conteúdo deste módulo é pessoal. Nem a equipe técnica do Lumen+ terá acesso ao que você escreveu.{'\n\n'}
@@ -575,35 +629,35 @@ export default function WizardScreen() {
                 Para manter esse conteúdo privado, você pode criar uma senha que será usada para acessar seu
                 Projeto de Vida.
               </Text>
-              <View style={styles.privacyWarning}>
-                <Ionicons name={'warning-outline' as IoniconsName} size={16} color={colors.gold} />
-                <Text style={styles.privacyWarningText}>
+              <View style={{ flexDirection: 'row', gap: 8, backgroundColor: '#fef3c7', borderRadius: 10, padding: 12, marginBottom: 12, alignItems: 'flex-start' }}>
+                <Ionicons name={'warning-outline' as IoniconsName} size={16} color={'#b45309'} />
+                <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: '#b45309', flex: 1, lineHeight: 18 }}>
                   Se você perder essa senha, não será possível recuperar o conteúdo ou o acesso ao seu Projeto de Vida.
                 </Text>
               </View>
-              <View style={styles.privacyItems}>
+              <View style={{ gap: 8 }}>
                 {[
                   'Este conteúdo é completamente privado',
                   'Nossos servidores não terão acesso ao conteúdo que você escrever ou à senha que você criar',
                   'Desenvolvedores e administradores não terão acesso ao conteúdo escrito',
                 ].map((item, i) => (
-                  <View key={i} style={styles.privacyItem}>
-                    <Ionicons name={'checkmark-circle' as IoniconsName} size={16} color={colors.primary} />
-                    <Text style={styles.privacyItemText}>{item}</Text>
+                  <View key={i} style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+                    <Ionicons name={'checkmark-circle' as IoniconsName} size={16} color={t.brand.primary} />
+                    <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.primary, flex: 1, lineHeight: 18 }}>{item}</Text>
                   </View>
                 ))}
               </View>
             </View>
 
             {/* Campo PIN */}
-            <Text style={styles.fieldLabel}>Senha de 4 dígitos (opcional)</Text>
-            <Text style={styles.fieldHint}>Deixe em branco para não usar senha.</Text>
+            <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary, marginBottom: 4 }}>Senha de 4 dígitos (opcional)</Text>
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>Deixe em branco para não usar senha.</Text>
             <TextInput
-              style={styles.input}
+              style={inputStyle}
               value={data.pin}
               onChangeText={v => update({ pin: v.replace(/\D/g, '').slice(0, 4) })}
               placeholder="0000"
-              placeholderTextColor={colors.gray}
+              placeholderTextColor={t.text.tertiary}
               keyboardType="numeric"
               secureTextEntry
               maxLength={4}
@@ -615,33 +669,36 @@ export default function WizardScreen() {
       case 7:
         return (
           <View style={styles.stepContent}>
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryTitle}>
+            <View style={{ backgroundColor: t.brand.primaryDim, borderRadius: 14, padding: 20, marginBottom: 20, gap: 8 }}>
+              <Text style={{ fontSize: 20, fontFamily: 'Nunito-Bold', color: t.brand.primary, marginBottom: 8 }}>
                 {MESES[parseInt(data.mes, 10) - 1]} {data.ano}
               </Text>
-              {data.pin ? <Text style={styles.summaryItem}>🔒 Senha configurada</Text> : null}
-              <Text style={styles.summaryItem}>
+              {data.pin ? <Text style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.primary }}>🔒 Senha configurada</Text> : null}
+              <Text style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.primary }}>
                 👥 {data.comunidade.partilha_acompanhador.length + data.comunidade.encontro_familia.length + data.comunidade.dias_grupo.length} compromisso(s) comunitário(s)
               </Text>
-              <Text style={styles.summaryItem}>
+              <Text style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.primary }}>
                 ❤️ {data.cuidado.consultas.length + data.cuidado.exames.length + data.cuidado.descanso.length} item(ns) de cuidado pessoal
               </Text>
-              <Text style={styles.summaryItem}>
+              <Text style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.primary }}>
                 📅 {data.compromissos.length} compromisso(s) semanal(is)
               </Text>
-              <Text style={styles.summaryItem}>
+              <Text style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.primary }}>
                 🙏 {data.praticas.length} prática(s) de oração
               </Text>
             </View>
             {error && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
+              <View style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca', borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                <Text style={{ color: t.status.error, fontSize: 14, fontFamily: 'Nunito-Regular' }}>{error}</Text>
               </View>
             )}
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={{ backgroundColor: t.brand.primary, borderRadius: r.lg, padding: 18, alignItems: 'center', marginTop: 8 }}
+              onPress={handleSave} disabled={saving} activeOpacity={0.8}
+            >
               {saving
-                ? <ActivityIndicator color={colors.white} />
-                : <Text style={styles.saveBtnText}>Salvar Projeto de Vida</Text>
+                ? <ActivityIndicator color={'#ffffff'} />
+                : <Text style={{ color: '#ffffff', fontSize: 16, fontFamily: 'Nunito-Bold' }}>Salvar Projeto de Vida</Text>
               }
             </TouchableOpacity>
           </View>
@@ -653,39 +710,74 @@ export default function WizardScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {/* Indicador de passo */}
-      <View style={styles.stepBar}>
-        {STEP_TITLES.map((_, i) => (
-          <View key={i} style={[styles.stepDot, i === step && styles.stepDotActive, i < step && styles.stepDotDone]} />
-        ))}
-      </View>
-      <View style={styles.stepHeader}>
-        <Text style={styles.stepTitle}>{STEP_TITLES[step]}</Text>
-        <Text style={styles.stepCounter}>{step + 1} / {STEP_TITLES.length}</Text>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.bg.screen }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* Barra de progresso */}
+      <View style={{
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        backgroundColor: t.bg.elevated,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: t.border.subtle,
+      }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+          <Text style={{ fontSize: 12, fontFamily: 'Nunito-Regular', color: t.text.tertiary }}>
+            Passo {step + 1} de {STEP_TITLES.length}
+          </Text>
+          <Text style={{ fontSize: 12, fontFamily: 'Nunito-SemiBold', color: t.text.secondary }}>
+            {STEP_TITLES[step]}
+          </Text>
+        </View>
+        <View style={{ height: 3, backgroundColor: t.border.subtle, borderRadius: 2 }}>
+          <View style={{
+            height: 3,
+            width: `${((step + 1) / STEP_TITLES.length) * 100}%` as any,
+            backgroundColor: t.brand.primary,
+            borderRadius: 2,
+          }} />
+        </View>
       </View>
 
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView style={[styles.container, { backgroundColor: t.bg.screen }]} contentContainerStyle={{ paddingBottom: 40 }}>
         {renderStep()}
       </ScrollView>
 
       {/* Navegação */}
-      <View style={styles.navRow}>
+      <View style={[styles.navRow, { backgroundColor: t.bg.elevated, borderTopColor: t.border.subtle }]}>
         <TouchableOpacity
-          style={[styles.navBtn, styles.navBtnBack]}
+          style={{
+            flex: 1,
+            minHeight: 48,
+            borderRadius: r.lg,
+            borderWidth: 1,
+            borderColor: t.border.default,
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'row',
+            gap: 6,
+          }}
           onPress={() => (step === 0 ? router.back() : setStep(s => s - 1))}
         >
-          <Ionicons name={'chevron-back' as IoniconsName} size={20} color={colors.primary} />
-          <Text style={styles.navBtnBackText}>{step === 0 ? 'Cancelar' : 'Voltar'}</Text>
+          <Ionicons name={'chevron-back' as IoniconsName} size={20} color={t.text.secondary} />
+          <Text style={{ fontFamily: 'Nunito-SemiBold', color: t.text.secondary, fontSize: 15 }}>{step === 0 ? 'Cancelar' : 'Voltar'}</Text>
         </TouchableOpacity>
 
         {step < STEP_TITLES.length - 1 && (
           <TouchableOpacity
-            style={[styles.navBtn, styles.navBtnNext]}
+            style={{
+              flex: 1,
+              minHeight: 48,
+              borderRadius: r.lg,
+              backgroundColor: t.brand.primary,
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexDirection: 'row',
+              gap: 6,
+              marginLeft: 12,
+            }}
             onPress={() => setStep(s => s + 1)}
           >
-            <Text style={styles.navBtnNextText}>{step === 0 ? 'Iniciar meu Projeto de Vida' : 'Próximo'}</Text>
-            <Ionicons name={'chevron-forward' as IoniconsName} size={20} color={colors.white} />
+            <Text style={{ color: '#ffffff', fontFamily: 'Nunito-Bold', fontSize: 15 }}>{step === 0 ? 'Iniciar meu Projeto de Vida' : 'Próximo'}</Text>
+            <Ionicons name={'chevron-forward' as IoniconsName} size={20} color={'#ffffff'} />
           </TouchableOpacity>
         )}
       </View>
@@ -695,47 +787,71 @@ export default function WizardScreen() {
 
 // ── Componentes auxiliares ────────────────────────────────────────────────────
 
-function SectionTitle({ label }: { label: string }) {
-  return <Text style={styles.sectionTitle}>{label}</Text>;
+type ThemeTokens = ReturnType<typeof useTheme>['t'];
+type RadiiTokens = ReturnType<typeof useTheme>['r'];
+
+function SectionTitle({ label, t }: { label: string; t: ThemeTokens }) {
+  return (
+    <Text style={{ fontSize: 13, fontFamily: 'Nunito-Bold', color: t.text.secondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12, marginTop: 4 }}>
+      {label}
+    </Text>
+  );
 }
 
-function AddButton({ label, onPress }: { label: string; onPress: () => void }) {
+function AddButton({ label, onPress, t }: { label: string; onPress: () => void; t: ThemeTokens }) {
   return (
-    <TouchableOpacity style={styles.addBtn} onPress={onPress}>
-      <Text style={styles.addBtnText}>{label}</Text>
+    <TouchableOpacity
+      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 14, borderRadius: 12, borderWidth: 1.5, borderColor: t.brand.primary, borderStyle: 'dashed', marginBottom: 4 }}
+      onPress={onPress}
+    >
+      <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.brand.primary }}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
 function EventoCard({
-  index, item, onRemove, onChange,
+  index, item, onRemove, onChange, t, r,
 }: {
   index: number;
   item: EventoItem;
   onRemove: () => void;
   onChange: (patch: Partial<EventoItem>) => void;
+  t: ThemeTokens;
+  r: RadiiTokens;
 }) {
+  const inputStyle = {
+    backgroundColor: t.bg.surface,
+    borderRadius: r.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: t.border.subtle,
+    padding: 12,
+    fontSize: 15,
+    fontFamily: 'Nunito-Regular',
+    color: t.text.primary,
+    minHeight: 48,
+    marginBottom: 10,
+  };
   return (
-    <View style={styles.itemCard}>
+    <View style={[styles.itemCard, { backgroundColor: t.bg.elevated, borderColor: t.border.subtle }]}>
       <View style={styles.itemCardHeader}>
-        <Text style={styles.itemCardTitle}>Entrada {index + 1}</Text>
+        <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary }}>Entrada {index + 1}</Text>
         <TouchableOpacity onPress={onRemove}>
-          <Ionicons name={'trash-outline' as IoniconsName} size={18} color={colors.error} />
+          <Ionicons name={'trash-outline' as IoniconsName} size={18} color={t.status.error} />
         </TouchableOpacity>
       </View>
       <View style={styles.row}>
-        <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]}
-          placeholder="Data (ex.: 04/04/2026)" placeholderTextColor={colors.gray}
+        <TextInput style={[inputStyle, { flex: 1, marginRight: 8 }]}
+          placeholder="Data (ex.: 04/04/2026)" placeholderTextColor={t.text.tertiary}
           value={item.data ?? ''} onChangeText={v => onChange({ data: v })} />
-        <TextInput style={[styles.input, { flex: 1 }]}
-          placeholder="Horário" placeholderTextColor={colors.gray}
+        <TextInput style={[inputStyle, { flex: 1 }]}
+          placeholder="Horário" placeholderTextColor={t.text.tertiary}
           value={item.horario ?? ''} onChangeText={v => onChange({ horario: v })} />
       </View>
-      <TextInput style={styles.input}
-        placeholder="Local" placeholderTextColor={colors.gray}
+      <TextInput style={inputStyle}
+        placeholder="Local" placeholderTextColor={t.text.tertiary}
         value={item.local ?? ''} onChangeText={v => onChange({ local: v })} />
-      <TextInput style={[styles.input, styles.textarea]}
-        placeholder="Observações (opcional)" placeholderTextColor={colors.gray}
+      <TextInput style={[inputStyle, styles.textarea]}
+        placeholder="Observações (opcional)" placeholderTextColor={t.text.tertiary}
         value={item.observacoes ?? ''} onChangeText={v => onChange({ observacoes: v })}
         multiline numberOfLines={2} />
     </View>
@@ -743,37 +859,51 @@ function EventoCard({
 }
 
 function OutroComCard({
-  index, item, onRemove, onChange,
+  index, item, onRemove, onChange, t, r,
 }: {
   index: number;
   item: OutroItemComunidade;
   onRemove: () => void;
   onChange: (patch: Partial<OutroItemComunidade>) => void;
+  t: ThemeTokens;
+  r: RadiiTokens;
 }) {
+  const inputStyle = {
+    backgroundColor: t.bg.surface,
+    borderRadius: r.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: t.border.subtle,
+    padding: 12,
+    fontSize: 15,
+    fontFamily: 'Nunito-Regular',
+    color: t.text.primary,
+    minHeight: 48,
+    marginBottom: 10,
+  };
   return (
-    <View style={styles.itemCard}>
+    <View style={[styles.itemCard, { backgroundColor: t.bg.elevated, borderColor: t.border.subtle }]}>
       <View style={styles.itemCardHeader}>
-        <Text style={styles.itemCardTitle}>Compromisso {index + 1}</Text>
+        <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary }}>Compromisso {index + 1}</Text>
         <TouchableOpacity onPress={onRemove}>
-          <Ionicons name={'trash-outline' as IoniconsName} size={18} color={colors.error} />
+          <Ionicons name={'trash-outline' as IoniconsName} size={18} color={t.status.error} />
         </TouchableOpacity>
       </View>
-      <TextInput style={styles.input}
-        placeholder="Título do compromisso" placeholderTextColor={colors.gray}
+      <TextInput style={inputStyle}
+        placeholder="Título do compromisso" placeholderTextColor={t.text.tertiary}
         value={item.titulo ?? ''} onChangeText={v => onChange({ titulo: v })} />
-      <TextInput style={[styles.input, styles.textarea]}
-        placeholder="Descrição" placeholderTextColor={colors.gray}
+      <TextInput style={[inputStyle, styles.textarea]}
+        placeholder="Descrição" placeholderTextColor={t.text.tertiary}
         value={item.descricao ?? ''} onChangeText={v => onChange({ descricao: v })}
         multiline numberOfLines={2} />
-      <TextInput style={styles.input}
-        placeholder="Local" placeholderTextColor={colors.gray}
+      <TextInput style={inputStyle}
+        placeholder="Local" placeholderTextColor={t.text.tertiary}
         value={item.local ?? ''} onChangeText={v => onChange({ local: v })} />
       <View style={styles.row}>
-        <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]}
-          placeholder="Data" placeholderTextColor={colors.gray}
+        <TextInput style={[inputStyle, { flex: 1, marginRight: 8 }]}
+          placeholder="Data" placeholderTextColor={t.text.tertiary}
           value={item.data ?? ''} onChangeText={v => onChange({ data: v })} />
-        <TextInput style={[styles.input, { flex: 1 }]}
-          placeholder="Horário" placeholderTextColor={colors.gray}
+        <TextInput style={[inputStyle, { flex: 1 }]}
+          placeholder="Horário" placeholderTextColor={t.text.tertiary}
           value={item.horario ?? ''} onChangeText={v => onChange({ horario: v })} />
       </View>
     </View>
@@ -781,34 +911,48 @@ function OutroComCard({
 }
 
 function CuidadoCard({
-  index, item, onRemove, onChange,
+  index, item, onRemove, onChange, t, r,
 }: {
   index: number;
   item: CuidadoEventoItem;
   onRemove: () => void;
   onChange: (patch: Partial<CuidadoEventoItem>) => void;
+  t: ThemeTokens;
+  r: RadiiTokens;
 }) {
+  const inputStyle = {
+    backgroundColor: t.bg.surface,
+    borderRadius: r.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: t.border.subtle,
+    padding: 12,
+    fontSize: 15,
+    fontFamily: 'Nunito-Regular',
+    color: t.text.primary,
+    minHeight: 48,
+    marginBottom: 10,
+  };
   return (
-    <View style={styles.itemCard}>
+    <View style={[styles.itemCard, { backgroundColor: t.bg.elevated, borderColor: t.border.subtle }]}>
       <View style={styles.itemCardHeader}>
-        <Text style={styles.itemCardTitle}>Entrada {index + 1}</Text>
+        <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary }}>Entrada {index + 1}</Text>
         <TouchableOpacity onPress={onRemove}>
-          <Ionicons name={'trash-outline' as IoniconsName} size={18} color={colors.error} />
+          <Ionicons name={'trash-outline' as IoniconsName} size={18} color={t.status.error} />
         </TouchableOpacity>
       </View>
       <View style={styles.row}>
-        <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]}
-          placeholder="Data" placeholderTextColor={colors.gray}
+        <TextInput style={[inputStyle, { flex: 1, marginRight: 8 }]}
+          placeholder="Data" placeholderTextColor={t.text.tertiary}
           value={item.data ?? ''} onChangeText={v => onChange({ data: v })} />
-        <TextInput style={[styles.input, { flex: 1 }]}
-          placeholder="Horário" placeholderTextColor={colors.gray}
+        <TextInput style={[inputStyle, { flex: 1 }]}
+          placeholder="Horário" placeholderTextColor={t.text.tertiary}
           value={item.horario ?? ''} onChangeText={v => onChange({ horario: v })} />
       </View>
-      <TextInput style={styles.input}
-        placeholder="Local" placeholderTextColor={colors.gray}
+      <TextInput style={inputStyle}
+        placeholder="Local" placeholderTextColor={t.text.tertiary}
         value={item.local ?? ''} onChangeText={v => onChange({ local: v })} />
-      <TextInput style={[styles.input, styles.textarea]}
-        placeholder="Descrição (opcional)" placeholderTextColor={colors.gray}
+      <TextInput style={[inputStyle, styles.textarea]}
+        placeholder="Descrição (opcional)" placeholderTextColor={t.text.tertiary}
         value={item.descricao ?? ''} onChangeText={v => onChange({ descricao: v })}
         multiline numberOfLines={2} />
     </View>
@@ -816,37 +960,51 @@ function CuidadoCard({
 }
 
 function OutroCuidadoCard({
-  index, item, onRemove, onChange,
+  index, item, onRemove, onChange, t, r,
 }: {
   index: number;
   item: OutroItemCuidado;
   onRemove: () => void;
   onChange: (patch: Partial<OutroItemCuidado>) => void;
+  t: ThemeTokens;
+  r: RadiiTokens;
 }) {
+  const inputStyle = {
+    backgroundColor: t.bg.surface,
+    borderRadius: r.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: t.border.subtle,
+    padding: 12,
+    fontSize: 15,
+    fontFamily: 'Nunito-Regular',
+    color: t.text.primary,
+    minHeight: 48,
+    marginBottom: 10,
+  };
   return (
-    <View style={styles.itemCard}>
+    <View style={[styles.itemCard, { backgroundColor: t.bg.elevated, borderColor: t.border.subtle }]}>
       <View style={styles.itemCardHeader}>
-        <Text style={styles.itemCardTitle}>Compromisso {index + 1}</Text>
+        <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary }}>Compromisso {index + 1}</Text>
         <TouchableOpacity onPress={onRemove}>
-          <Ionicons name={'trash-outline' as IoniconsName} size={18} color={colors.error} />
+          <Ionicons name={'trash-outline' as IoniconsName} size={18} color={t.status.error} />
         </TouchableOpacity>
       </View>
-      <TextInput style={styles.input}
-        placeholder="Título" placeholderTextColor={colors.gray}
+      <TextInput style={inputStyle}
+        placeholder="Título" placeholderTextColor={t.text.tertiary}
         value={item.titulo ?? ''} onChangeText={v => onChange({ titulo: v })} />
-      <TextInput style={[styles.input, styles.textarea]}
-        placeholder="Descrição" placeholderTextColor={colors.gray}
+      <TextInput style={[inputStyle, styles.textarea]}
+        placeholder="Descrição" placeholderTextColor={t.text.tertiary}
         value={item.descricao ?? ''} onChangeText={v => onChange({ descricao: v })}
         multiline numberOfLines={2} />
-      <TextInput style={styles.input}
-        placeholder="Local" placeholderTextColor={colors.gray}
+      <TextInput style={inputStyle}
+        placeholder="Local" placeholderTextColor={t.text.tertiary}
         value={item.local ?? ''} onChangeText={v => onChange({ local: v })} />
       <View style={styles.row}>
-        <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]}
-          placeholder="Data" placeholderTextColor={colors.gray}
+        <TextInput style={[inputStyle, { flex: 1, marginRight: 8 }]}
+          placeholder="Data" placeholderTextColor={t.text.tertiary}
           value={item.data ?? ''} onChangeText={v => onChange({ data: v })} />
-        <TextInput style={[styles.input, { flex: 1 }]}
-          placeholder="Horário" placeholderTextColor={colors.gray}
+        <TextInput style={[inputStyle, { flex: 1 }]}
+          placeholder="Horário" placeholderTextColor={t.text.tertiary}
           value={item.horario ?? ''} onChangeText={v => onChange({ horario: v })} />
       </View>
     </View>
@@ -856,65 +1014,13 @@ function OutroCuidadoCard({
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  stepBar: { flexDirection: 'row', justifyContent: 'center', gap: 5, paddingVertical: 10, backgroundColor: colors.white, borderBottomWidth: 1, borderColor: colors.border },
-  stepDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.border },
-  stepDotActive: { backgroundColor: colors.primary, width: 18 },
-  stepDotDone: { backgroundColor: colors.primaryLight },
-  stepHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: colors.white },
-  stepTitle: { fontSize: 18, fontWeight: '700', color: colors.dark },
-  stepCounter: { fontSize: 13, color: colors.gray },
+  container: { flex: 1 },
   stepContent: { padding: 20 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.dark, marginBottom: 4, marginTop: 4 },
-  fieldLabel: { fontSize: 14, fontWeight: '600', color: colors.dark, marginBottom: 4 },
-  fieldHint: { fontSize: 12, color: colors.gray, marginBottom: 12, lineHeight: 17 },
-  separator: { height: 1, backgroundColor: colors.border, marginVertical: 20 },
-  input: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, fontSize: 15, color: colors.dark, marginBottom: 10 },
   textarea: { height: 80, textAlignVertical: 'top' },
   row: { flexDirection: 'row' },
   chipRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 2 },
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 13, color: colors.gray },
-  chipTextActive: { color: colors.white, fontWeight: '600' },
-  itemCard: { backgroundColor: colors.white, borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: colors.border },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
+  itemCard: { borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1 },
   itemCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  itemCardTitle: { fontSize: 14, fontWeight: '600', color: colors.dark },
-  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 14, borderRadius: 12, borderWidth: 1.5, borderColor: colors.primary, borderStyle: 'dashed', marginBottom: 4 },
-  addBtnText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
-  summaryCard: { backgroundColor: colors.primaryLight, borderRadius: 14, padding: 20, marginBottom: 20, gap: 8 },
-  summaryTitle: { fontSize: 20, fontWeight: '700', color: colors.primary, marginBottom: 8 },
-  summaryItem: { fontSize: 15, color: colors.dark },
-  errorBox: { backgroundColor: '#fef2f2', borderColor: '#fecaca', borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 },
-  errorText: { color: '#dc2626', fontSize: 14 },
-  saveBtn: { backgroundColor: colors.primary, borderRadius: 12, padding: 18, alignItems: 'center', marginTop: 8 },
-  saveBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
-  navRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: colors.white, borderTopWidth: 1, borderColor: colors.border },
-  navBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10 },
-  navBtnBack: { borderWidth: 1, borderColor: colors.border },
-  navBtnBackText: { fontSize: 15, color: colors.primary, fontWeight: '600' },
-  navBtnNext: { backgroundColor: colors.primary, flex: 1, marginLeft: 12, justifyContent: 'center' },
-  navBtnNextText: { fontSize: 15, color: colors.white, fontWeight: '600' },
-  // Intro
-  introQuoteCard: { backgroundColor: colors.goldLight, borderRadius: 14, padding: 20, marginBottom: 20, alignItems: 'center', borderWidth: 1, borderColor: '#fde68a' },
-  introQuoteText: { fontSize: 16, color: colors.gold, fontStyle: 'italic', textAlign: 'center', lineHeight: 24 },
-  introSubtitle: { fontSize: 15, color: colors.gray, textAlign: 'center', marginBottom: 20, lineHeight: 22 },
-  privacyCard: { backgroundColor: colors.primaryLight, borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#b2dce6' },
-  privacyTitle: { fontSize: 14, fontWeight: '700', color: colors.primary, marginBottom: 6 },
-  privacyText: { fontSize: 13, color: '#1e6a7d', textAlign: 'center', lineHeight: 18 },
-  // PIN / Privacidade
-  privacyFullCard: { backgroundColor: colors.primaryLight, borderRadius: 14, padding: 18, marginBottom: 24, borderWidth: 1, borderColor: '#b2dce6' },
-  privacyFullTitle: { fontSize: 17, fontWeight: '700', color: colors.dark, marginBottom: 12 },
-  privacyFullText: { fontSize: 14, color: colors.dark, lineHeight: 21, marginBottom: 12 },
-  privacyWarning: { flexDirection: 'row', gap: 8, backgroundColor: colors.goldLight, borderRadius: 10, padding: 12, marginBottom: 12, alignItems: 'flex-start' },
-  privacyWarningText: { fontSize: 13, color: colors.gold, flex: 1, lineHeight: 18 },
-  privacyItems: { gap: 8 },
-  privacyItem: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
-  privacyItemText: { fontSize: 13, color: colors.dark, flex: 1, lineHeight: 18 },
-  // Oração — Comunhão Comunitária
-  comunhaoCard: { backgroundColor: '#f97316', borderRadius: 14, padding: 18, marginBottom: 20 },
-  comunhaoLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.8)', letterSpacing: 1, marginBottom: 6 },
-  comunhaoTitle: { fontSize: 16, fontWeight: '700', color: colors.white, marginBottom: 10 },
-  comunhaoText: { fontSize: 14, color: 'rgba(255,255,255,0.95)', lineHeight: 21 },
-  comunhaoEmphasis: { fontWeight: '700' },
+  navRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderTopWidth: StyleSheet.hairlineWidth },
 });
