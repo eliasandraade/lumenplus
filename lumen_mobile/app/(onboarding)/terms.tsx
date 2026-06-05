@@ -17,20 +17,29 @@ import {
 import { router } from 'expo-router';
 import { useOnboardingStore, useAuthStore } from '@/stores';
 import { Button, Loading, Card } from '@/components';
-import theme from '@/theme';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
 function Checkbox({ checked, onPress, label }: { checked: boolean; onPress: () => void; label: string }) {
+  const { t } = useTheme();
   return (
-    <Pressable style={styles.checkboxRow} onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked }}>
-      <View style={[styles.checkboxBox, checked && styles.checkboxBoxChecked]}>
-        {checked && <Text style={styles.checkboxTick}>✓</Text>}
+    <Pressable onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 }}>
+      <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2,
+        borderColor: checked ? t.brand.primary : t.border.default,
+        backgroundColor: checked ? t.brand.primary : 'transparent',
+        alignItems: 'center', justifyContent: 'center' }}>
+        {checked && <Text style={{ color: t.bg.screen, fontSize: 13, fontFamily: 'Nunito_700Bold' }}>✓</Text>}
       </View>
-      <Text style={styles.checkboxLabel}>{label}</Text>
+      <Text style={{ flex: 1, color: t.text.primary, fontSize: 14 }}>{label}</Text>
     </Pressable>
   );
 }
 
 export default function TermsScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const [analyticsOptIn, setAnalyticsOptIn] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
@@ -129,17 +138,17 @@ export default function TermsScreen() {
               value={analyticsOptIn}
               onValueChange={setAnalyticsOptIn}
               trackColor={{
-                false: theme.colors.neutral[300],
-                true: theme.colors.primary[500],
+                false: t.border.default,
+                true: t.brand.primary,
               }}
-              thumbColor={theme.colors.white}
+              thumbColor={t.bg.screen}
             />
           </View>
         </Card>
 
-        {error && (
+        {error ? (
           <Text style={styles.error}>{error}</Text>
-        )}
+        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -169,80 +178,47 @@ export default function TermsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: t.bg.elevated,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: theme.spacing.md,
+    padding: 16,
   },
   card: {
-    marginBottom: theme.spacing.md,
+    marginBottom: 16,
   },
   cardTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xs,
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: t.text.primary,
+    marginBottom: 4,
   },
   version: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.tertiary,
-    marginBottom: theme.spacing.md,
+    fontSize: 13,
+    color: t.text.tertiary,
+    marginBottom: 16,
   },
   contentScroll: {
     maxHeight: 320,
   },
   content: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
+    fontSize: 13,
+    color: t.text.secondary,
     lineHeight: 20,
   },
   consentTitle: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.md,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: theme.spacing.md,
-  },
-  checkboxBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: theme.colors.neutral[400],
-    marginRight: theme.spacing.sm,
-    marginTop: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  checkboxBoxChecked: {
-    backgroundColor: theme.colors.primary[500],
-    borderColor: theme.colors.primary[500],
-  },
-  checkboxTick: {
-    color: theme.colors.white,
-    fontSize: 13,
-    fontWeight: theme.fontWeight.bold,
-    lineHeight: 16,
-  },
-  checkboxLabel: {
-    flex: 1,
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.primary,
-    lineHeight: 20,
+    fontSize: 15,
+    fontWeight: '600',
+    color: t.text.primary,
+    marginBottom: 16,
   },
   optInCard: {
-    marginBottom: theme.spacing.md,
+    marginBottom: 16,
   },
   optInRow: {
     flexDirection: 'row',
@@ -250,37 +226,37 @@ const styles = StyleSheet.create({
   },
   optInText: {
     flex: 1,
-    marginRight: theme.spacing.md,
+    marginRight: 16,
   },
   optInTitle: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xs,
+    fontSize: 15,
+    fontWeight: '500',
+    color: t.text.primary,
+    marginBottom: 4,
   },
   optInDescription: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
+    fontSize: 13,
+    color: t.text.secondary,
   },
   error: {
-    color: theme.colors.error.main,
-    fontSize: theme.fontSize.sm,
+    color: t.status.error,
+    fontSize: 13,
     textAlign: 'center',
-    marginBottom: theme.spacing.md,
+    marginBottom: 16,
   },
   footer: {
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.white,
+    padding: 16,
+    backgroundColor: t.bg.screen,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.neutral[200],
+    borderTopColor: t.border.subtle,
   },
   footerHint: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.tertiary,
+    fontSize: 13,
+    color: t.text.tertiary,
     textAlign: 'center',
-    marginBottom: theme.spacing.sm,
+    marginBottom: 12,
   },
   declineButton: {
-    marginTop: theme.spacing.xs,
+    marginTop: 4,
   },
 });

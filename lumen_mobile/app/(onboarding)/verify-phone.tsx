@@ -16,11 +16,15 @@ import { router } from 'expo-router';
 import { useAuthStore } from '@/stores';
 import { verificationService, profileService } from '@/services';
 import { Button, Loading, Card } from '@/components';
-import theme from '@/theme';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
 type Channel = 'SMS' | 'WHATSAPP';
 
 export default function VerifyPhoneScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const { user, refreshUser } = useAuthStore();
   const [step, setStep] = useState<'select' | 'verify'>('select');
   const [channel, setChannel] = useState<Channel>('WHATSAPP');
@@ -160,7 +164,7 @@ export default function VerifyPhoneScreen() {
             </View>
           </TouchableOpacity>
 
-          {error && <Text style={styles.error}>{error}</Text>}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
 
         <View style={styles.footer}>
@@ -189,7 +193,7 @@ export default function VerifyPhoneScreen() {
             <TextInput
               key={index}
               ref={(ref) => (inputRefs.current[index] = ref)}
-              style={[styles.codeInput, digit && styles.codeInputFilled]}
+              style={[styles.codeInput, digit ? styles.codeInputFilled : null]}
               value={digit}
               onChangeText={(value) => handleCodeChange(index, value)}
               onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
@@ -200,13 +204,13 @@ export default function VerifyPhoneScreen() {
           ))}
         </View>
 
-        {debugCode && (
+        {debugCode ? (
           <Card variant="filled" style={styles.debugCard}>
             <Text style={styles.debugText}>🛠️ Código de teste: {debugCode}</Text>
           </Card>
-        )}
+        ) : null}
 
-        {error && <Text style={styles.error}>{error}</Text>}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <TouchableOpacity onPress={() => setStep('select')} style={styles.resend}>
           <Text style={styles.resendText}>Não recebeu? Tentar novamente</Text>
@@ -227,112 +231,112 @@ export default function VerifyPhoneScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background.primary,
+    backgroundColor: t.bg.screen,
   },
   content: {
     flex: 1,
-    padding: theme.spacing.lg,
+    padding: 24,
   },
   title: {
-    fontSize: theme.fontSize['2xl'],
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xs,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: t.text.primary,
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.md,
+    fontSize: 15,
+    color: t.text.secondary,
+    marginBottom: 16,
   },
   phone: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.primary[800],
-    marginBottom: theme.spacing.xl,
+    fontSize: 20,
+    fontWeight: '600',
+    color: t.brand.primary,
+    marginBottom: 24,
   },
   channelLabel: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.md,
+    fontSize: 15,
+    fontWeight: '500',
+    color: t.text.primary,
+    marginBottom: 16,
   },
   channelOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.neutral[100],
-    borderRadius: theme.borderRadius.lg,
+    padding: 16,
+    backgroundColor: t.bg.surface,
+    borderRadius: 14,
     borderWidth: 2,
     borderColor: 'transparent',
-    marginBottom: theme.spacing.sm,
+    marginBottom: 12,
   },
   channelSelected: {
-    borderColor: theme.colors.primary[500],
-    backgroundColor: theme.colors.primary[50],
+    borderColor: t.brand.primary,
+    backgroundColor: t.brand.primaryDim,
   },
   channelIcon: {
     fontSize: 32,
-    marginRight: theme.spacing.md,
+    marginRight: 16,
   },
   channelTitle: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
+    fontSize: 15,
+    fontWeight: '600',
+    color: t.text.primary,
   },
   channelDesc: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
+    fontSize: 13,
+    color: t.text.secondary,
   },
   codeContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: theme.spacing.sm,
-    marginVertical: theme.spacing.xl,
+    gap: 8,
+    marginVertical: 24,
   },
   codeInput: {
     width: 48,
     height: 56,
-    borderRadius: theme.borderRadius.lg,
-    backgroundColor: theme.colors.neutral[100],
+    borderRadius: 14,
+    backgroundColor: t.bg.surface,
     borderWidth: 2,
-    borderColor: theme.colors.neutral[200],
-    fontSize: theme.fontSize['2xl'],
-    fontWeight: theme.fontWeight.bold,
+    borderColor: t.border.subtle,
+    fontSize: 24,
+    fontWeight: 'bold',
     textAlign: 'center',
-    color: theme.colors.text.primary,
+    color: t.text.primary,
   },
   codeInputFilled: {
-    borderColor: theme.colors.primary[500],
-    backgroundColor: theme.colors.white,
+    borderColor: t.brand.primary,
+    backgroundColor: t.bg.screen,
   },
   debugCard: {
-    marginTop: theme.spacing.md,
+    marginTop: 16,
   },
   debugText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
+    fontSize: 13,
+    color: t.text.secondary,
     textAlign: 'center',
   },
   error: {
-    color: theme.colors.error.main,
-    fontSize: theme.fontSize.sm,
+    color: t.status.error,
+    fontSize: 13,
     textAlign: 'center',
-    marginTop: theme.spacing.md,
+    marginTop: 16,
   },
   resend: {
-    marginTop: theme.spacing.lg,
+    marginTop: 24,
     alignItems: 'center',
   },
   resendText: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.primary[600],
+    fontSize: 15,
+    color: t.brand.primary,
   },
   footer: {
-    padding: theme.spacing.lg,
+    padding: 24,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.neutral[200],
+    borderTopColor: t.border.subtle,
   },
 });

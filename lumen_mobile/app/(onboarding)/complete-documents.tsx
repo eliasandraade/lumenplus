@@ -20,18 +20,13 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { profileService } from '@/services';
-
-const colors = {
-  primary: '#1A859B',
-  white: '#ffffff',
-  orange: '#F5A623',
-  gray: '#6b7280',
-  lightGray: '#f3f4f6',
-  inputBg: '#ffffff',
-  error: '#ef4444',
-};
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
 export default function CompleteDocumentsScreen() {
+  const { t } = useTheme();
+  const styles = makeStyles(t);
+
   const [cpf, setCpf] = useState('');
   const [rg, setRg] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -102,7 +97,7 @@ export default function CompleteDocumentsScreen() {
 
         {/* Ícone */}
         <View style={styles.iconContainer}>
-          <Ionicons name="id-card-outline" size={64} color={colors.primary} />
+          <Ionicons name="id-card-outline" size={64} color={t.brand.primary} />
         </View>
 
         {/* Título */}
@@ -115,22 +110,22 @@ export default function CompleteDocumentsScreen() {
         <View style={styles.form}>
           <Text style={styles.label}>CPF</Text>
           <TextInput
-            style={[styles.input, errors.cpf && styles.inputError]}
+            style={[styles.input, errors.cpf ? styles.inputError : null]}
             placeholder="000.000.000-00"
             value={cpf}
-            placeholderTextColor={colors.gray}
-            onChangeText={t => { setCpf(formatCpf(t)); setErrors({ ...errors, cpf: '' }); }}
+            placeholderTextColor={t.text.tertiary}
+            onChangeText={v => { setCpf(formatCpf(v)); setErrors({ ...errors, cpf: '' }); }}
             keyboardType="numeric"
           />
           {errors.cpf ? <Text style={styles.errorText}>{errors.cpf}</Text> : null}
 
           <Text style={styles.label}>RG</Text>
           <TextInput
-            style={[styles.input, errors.rg && styles.inputError]}
+            style={[styles.input, errors.rg ? styles.inputError : null]}
             placeholder="Número do RG"
             value={rg}
-            placeholderTextColor={colors.gray}
-            onChangeText={t => { setRg(t); setErrors({ ...errors, rg: '' }); }}
+            placeholderTextColor={t.text.tertiary}
+            onChangeText={v => { setRg(v); setErrors({ ...errors, rg: '' }); }}
             autoCapitalize="characters"
           />
           {errors.rg ? <Text style={styles.errorText}>{errors.rg}</Text> : null}
@@ -147,7 +142,7 @@ export default function CompleteDocumentsScreen() {
             disabled={isLoading}
           >
             {isLoading
-              ? <ActivityIndicator color={colors.white} />
+              ? <ActivityIndicator color={t.text.inverse} />
               : <Text style={styles.primaryButtonText}>Salvar e continuar</Text>
             }
           </TouchableOpacity>
@@ -162,44 +157,44 @@ export default function CompleteDocumentsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.white },
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg.screen },
   scrollContent: { flexGrow: 1, padding: 28, paddingTop: 60 },
 
   iconContainer: {
     width: 120, height: 120, borderRadius: 60,
-    backgroundColor: `${colors.primary}15`,
+    backgroundColor: t.brand.primaryDim,
     alignItems: 'center', justifyContent: 'center',
     alignSelf: 'center', marginBottom: 24,
   },
-  title: { fontSize: 24, fontWeight: '700', color: '#171717', textAlign: 'center', marginBottom: 12 },
-  subtitle: { fontSize: 15, color: colors.gray, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
+  title: { fontSize: 24, fontWeight: '700', color: t.text.primary, textAlign: 'center', marginBottom: 12 },
+  subtitle: { fontSize: 15, color: t.text.secondary, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
 
   form: { flex: 1 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6, marginLeft: 4 },
+  label: { fontSize: 13, fontWeight: '600', color: t.text.primary, marginBottom: 6, marginLeft: 4 },
   input: {
-    backgroundColor: colors.lightGray,
+    backgroundColor: t.bg.surface,
     borderRadius: 12,
     paddingHorizontal: 16, paddingVertical: 14,
-    fontSize: 16, marginBottom: 6, color: '#333',
-    borderWidth: 1, borderColor: '#e5e7eb',
+    fontSize: 16, marginBottom: 6, color: t.text.primary,
+    borderWidth: 1, borderColor: t.border.subtle,
   },
-  inputError: { borderColor: colors.error, borderWidth: 1.5 },
-  errorText: { color: colors.error, fontSize: 13, marginBottom: 12, marginLeft: 4 },
+  inputError: { borderColor: t.status.error, borderWidth: 1.5 },
+  errorText: { color: t.status.error, fontSize: 13, marginBottom: 12, marginLeft: 4 },
 
   errorBox: {
-    backgroundColor: '#FEE2E2', borderRadius: 8, padding: 12,
-    marginBottom: 12, borderWidth: 1, borderColor: '#FECACA',
+    backgroundColor: t.status.errorBg, borderRadius: 8, padding: 12,
+    marginBottom: 12, borderWidth: 1, borderColor: t.status.error,
   },
-  errorBoxText: { color: '#B91C1C', fontSize: 13, textAlign: 'center' },
+  errorBoxText: { color: t.status.error, fontSize: 13, textAlign: 'center' },
 
   primaryButton: {
-    backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 16,
+    backgroundColor: t.brand.primary, borderRadius: 12, paddingVertical: 16,
     alignItems: 'center', marginTop: 16,
   },
   buttonDisabled: { opacity: 0.6 },
-  primaryButtonText: { color: colors.white, fontSize: 16, fontWeight: '600' },
+  primaryButtonText: { color: t.text.inverse, fontSize: 16, fontWeight: '600' },
 
   skipButton: { alignItems: 'center', marginTop: 16, padding: 8 },
-  skipText: { fontSize: 14, color: colors.gray, textDecorationLine: 'underline' },
+  skipText: { fontSize: 14, color: t.text.secondary, textDecorationLine: 'underline' },
 });
