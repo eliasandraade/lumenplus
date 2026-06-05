@@ -9,14 +9,11 @@ import { router, Stack, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { IoniconsName } from '@/types/icons';
 import { useAuthStore } from '@/stores';
+import { useTheme } from '@/theme';
+import type { SemanticTokens } from '@/theme';
 
-const colors = {
-  primary: '#1A859B',
-  white: '#ffffff',
-  gray: '#6b7280',
-  lightGray: '#E8E8E8',
-  admin: '#7c3aed',
-};
+const ADMIN_COLOR = '#7c3aed';
+const ADMIN_COLOR_LIGHT = 'rgba(124, 58, 237, 0.12)';
 
 interface AdminOption {
   id: string;
@@ -116,6 +113,8 @@ const adminOnlySections: AdminSection[] = [
 
 export default function AdminMenuScreen() {
   const { user } = useAuthStore();
+  const { t } = useTheme();
+  const styles = makeStyles(t);
   const globalRoles = user?.global_roles ?? [];
   const isAnalista =
     globalRoles.includes('ANALISTA') &&
@@ -132,15 +131,15 @@ export default function AdminMenuScreen() {
       <Stack.Screen
         options={{
           title: 'Administração',
-          headerStyle: { backgroundColor: colors.admin },
-          headerTintColor: colors.white,
+          headerStyle: { backgroundColor: ADMIN_COLOR },
+          headerTintColor: '#ffffff',
         }}
       />
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={styles.headerIconContainer}>
-            <Ionicons name="shield-checkmark" size={32} color={colors.white} />
+            <Ionicons name="shield-checkmark" size={32} color="#ffffff" />
           </View>
           <Text style={styles.headerTitle}>Área Administrativa</Text>
           <Text style={styles.headerSubtitle}>
@@ -159,13 +158,13 @@ export default function AdminMenuScreen() {
                 activeOpacity={0.7}
               >
                 <View style={styles.optionIconContainer}>
-                  <Ionicons name={option.icon as IoniconsName} size={24} color={colors.admin} />
+                  <Ionicons name={option.icon as IoniconsName} size={24} color={ADMIN_COLOR} />
                 </View>
                 <View style={styles.optionContent}>
                   <Text style={styles.optionTitle}>{option.title}</Text>
                   <Text style={styles.optionDescription}>{option.description}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.gray} />
+                <Ionicons name="chevron-forward" size={20} color={t.text.secondary} />
               </TouchableOpacity>
             ))}
           </View>
@@ -182,17 +181,17 @@ export default function AdminMenuScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.lightGray,
+    backgroundColor: t.bg.elevated,
   },
   content: {
     padding: 16,
     paddingBottom: 32,
   },
   header: {
-    backgroundColor: colors.admin,
+    backgroundColor: ADMIN_COLOR,
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
@@ -210,7 +209,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.white,
+    color: '#ffffff',
     marginBottom: 4,
   },
   headerSubtitle: {
@@ -221,11 +220,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#171717',
+    color: t.text.primary,
     marginBottom: 12,
   },
   optionCard: {
-    backgroundColor: colors.white,
+    backgroundColor: t.bg.screen,
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
@@ -236,7 +235,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: `${colors.admin}15`,
+    backgroundColor: ADMIN_COLOR_LIGHT,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -247,23 +246,23 @@ const styles = StyleSheet.create({
   optionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#171717',
+    color: t.text.primary,
     marginBottom: 2,
   },
   optionDescription: {
     fontSize: 13,
-    color: colors.gray,
+    color: t.text.secondary,
   },
   backButton: {
     marginTop: 24,
     padding: 16,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: colors.admin,
+    borderColor: ADMIN_COLOR,
     alignItems: 'center',
   },
   backButtonText: {
-    color: colors.admin,
+    color: ADMIN_COLOR,
     fontSize: 16,
     fontWeight: '600',
   },
