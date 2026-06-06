@@ -208,3 +208,81 @@ def test_update_intencao(client: TestClient, auth_headers: dict):
     )
     assert resp.status_code == 200
     assert resp.json()["intencao"] == "Crescer na oração"
+
+
+def test_criar_ciclo_com_areas(client: TestClient, auth_headers: dict):
+    """PUT com areas faz upsert e retorna has_new_structure=True."""
+    pid = client.post(
+        "/projeto-vida-mensal/",
+        json={"mes": 1, "ano": 2027},
+        headers=auth_headers,
+    ).json()["id"]
+
+    resp = client.put(
+        f"/projeto-vida-mensal/{pid}",
+        json={
+            "areas": [
+                {
+                    "tipo_area": "FAMILIA_VOCACIONAL",
+                    "objetivo": "Participar de todos os encontros",
+                    "compromissos": [{"descricao": "Encontro da família", "data": "20/01"}],
+                    "observacoes": None,
+                }
+            ]
+        },
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["has_new_structure"] is True
+    assert len(data["areas"]) == 1
+    assert data["areas"][0]["tipo_area"] == "FAMILIA_VOCACIONAL"
+    assert data["areas"][0]["objetivo"] == "Participar de todos os encontros"
+
+
+def test_upsert_area_existente_atualiza_sem_duplicar(client: TestClient, auth_headers: dict):
+    """Segundo PUT com mesma tipo_area atualiza, não duplica."""
+    pid = client.post(
+        "/projeto-vida-mensal/",
+        json={"mes": 2, "ano": 2027},
+        headers=auth_headers,
+    ).json()["id"]
+
+    client.put(
+        f"/projeto-vida-mensal/{pid}",
+        json={"areas": [{"tipo_area": "GRUPO_FORMATIVO", "objetivo": "v1"}]},
+        headers=auth_headers,
+    )
+    client.put(
+        f"/projeto-vida-mensal/{pid}",
+        json={"areas": [{"tipo_area": "GRUPO_FORMATIVO", "objetivo": "v2"}]},
+        headers=auth_headers,
+    )
+
+    resp = client.get(f"/projeto-vida-mensal/{pid}", headers=auth_headers)
+    areas = resp.json()["areas"]
+    grupo_areas = [a for a in areas if a["tipo_area"] == "GRUPO_FORMATIVO"]
+    assert len(grupo_areas) == 1, f"Esperado 1, encontrado {len(grupo_areas)}"
+    assert grupo_areas[0]["objetivo"] == "v2"
+
+
+def test_ciclo_sem_areas_retorna_has_new_structure_false(client: TestClient, auth_headers: dict):
+    """Ciclo sem areas_mensais retorna has_new_structure=False."""
+    pid = client.post(
+        "/projeto-vida-mensal/",
+        json={"mes": 3, "ano": 2027},
+        headers=auth_headers,
+    ).json()["id"]
+    resp = client.get(f"/projeto-vida-mensal/{pid}", headers=auth_headers)
+    assert resp.json()["has_new_structure"] is False
+
+
+def test_reflexao_evangelizacao_salva_e_retornada(client: TestClient, auth_headers: dict):
+    """reflexao_evangelizacao é aceita no POST e no PUT."""
+    resp = client.post(
+        "/projeto-vida-mensal/",
+        json={"mes": 4, "ano": 2027, "reflexao_evangelizacao": "Estar mais presente"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["reflexao_evangelizacao"] == "Estar mais presente"

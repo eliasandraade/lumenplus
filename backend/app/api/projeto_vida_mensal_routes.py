@@ -26,6 +26,7 @@ from sqlalchemy.orm import selectinload
 from app.api.deps import CurrentUser, DBSession
 from app.db.models import (
     ProfileCatalogItem,
+    ProjetoVidaAreaMensal,
     ProjetoVidaComunidade,
     ProjetoVidaCuidado,
     ProjetoVidaCompromisso,
@@ -36,6 +37,8 @@ from app.db.models import (
     UserProfile,
 )
 from app.schemas.projeto_vida_mensal import (
+    AreaMensalIn,
+    AreaMensalOut,
     ComunidadeData,
     CompromissoOut,
     CuidadoData,
@@ -80,6 +83,7 @@ def _load(db: DBSession, projeto_id: UUID, user_id: UUID) -> ProjetoVidaMensal:
             selectinload(ProjetoVidaMensal.compromissos),
             selectinload(ProjetoVidaMensal.praticas),
             selectinload(ProjetoVidaMensal.revisao),
+            selectinload(ProjetoVidaMensal.areas_mensais),
         )
     )
     projeto = result.scalar_one_or_none()
@@ -92,7 +96,7 @@ def _load(db: DBSession, projeto_id: UUID, user_id: UUID) -> ProjetoVidaMensal:
 
 
 def _to_full(p: ProjetoVidaMensal) -> ProjetoVidaMensalFull:
-    # comunidade e cuidado: JSON arrays → Pydantic valida cada item da lista
+    has_new = len(p.areas_mensais) > 0 if p.areas_mensais is not None else False
     return ProjetoVidaMensalFull(
         id=p.id,
         mes=p.mes,
@@ -101,6 +105,9 @@ def _to_full(p: ProjetoVidaMensal) -> ProjetoVidaMensalFull:
         concluido=p.concluido,
         observacoes_mes=p.observacoes_mes,
         intencao=p.intencao,
+        reflexao_evangelizacao=p.reflexao_evangelizacao,
+        has_new_structure=has_new,
+        areas=[AreaMensalOut.model_validate(a) for a in (p.areas_mensais or [])],
         comunidade=ComunidadeData(
             partilha_acompanhador=p.comunidade.partilha_acompanhador or [],
             encontro_familia=p.comunidade.encontro_familia or [],
@@ -250,6 +257,7 @@ def criar_projeto(body: ProjetoVidaMensalCreate, user: CurrentUser, db: DBSessio
         ano=body.ano,
         pin_hash=_hash_pin(body.pin, user.id) if body.pin else None,
         intencao=body.intencao,
+        reflexao_evangelizacao=body.reflexao_evangelizacao,
     )
     db.add(projeto)
     db.flush()
@@ -282,6 +290,8 @@ def update_projeto(
         projeto.concluido = body.concluido
     if body.intencao is not None:
         projeto.intencao = body.intencao
+    if body.reflexao_evangelizacao is not None:
+        projeto.reflexao_evangelizacao = body.reflexao_evangelizacao
 
     if body.comunidade is not None:
         if not projeto.comunidade:
@@ -336,6 +346,35 @@ def update_projeto(
                 obs=item.obs,
                 ordem=item.ordem,
             ))
+
+    if body.areas is not None:
+        for area_in in body.areas:
+            existing_area = db.execute(
+                select(ProjetoVidaAreaMensal).where(
+                    ProjetoVidaAreaMensal.projeto_id == projeto.id,
+                    ProjetoVidaAreaMensal.tipo_area == area_in.tipo_area,
+                )
+            ).scalar_one_or_none()
+
+            compromissos_dump = (
+                [c.model_dump() for c in area_in.compromissos]
+                if area_in.compromissos else []
+            )
+
+            if existing_area:
+                if area_in.objetivo is not None:
+                    existing_area.objetivo = area_in.objetivo
+                existing_area.compromissos = compromissos_dump
+                if area_in.observacoes is not None:
+                    existing_area.observacoes = area_in.observacoes
+            else:
+                db.add(ProjetoVidaAreaMensal(
+                    projeto_id=projeto.id,
+                    tipo_area=area_in.tipo_area,
+                    objetivo=area_in.objetivo,
+                    compromissos=compromissos_dump,
+                    observacoes=area_in.observacoes,
+                ))
 
     db.commit()
     return _to_full(_load(db, projeto_id, user.id))
