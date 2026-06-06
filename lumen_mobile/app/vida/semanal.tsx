@@ -20,6 +20,7 @@ import projetoVidaMensalApi, {
 } from '@/services/projetoVidaMensal';
 import { getDeveEstadoTemplate } from '@/data/conteudoVocacional';
 import { useTheme } from '@/theme';
+import { HorarioInput } from '@/components/ui/HorarioInput';
 
 const STEP_TITLES = ['Semana', 'Dever de Estado', 'Vida Interior', 'Evangelização', 'Confirmar'];
 
@@ -179,13 +180,18 @@ export default function SemanalmScreen() {
         observacoes: null,
       };
 
+      let semanalIdFinal: string;
       if (semanalExistente) {
         await projetoVidaMensalApi.updateSemanal(semanalExistente.id, payload);
+        semanalIdFinal = semanalExistente.id;
       } else {
-        await projetoVidaMensalApi.createSemanal(projetoId, payload);
+        const novo = await projetoVidaMensalApi.createSemanal(projetoId, payload);
+        semanalIdFinal = novo.id;
       }
-
-      router.replace({ pathname: '/vida/ciclo', params: { projetoId } });
+      router.replace({
+        pathname: '/vida/semanal-view',
+        params: { semanalId: semanalIdFinal, projetoId },
+      });
     } catch (e: any) {
       setError(e?.response?.data?.detail?.message ?? 'Erro ao salvar. Tente novamente.');
     } finally {
@@ -362,16 +368,10 @@ export default function SemanalmScreen() {
                           );
                         })}
                       </View>
-                      <TextInput
-                        style={{
-                          backgroundColor: t.bg.surface, borderRadius: r.md,
-                          borderWidth: StyleSheet.hairlineWidth, borderColor: t.border.subtle,
-                          padding: 10, fontSize: 14, fontFamily: 'Nunito-Regular', color: t.text.primary, minHeight: 40,
-                        }}
+                      <HorarioInput
                         value={pratica.horario}
-                        onChangeText={v => update({ praticas: { ...data.praticas, [key]: { ...pratica, horario: v } } })}
+                        onChange={v => update({ praticas: { ...data.praticas, [key]: { ...pratica, horario: v } } })}
                         placeholder="Horário (ex.: 07:00)"
-                        placeholderTextColor={t.text.tertiary}
                       />
                     </>
                   )}
