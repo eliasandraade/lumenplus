@@ -19,6 +19,7 @@ import projetoVidaMensalApi, {
   type OutroItemComunidade,
   type CuidadoEventoItem,
   type OutroItemCuidado,
+  type AreaMensalOut,
 } from '@/services/projetoVidaMensal';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
@@ -99,6 +100,49 @@ export default function CicloScreen() {
         )}
       </View>
 
+      {/* Intenção do ciclo */}
+      {projeto.intencao && (
+        <View style={{
+          marginHorizontal: 20,
+          marginBottom: 16,
+          backgroundColor: t.bg.spiritual,
+          borderLeftWidth: 3,
+          borderLeftColor: t.accent.spiritual,
+          borderRadius: r.md,
+          padding: 16,
+        }}>
+          <Text style={{ fontSize: 11, fontFamily: 'Nunito-Bold', color: t.accent.spiritual, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>
+            Intenção do ciclo
+          </Text>
+          <Text style={{ fontSize: 15, fontFamily: 'Nunito-Italic', color: t.text.spiritual, lineHeight: 22 }}>
+            {projeto.intencao}
+          </Text>
+        </View>
+      )}
+
+      {projeto.has_new_structure ? (
+        <>
+          {/* 5 áreas estruturadas */}
+          {(projeto.areas ?? []).map(area => (
+            <AreaSection key={area.tipo_area} area={area} t={t} r={r} />
+          ))}
+
+          {/* Reflexão sobre Evangelização */}
+          {projeto.reflexao_evangelizacao && (
+            <Section title="Evangelização Ser Feliz" icon={'globe-outline' as IoniconsName} color={'#f97316'} t={t} r={r}>
+              <Text style={{ fontSize: 14, fontFamily: 'Nunito-Regular', color: t.text.primary, lineHeight: 22 }}>
+                {projeto.reflexao_evangelizacao}
+              </Text>
+            </Section>
+          )}
+
+          {/* Revisão (se existir) */}
+          {projeto.revisao && (
+            <RevisaoSection revisao={projeto.revisao} t={t} r={r} />
+          )}
+        </>
+      ) : (
+        <>
       {/* Comunidade */}
       <Section title="Comunidade" icon={'people-outline' as IoniconsName} color={t.brand.primary} t={t} r={r}>
         {projeto.comunidade ? (
@@ -265,6 +309,9 @@ export default function CicloScreen() {
         </Section>
       )}
 
+        </>
+      )}
+
       {/* Ações */}
       {!projeto.concluido && (
         <TouchableOpacity
@@ -291,6 +338,116 @@ export default function CicloScreen() {
 }
 
 // ── Sub-componentes ─────────────────────────────────────────────────────────
+
+const AREA_LABELS: Record<string, string> = {
+  FAMILIA_VOCACIONAL:    'Família Vocacional',
+  MINISTERIO_BOM_PASTOR: 'Ministério Bom Pastor',
+  GRUPO_FORMATIVO:       'Grupo Formativo',
+  SAUDE_LAZER:           'Saúde, Descanso e Lazer',
+  FAMILIA_ORIGEM:        'Família de Origem',
+};
+
+const AREA_ICONS: Record<string, IoniconsName> = {
+  FAMILIA_VOCACIONAL:    'people-outline',
+  MINISTERIO_BOM_PASTOR: 'hand-right-outline',
+  GRUPO_FORMATIVO:       'school-outline',
+  SAUDE_LAZER:           'heart-outline',
+  FAMILIA_ORIGEM:        'home-outline',
+};
+
+function AreaSection({
+  area, t, r,
+}: {
+  area: AreaMensalOut;
+  t: SemanticTokens;
+  r: RadiusTokens;
+}) {
+  const label = AREA_LABELS[area.tipo_area] ?? area.tipo_area;
+  const icon = (AREA_ICONS[area.tipo_area] ?? 'list-outline') as IoniconsName;
+  const hasContent = area.objetivo || (area.compromissos && area.compromissos.length > 0) || area.observacoes;
+
+  return (
+    <Section title={label} icon={icon} color={t.brand.primary} t={t} r={r}>
+      {hasContent ? (
+        <>
+          {area.objetivo && (
+            <View style={{ marginBottom: 10 }}>
+              <Text style={{ fontSize: 12, fontFamily: 'Nunito-Bold', color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 }}>
+                Objetivo
+              </Text>
+              <Text style={{ fontSize: 14, fontFamily: 'Nunito-Regular', color: t.text.primary, lineHeight: 20 }}>
+                {area.objetivo}
+              </Text>
+            </View>
+          )}
+          {area.compromissos && area.compromissos.length > 0 && (
+            <View style={{ marginBottom: 10 }}>
+              <Text style={{ fontSize: 12, fontFamily: 'Nunito-Bold', color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 }}>
+                Compromissos
+              </Text>
+              {area.compromissos.map((c, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                  <Ionicons name={'ellipse' as IoniconsName} size={6} color={t.brand.primary} style={{ marginTop: 7 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontFamily: 'Nunito-Regular', color: t.text.primary, lineHeight: 20 }}>
+                      {c.descricao}
+                    </Text>
+                    {(c.data || c.horario || c.local) && (
+                      <Text style={{ fontSize: 12, fontFamily: 'Nunito-Regular', color: t.text.tertiary, marginTop: 2 }}>
+                        {[c.data, c.horario, c.local].filter(Boolean).join(' · ')}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+          {area.observacoes && (
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Italic', color: t.text.secondary, lineHeight: 20 }}>
+              {area.observacoes}
+            </Text>
+          )}
+        </>
+      ) : (
+        <Text style={{ fontSize: 13, fontFamily: 'Nunito-Italic', color: t.text.tertiary }}>
+          Ainda não preenchido neste ciclo.
+        </Text>
+      )}
+    </Section>
+  );
+}
+
+function RevisaoSection({
+  revisao, t, r,
+}: {
+  revisao: NonNullable<ProjetoVidaMensalFull['revisao']>;
+  t: SemanticTokens;
+  r: RadiusTokens;
+}) {
+  const campos = [
+    { label: 'Prática a melhorar', valor: revisao.pratica_melhorar },
+    { label: 'Táticas de vigilância', valor: revisao.taticas_vigilancia },
+    { label: 'Rotina de evangelização', valor: revisao.rotina_evangelizacao },
+    { label: 'Outra área de atenção', valor: revisao.outra_area_atencao },
+  ].filter(c => c.valor);
+
+  if (campos.length === 0) return null;
+
+  return (
+    <Section title="Revisão Mensal" icon={'checkmark-circle-outline' as IoniconsName} color={t.status.success} t={t} r={r}>
+      {campos.map(({ label, valor }) => (
+        <View key={label} style={{ marginBottom: 12 }}>
+          <Text style={{ fontSize: 12, fontFamily: 'Nunito-Bold', color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 }}>
+            {label}
+          </Text>
+          <Text style={{ fontSize: 14, fontFamily: 'Nunito-Regular', color: t.text.primary, lineHeight: 20 }}>
+            {valor}
+          </Text>
+        </View>
+      ))}
+    </Section>
+  );
+}
 
 function Section({ title, icon, children, color, t, r }: {
   title: string;
