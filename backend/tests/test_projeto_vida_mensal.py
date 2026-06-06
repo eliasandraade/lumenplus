@@ -362,3 +362,52 @@ def test_exame_acesso_negado_para_outro_usuario(client: TestClient, auth_headers
     headers_b = {"Authorization": "Bearer dev:outro-user:outro@test.com"}
     resp = client.get(f"/projeto-vida-mensal/{pid}/exame", headers=headers_b)
     assert resp.status_code == 404
+
+
+def test_intercessao_get_sem_intercessao_retorna_null(client: TestClient, auth_headers: dict):
+    pid = client.post(
+        "/projeto-vida-mensal/", json={"mes": 9, "ano": 2027}, headers=auth_headers
+    ).json()["id"]
+    resp = client.get(f"/projeto-vida-mensal/{pid}/intercessao", headers=auth_headers)
+    assert resp.status_code == 200
+    assert resp.json() is None
+
+
+def test_intercessao_upsert_cria_e_recupera(client: TestClient, auth_headers: dict):
+    pid = client.post(
+        "/projeto-vida-mensal/", json={"mes": 10, "ano": 2027}, headers=auth_headers
+    ).json()["id"]
+    resp = client.put(
+        f"/projeto-vida-mensal/{pid}/intercessao",
+        json={
+            "intencoes_pessoais": "Minha família",
+            "oferecimento": "Este mês ao Sagrado Coração",
+        },
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["intencoes_pessoais"] == "Minha família"
+    assert resp.json()["oferecimento"] == "Este mês ao Sagrado Coração"
+    assert resp.json()["intencoes_comunitarias"] is None
+
+    resp2 = client.get(f"/projeto-vida-mensal/{pid}/intercessao", headers=auth_headers)
+    assert resp2.json()["intencoes_pessoais"] == "Minha família"
+
+
+def test_intercessao_upsert_idempotente(client: TestClient, auth_headers: dict):
+    pid = client.post(
+        "/projeto-vida-mensal/", json={"mes": 11, "ano": 2027}, headers=auth_headers
+    ).json()["id"]
+    client.put(
+        f"/projeto-vida-mensal/{pid}/intercessao",
+        json={"intencoes_pessoais": "v1", "intencoes_comunitarias": "comunidade"},
+        headers=auth_headers,
+    )
+    client.put(
+        f"/projeto-vida-mensal/{pid}/intercessao",
+        json={"intencoes_pessoais": "v2"},
+        headers=auth_headers,
+    )
+    resp = client.get(f"/projeto-vida-mensal/{pid}/intercessao", headers=auth_headers)
+    assert resp.json()["intencoes_pessoais"] == "v2"
+    assert resp.json()["intencoes_comunitarias"] == "comunidade"

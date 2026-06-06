@@ -253,3 +253,23 @@ class ExameOut(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ── Intercessão ─────────────────────────────────────────────────────────────
+
+
+class IntercessaoUpsert(BaseModel):
+    intencoes_pessoais: Optional[str] = Field(None, max_length=5000)
+    intencoes_comunitarias: Optional[str] = Field(None, max_length=5000)
+    oferecimento: Optional[str] = Field(None, max_length=3000)
+
+
+class IntercessaoOut(BaseModel):
+    id: UUID
+    intencoes_pessoais: Optional[str] = None
+    intencoes_comunitarias: Optional[str] = None
+    oferecimento: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}

@@ -1859,6 +1859,12 @@ class ProjetoVidaMensal(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    intercessao: Mapped["ProjetoVidaIntercessao | None"] = relationship(
+        "ProjetoVidaIntercessao",
+        back_populates="projeto",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         UniqueConstraint("user_id", "mes", "ano", name="uq_projeto_vida_mensal_user_mes_ano"),
@@ -2064,4 +2070,34 @@ class ProjetoVidaExame(Base):
 
     projeto: Mapped["ProjetoVidaMensal"] = relationship(
         "ProjetoVidaMensal", back_populates="exame"
+    )
+
+
+class ProjetoVidaIntercessao(Base):
+    __tablename__ = "projetos_vida_intercessao"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    projeto_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("projetos_vida_mensal.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    intencoes_pessoais: Mapped[str | None] = mapped_column(Text, nullable=True)
+    intencoes_comunitarias: Mapped[str | None] = mapped_column(Text, nullable=True)
+    oferecimento: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    projeto: Mapped["ProjetoVidaMensal"] = relationship(
+        "ProjetoVidaMensal", back_populates="intercessao"
     )

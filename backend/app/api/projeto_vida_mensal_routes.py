@@ -31,6 +31,7 @@ from app.db.models import (
     ProjetoVidaCuidado,
     ProjetoVidaCompromisso,
     ProjetoVidaExame,
+    ProjetoVidaIntercessao,
     ProjetoVidaMensal,
     ProjetoVidaPratica,
     ProjetoVidaRevisao,
@@ -45,6 +46,8 @@ from app.schemas.projeto_vida_mensal import (
     CuidadoData,
     ExameOut,
     ExameUpsert,
+    IntercessaoOut,
+    IntercessaoUpsert,
     PinVerifyRequest,
     PinVerifyResponse,
     PraticaOut,
@@ -337,6 +340,63 @@ def upsert_exame(
     db.commit()
     db.refresh(exame)
     return exame
+
+
+@router.get("/{projeto_id}/intercessao", response_model=IntercessaoOut | None)
+def get_intercessao(projeto_id: UUID, user: CurrentUser, db: DBSession) -> Any:
+    """Retorna a intercessão do ciclo, ou null se não existe.
+
+    Dados sensíveis — acesso restrito ao dono do projeto.
+    """
+    db.execute(
+        select(ProjetoVidaMensal.id).where(
+            ProjetoVidaMensal.id == projeto_id,
+            ProjetoVidaMensal.user_id == user.id,
+        )
+    ).scalar_one_or_none() or _raise_not_found()
+
+    intercessao = db.execute(
+        select(ProjetoVidaIntercessao).where(
+            ProjetoVidaIntercessao.projeto_id == projeto_id
+        )
+    ).scalar_one_or_none()
+    return intercessao
+
+
+@router.put("/{projeto_id}/intercessao", response_model=IntercessaoOut)
+def upsert_intercessao(
+    projeto_id: UUID, body: IntercessaoUpsert, user: CurrentUser, db: DBSession
+) -> Any:
+    """Cria ou atualiza a intercessão (upsert).
+
+    Campos não enviados não são sobrescritos (merge parcial).
+    Dados sensíveis — acesso restrito ao dono do projeto.
+    """
+    db.execute(
+        select(ProjetoVidaMensal.id).where(
+            ProjetoVidaMensal.id == projeto_id,
+            ProjetoVidaMensal.user_id == user.id,
+        )
+    ).scalar_one_or_none() or _raise_not_found()
+
+    intercessao = db.execute(
+        select(ProjetoVidaIntercessao).where(
+            ProjetoVidaIntercessao.projeto_id == projeto_id
+        )
+    ).scalar_one_or_none()
+
+    if intercessao is None:
+        intercessao = ProjetoVidaIntercessao(projeto_id=projeto_id)
+        db.add(intercessao)
+
+    for field in ("intencoes_pessoais", "intencoes_comunitarias", "oferecimento"):
+        value = getattr(body, field)
+        if value is not None:
+            setattr(intercessao, field, value)
+
+    db.commit()
+    db.refresh(intercessao)
+    return intercessao
 
 
 @router.put("/{projeto_id}", response_model=ProjetoVidaMensalFull)
