@@ -53,6 +53,13 @@ export default function VidaLayout() {
           headerShown: true,
         }}
       />
+      <Stack.Screen
+        name="exame"
+        options={{
+          header: () => <BreadcrumbHeader items={[VIDA, { label: 'Exame de Consciência' }]} />,
+          headerShown: true,
+        }}
+      />
     </Stack>
   );
 }

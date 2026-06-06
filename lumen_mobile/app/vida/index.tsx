@@ -14,6 +14,7 @@ import type { IoniconsName } from '@/types/icons';
 import type { Href } from 'expo-router';
 import projetoVidaMensalApi, {
   type ProjetoVidaMensalFull,
+  type ExameOut,
   MESES,
 } from '@/services/projetoVidaMensal';
 import { useTheme } from '@/theme';
@@ -23,6 +24,8 @@ export default function VidaHubScreen() {
   const { t, r } = useTheme();
 
   const [projeto, setProjeto] = useState<ProjetoVidaMensalFull | null>(null);
+  const [exame, setExame] = useState<ExameOut | null | undefined>(undefined);
+  // undefined = não carregado; null = carregado, sem exame; ExameOut = existe
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +40,17 @@ export default function VidaHubScreen() {
     try {
       const data = await projetoVidaMensalApi.getAtual(mesAtual, anoAtual);
       setProjeto(data);
+      // Se ciclo concluído, verificar se há exame (para sugerir antes do novo ciclo)
+      if (data?.concluido) {
+        try {
+          const exameData = await projetoVidaMensalApi.getExame(data.id);
+          setExame(exameData);
+        } catch {
+          setExame(undefined);
+        }
+      } else {
+        setExame(undefined);
+      }
     } catch {
       setError('Erro ao carregar projeto. Tente novamente.');
     } finally {
@@ -194,6 +208,49 @@ export default function VidaHubScreen() {
               <Ionicons name={'chevron-forward' as IoniconsName} size={15} color={t.brand.primary} />
             </View>
           </TouchableOpacity>
+
+          {/* Convite ao Exame de Consciência (quando ciclo concluído e sem exame) */}
+          {projeto.concluido && exame === null && (
+            <View style={{
+              backgroundColor: t.bg.elevated,
+              borderRadius: r.xl,
+              padding: 18,
+              marginBottom: 14,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: t.border.subtle,
+              ...t.shadow.sm,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <Ionicons name={'leaf-outline' as IoniconsName} size={18} color={t.accent.spiritual} />
+                <Text style={{ fontSize: 15, fontFamily: 'Nunito-Bold', color: t.text.primary }}>
+                  Antes de um novo ciclo...
+                </Text>
+              </View>
+              <Text style={{ fontSize: 14, fontFamily: 'Nunito-Regular', color: t.text.secondary, lineHeight: 20, marginBottom: 14 }}>
+                Que tal fazer um breve Exame de Consciência antes de iniciar o próximo ciclo?
+              </Text>
+              <View style={{ gap: 10 }}>
+                <TouchableOpacity
+                  style={{ backgroundColor: t.brand.primary, borderRadius: r.lg, padding: 14, alignItems: 'center' }}
+                  onPress={() => router.push({ pathname: '/vida/exame', params: { projetoId: projeto.id } })}
+                  activeOpacity={0.8}
+                  accessibilityLabel="Fazer o Exame de Consciência"
+                  accessibilityRole="button"
+                >
+                  <Text style={{ color: '#ffffff', fontSize: 15, fontFamily: 'Nunito-Bold' }}>Fazer o Exame</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ padding: 12, alignItems: 'center' }}
+                  onPress={handleNovoMes}
+                  activeOpacity={0.8}
+                  accessibilityLabel="Pular o exame e iniciar novo ciclo"
+                  accessibilityRole="button"
+                >
+                  <Text style={{ color: t.text.tertiary, fontSize: 14, fontFamily: 'Nunito-Regular' }}>Pular por enquanto</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           {/* Botão revisão */}
           {!projeto.concluido && (

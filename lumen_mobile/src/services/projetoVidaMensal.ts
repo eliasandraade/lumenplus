@@ -204,6 +204,27 @@ export interface ContextoVocacionalOut {
   nome: string;
 }
 
+export interface ExameOut {
+  id: string;
+  gracas_recebidas: string | null;
+  infidelidades: string | null;
+  dificuldades_espirituais: string | null;
+  jesus_abandonado: string | null;
+  onde_deixei_de_responder: string | null;
+  proposito_conversao: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExameUpsert {
+  gracas_recebidas?: string | null;
+  infidelidades?: string | null;
+  dificuldades_espirituais?: string | null;
+  jesus_abandonado?: string | null;
+  onde_deixei_de_responder?: string | null;
+  proposito_conversao?: string | null;
+}
+
 // ── API ────────────────────────────────────────────────────────────────────
 
 export const projetoVidaMensalApi = {
@@ -232,6 +253,12 @@ export const projetoVidaMensalApi = {
 
   getContextoVocacional: () =>
     api.get<ContextoVocacionalOut>('/projeto-vida-mensal/contexto-vocacional'),
+
+  getExame: (id: string) =>
+    api.get<ExameOut | null>(`/projeto-vida-mensal/${id}/exame`),
+
+  upsertExame: (id: string, data: ExameUpsert) =>
+    api.put<ExameOut>(`/projeto-vida-mensal/${id}/exame`, data as Record<string, unknown>),
 };
 
 export default projetoVidaMensalApi;
