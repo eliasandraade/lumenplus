@@ -31,6 +31,34 @@ Cinco melhorias independentes identificadas no teste manual:
 
 Registrar em `vida/_layout.tsx` com breadcrumb "Projeto Semanal".
 
+### Enum interno de dias
+
+```typescript
+const DIAS_SEMANA = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'] as const;
+type DiaSemana = typeof DIAS_SEMANA[number];
+
+const DIA_LABELS: Record<DiaSemana, string> = {
+  seg: 'Segunda', ter: 'Terça',  qua: 'Quarta', qui: 'Quinta',
+  sex: 'Sexta',   sab: 'Sábado', dom: 'Domingo',
+};
+const DIA_SHORT: Record<DiaSemana, string> = {
+  seg: 'Seg', ter: 'Ter', qua: 'Qua', qui: 'Qui',
+  sex: 'Sex', sab: 'Sáb', dom: 'Dom',
+};
+```
+
+Usar o mesmo enum no `diario.tsx` (já definido lá como constante local — manter consistência).
+
+### Dia padrão ao abrir
+
+```typescript
+function getDiaPadrao(): DiaSemana {
+  return DIAS_SEMANA[(new Date().getDay() + 1) % 7];
+}
+```
+
+`getDay()` retorna 0 (dom) a 6 (sáb). `(getDay() + 1) % 7` mapeia para o dia seguinte no ciclo dom→seg→...→sáb→dom, alinhado com a ordem do array `DIAS_SEMANA` que começa em `seg` (índice 0). Resultado: se hoje é sexta (5), abre em sábado (índice 5 = 'sab'). Sem exceção — o fallback é sempre o dia seguinte, inclusive no domingo (abre segunda).
+
 ### Navegação
 
 **De `semanal.tsx`:** após salvar (create ou update), navegar para `semanal-view` em vez de `ciclo`.
@@ -45,7 +73,7 @@ Quando não há `semanalAtual`, mostrar apenas "Criar Projeto Semanal" → `sema
 
 **Header:** título "Semana N", subtítulo com intervalo de datas (calculado a partir do número da semana e mês do projeto).
 
-**Chips de dia:** sete chips horizontais (Seg–Dom). Chip ativo = dia selecionado. Dia padrão ao abrir: dia seguinte ao atual (`getDiaSeguinte()` igual ao `diario.tsx`).
+**Chips de dia:** sete chips horizontais na ordem `DIAS_SEMANA`. Chip ativo = dia selecionado.
 
 **Conteúdo do dia selecionado:**
 
@@ -68,9 +96,13 @@ Quando não há `semanalAtual`, mostrar apenas "Criar Projeto Semanal" → `sema
 │   • Leitura Espiritual                          │
 │   • Evangelização                               │
 │ Se vazio: botão "Planejar este dia" →           │
-│   navega para diario?semanalId=...              │
+│   navega para /vida/diario?semanalId=...&dia=<diaAtivo> │
 └────────────────────────────────────────────────┘
 ```
+
+**Navegação para `diario`:** passa `dia` como parâmetro de rota para que `diario.tsx` abra diretamente no dia correto, sem depender do cálculo `getDiaSeguinte()`.
+
+`diario.tsx` lê `dia` de `useLocalSearchParams` se presente; caso ausente, usa `getDiaSeguinte()` como fallback.
 
 **Rodapé:** botão "Editar Semana" → `semanal?projetoId=...`
 
@@ -120,6 +152,8 @@ Substituir o `TextInput` do campo `data` em `CompromissoAreaItem` por um `Toucha
 
 Mês inicial: mês do ciclo sendo criado/editado.
 
+**Datas fora do mês do ciclo:** permitidas. O picker não restringe a seleção ao mês do ciclo — compromissos podem ocorrer antes ou depois (ex.: retiro agendado para o mês seguinte). O picker inicia no mês do ciclo por conveniência, mas o usuário pode navegar livremente.
+
 ---
 
 ## 3. Máscara HH:MM
@@ -136,9 +170,24 @@ function formatarHorario(raw: string): string {
   if (digits.length <= 2) return digits;
   return `${digits.slice(0, 2)}:${digits.slice(2)}`;
 }
+
+function horarioValido(v: string): boolean {
+  if (!/^\d{2}:\d{2}$/.test(v)) return false;
+  const [h, m] = v.split(':').map(Number);
+  return h >= 0 && h <= 23 && m >= 0 && m <= 59;
+}
 ```
 
-Validação ao sair do campo (`onBlur`): se valor não corresponder a `HH:MM` válido (hora 00–23, minuto 00–59), limpar o campo e exibir erro inline discreto ("Horário inválido").
+**Formatação em tempo real (`onChangeText`):** aplica `formatarHorario` a cada keystroke, aceitando só dígitos.
+
+**Validação no blur (`onBlur`):** se o valor não passa `horarioValido`, limpar o campo (setar para `''`) e exibir mensagem de erro inline abaixo do input: "Horário inválido — use o formato HH:MM (ex.: 07:30)". A mensagem desaparece assim que o usuário volta a editar o campo.
+
+**Casos explícitos:**
+- `""` → válido (campo opcional, não validar vazio)
+- `"07"` → inválido no blur (incompleto)
+- `"25:00"` → inválido (hora fora do range)
+- `"07:60"` → inválido (minuto fora do range)
+- `"07:30"` → válido
 
 Props adicionais: `keyboardType="numeric"`, `maxLength={5}`.
 

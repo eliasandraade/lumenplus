@@ -19,10 +19,20 @@ A Evangelização Ser Feliz é um chamado comunitário: cada membro se compromet
 
 `044_pvm_evangelizacao_acoes.py`
 
+Tabela alvo: `projetos_vida_mensal` (confirmado em `backend/app/db/models.py`, linha 1794: `__tablename__ = "projetos_vida_mensal"`).
+
 ```sql
 ALTER TABLE projetos_vida_mensal
 ADD COLUMN evangelizacao_acoes JSONB DEFAULT NULL;
 ```
+
+Downgrade:
+```sql
+ALTER TABLE projetos_vida_mensal
+DROP COLUMN evangelizacao_acoes;
+```
+
+**Compatibilidade com projetos antigos:** coluna é `NULLABLE` com `DEFAULT NULL`. Projetos existentes receberão `NULL` automaticamente. No frontend, tratar `evangelizacao_acoes: null | undefined` como lista vazia `[]` em todos os pontos de leitura.
 
 ### Schema de cada ação (JSONB)
 
@@ -46,11 +56,13 @@ Adicionar em `ProjetoVidaMensalUpdate` e `ProjetoVidaMensalOut`:
 class EvangelizacaoAcaoItem(BaseModel):
     descricao: str | None = None
     como: str | None = None
-    duracao_min: int | None = None
+    duracao_min: int | None = Field(default=None, ge=1)  # inteiro positivo
 
 # em ProjetoVidaMensalUpdate / ProjetoVidaMensalOut:
 evangelizacao_acoes: list[EvangelizacaoAcaoItem] | None = None
 ```
+
+`ge=1` rejeita zero e negativos. O frontend nunca envia `duracao_min=0` (converte string vazia para `null`), mas a validação no schema é a rede de segurança.
 
 ### Endpoint
 
@@ -112,29 +124,50 @@ Botão "+ Adicionar ação" (estilo dashed, igual aos `momentos` do `semanal.tsx
 #### Estado no wizard
 
 ```typescript
-interface WizardData {
-  // ... campos existentes
-  evangelizacao_acoes: EvangelizacaoAcaoItem[];
-}
-
-interface EvangelizacaoAcaoItem {
+interface EvangelizacaoAcaoItemLocal {
   descricao: string;
   como: string;
-  duracao_min: string; // string no estado, converte para int no payload
+  duracao_min: string; // string no estado UI, converte para int no payload
+}
+
+interface WizardData {
+  // ... campos existentes
+  evangelizacao_acoes: EvangelizacaoAcaoItemLocal[];
 }
 ```
 
-#### Payload no `handleSave`
+**Inicialização em modo criação:** `evangelizacao_acoes: []` (lista vazia).
+
+**Inicialização em modo edição** (ciclo existente já tem `evangelizacao_acoes`):
+
+```typescript
+evangelizacao_acoes: (existing.evangelizacao_acoes ?? []).map(a => ({
+  descricao: a.descricao ?? '',
+  como: a.como ?? '',
+  duracao_min: a.duracao_min != null ? String(a.duracao_min) : '',
+}))
+```
+
+Usar `?? []` como fallback para projetos antigos onde o campo é `null`.
+
+#### Regra de descarte
+
+Itens sem `descricao` preenchida são descartados antes de enviar ao backend:
 
 ```typescript
 evangelizacao_acoes: data.evangelizacao_acoes
-  .filter(a => a.descricao.trim())
+  .filter(a => a.descricao.trim().length > 0)   // descarta sem descrição
   .map(a => ({
-    descricao: a.descricao || null,
-    como: a.como || null,
-    duracao_min: parseInt(a.duracao_min) || null,
+    descricao: a.descricao.trim(),
+    como: a.como.trim() || null,
+    duracao_min: (() => {
+      const n = parseInt(a.duracao_min, 10);
+      return Number.isFinite(n) && n >= 1 ? n : null;  // positivo ou null
+    })(),
   }))
 ```
+
+`duracao_min` vazio ou `0` → `null`. String não numérica → `null`. Nunca envia `0` ou negativo.
 
 ### Visualização no `ciclo.tsx`
 
@@ -166,7 +199,7 @@ evangelizacao_acoes?: EvangelizacaoAcaoItem[] | null;
 | Arquivo | Mudança |
 |---------|---------|
 | `backend/alembic/versions/044_pvm_evangelizacao_acoes.py` | **Criado** — migration |
-| `backend/app/models/projeto_vida_mensal.py` | Adicionar coluna `evangelizacao_acoes` (JSONB) |
+| `backend/app/db/models.py` | Adicionar coluna `evangelizacao_acoes` (JSONB) ao model `ProjetoVidaMensal` |
 | `backend/app/schemas/projeto_vida_mensal.py` | Adicionar `EvangelizacaoAcaoItem` + campo nos schemas de update e out |
 | `lumen_mobile/src/services/projetoVidaMensal.ts` | Adicionar tipo `EvangelizacaoAcaoItem` + campo no `ProjetoVidaMensalFull` |
 | `lumen_mobile/app/vida/wizard.tsx` | Redesign do step 7 com novo texto + lista de ações |
