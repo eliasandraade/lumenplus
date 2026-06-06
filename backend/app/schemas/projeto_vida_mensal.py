@@ -226,3 +226,30 @@ class PinVerifyRequest(BaseModel):
 
 class PinVerifyResponse(BaseModel):
     valid: bool
+
+
+# ── Exame de Consciência ────────────────────────────────────────────────────
+
+
+class ExameUpsert(BaseModel):
+    """6 campos de reflexão — todos opcionais (exame nunca é obrigatório)."""
+    gracas_recebidas: Optional[str] = Field(None, max_length=5000)
+    infidelidades: Optional[str] = Field(None, max_length=5000)
+    dificuldades_espirituais: Optional[str] = Field(None, max_length=5000)
+    jesus_abandonado: Optional[str] = Field(None, max_length=5000)
+    onde_deixei_de_responder: Optional[str] = Field(None, max_length=5000)
+    proposito_conversao: Optional[str] = Field(None, max_length=5000)
+
+
+class ExameOut(BaseModel):
+    id: UUID
+    gracas_recebidas: Optional[str] = None
+    infidelidades: Optional[str] = None
+    dificuldades_espirituais: Optional[str] = None
+    jesus_abandonado: Optional[str] = None
+    onde_deixei_de_responder: Optional[str] = None
+    proposito_conversao: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}

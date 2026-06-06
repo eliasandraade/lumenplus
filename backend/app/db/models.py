@@ -1853,6 +1853,12 @@ class ProjetoVidaMensal(Base):
         cascade="all, delete-orphan",
         order_by="ProjetoVidaAreaMensal.tipo_area",
     )
+    exame: Mapped["ProjetoVidaExame | None"] = relationship(
+        "ProjetoVidaExame",
+        back_populates="projeto",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         UniqueConstraint("user_id", "mes", "ano", name="uq_projeto_vida_mensal_user_mes_ano"),
@@ -2025,4 +2031,37 @@ class ProjetoVidaAreaMensal(Base):
     __table_args__ = (
         UniqueConstraint("projeto_id", "tipo_area", name="uq_pv_areas_mensais_projeto_tipo"),
         Index("ix_pv_areas_mensais_projeto_id", "projeto_id"),
+    )
+
+
+class ProjetoVidaExame(Base):
+    __tablename__ = "projetos_vida_exame"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    projeto_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("projetos_vida_mensal.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    gracas_recebidas: Mapped[str | None] = mapped_column(Text, nullable=True)
+    infidelidades: Mapped[str | None] = mapped_column(Text, nullable=True)
+    dificuldades_espirituais: Mapped[str | None] = mapped_column(Text, nullable=True)
+    jesus_abandonado: Mapped[str | None] = mapped_column(Text, nullable=True)
+    onde_deixei_de_responder: Mapped[str | None] = mapped_column(Text, nullable=True)
+    proposito_conversao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    projeto: Mapped["ProjetoVidaMensal"] = relationship(
+        "ProjetoVidaMensal", back_populates="exame"
     )

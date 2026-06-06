@@ -286,3 +286,79 @@ def test_reflexao_evangelizacao_salva_e_retornada(client: TestClient, auth_heade
     )
     assert resp.status_code == 201
     assert resp.json()["reflexao_evangelizacao"] == "Estar mais presente"
+
+
+def test_exame_get_sem_exame_retorna_null(client: TestClient, auth_headers: dict):
+    """GET /exame retorna null quando exame não existe (não 404)."""
+    pid = client.post(
+        "/projeto-vida-mensal/",
+        json={"mes": 5, "ano": 2027},
+        headers=auth_headers,
+    ).json()["id"]
+    resp = client.get(f"/projeto-vida-mensal/{pid}/exame", headers=auth_headers)
+    assert resp.status_code == 200
+    assert resp.json() is None
+
+
+def test_exame_upsert_cria_e_recupera(client: TestClient, auth_headers: dict):
+    """PUT cria exame; GET recupera os campos corretos."""
+    pid = client.post(
+        "/projeto-vida-mensal/",
+        json={"mes": 6, "ano": 2027},
+        headers=auth_headers,
+    ).json()["id"]
+
+    resp = client.put(
+        f"/projeto-vida-mensal/{pid}/exame",
+        json={
+            "gracas_recebidas": "Muita paz neste mês",
+            "proposito_conversao": "Ser mais paciente",
+        },
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["gracas_recebidas"] == "Muita paz neste mês"
+    assert resp.json()["proposito_conversao"] == "Ser mais paciente"
+    assert resp.json()["infidelidades"] is None
+
+    resp2 = client.get(f"/projeto-vida-mensal/{pid}/exame", headers=auth_headers)
+    assert resp2.status_code == 200
+    assert resp2.json()["gracas_recebidas"] == "Muita paz neste mês"
+
+
+def test_exame_upsert_idempotente(client: TestClient, auth_headers: dict):
+    """Dois PUTs consecutivos: segundo atualiza, não cria duplicata."""
+    pid = client.post(
+        "/projeto-vida-mensal/",
+        json={"mes": 7, "ano": 2027},
+        headers=auth_headers,
+    ).json()["id"]
+
+    client.put(
+        f"/projeto-vida-mensal/{pid}/exame",
+        json={"gracas_recebidas": "v1", "infidelidades": "falha inicial"},
+        headers=auth_headers,
+    )
+    client.put(
+        f"/projeto-vida-mensal/{pid}/exame",
+        json={"gracas_recebidas": "v2"},
+        headers=auth_headers,
+    )
+
+    resp = client.get(f"/projeto-vida-mensal/{pid}/exame", headers=auth_headers)
+    assert resp.json()["gracas_recebidas"] == "v2"
+    # infidelidades do primeiro PUT ainda deve existir (não foi sobrescrita)
+    assert resp.json()["infidelidades"] == "falha inicial"
+
+
+def test_exame_acesso_negado_para_outro_usuario(client: TestClient, auth_headers: dict):
+    """Projeto de outro usuário retorna 404 ao tentar acessar o exame."""
+    pid = client.post(
+        "/projeto-vida-mensal/",
+        json={"mes": 8, "ano": 2027},
+        headers=auth_headers,
+    ).json()["id"]
+
+    headers_b = {"Authorization": "Bearer dev:outro-user:outro@test.com"}
+    resp = client.get(f"/projeto-vida-mensal/{pid}/exame", headers=headers_b)
+    assert resp.status_code == 404

@@ -30,6 +30,7 @@ from app.db.models import (
     ProjetoVidaComunidade,
     ProjetoVidaCuidado,
     ProjetoVidaCompromisso,
+    ProjetoVidaExame,
     ProjetoVidaMensal,
     ProjetoVidaPratica,
     ProjetoVidaRevisao,
@@ -42,6 +43,8 @@ from app.schemas.projeto_vida_mensal import (
     ComunidadeData,
     CompromissoOut,
     CuidadoData,
+    ExameOut,
+    ExameUpsert,
     PinVerifyRequest,
     PinVerifyResponse,
     PraticaOut,
@@ -57,6 +60,13 @@ router = APIRouter(prefix="/projeto-vida-mensal", tags=["Projeto de Vida Mensal"
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
+
+
+def _raise_not_found() -> None:
+    raise HTTPException(
+        status_code=404,
+        detail={"error": "not_found", "message": "Projeto não encontrado"},
+    )
 
 
 def _hash_pin(pin: str, user_id: UUID) -> str:
@@ -272,6 +282,61 @@ def criar_projeto(body: ProjetoVidaMensalCreate, user: CurrentUser, db: DBSessio
 @router.get("/{projeto_id}", response_model=ProjetoVidaMensalFull)
 def get_projeto(projeto_id: UUID, user: CurrentUser, db: DBSession) -> Any:
     return _to_full(_load(db, projeto_id, user.id))
+
+
+@router.get("/{projeto_id}/exame", response_model=ExameOut | None)
+def get_exame(projeto_id: UUID, user: CurrentUser, db: DBSession) -> Any:
+    """Retorna o exame de consciência do ciclo, ou null se não existe.
+
+    Dados sensíveis — acesso restrito ao dono do projeto.
+    """
+    db.execute(
+        select(ProjetoVidaMensal.id).where(
+            ProjetoVidaMensal.id == projeto_id,
+            ProjetoVidaMensal.user_id == user.id,
+        )
+    ).scalar_one_or_none() or _raise_not_found()
+
+    exame = db.execute(
+        select(ProjetoVidaExame).where(ProjetoVidaExame.projeto_id == projeto_id)
+    ).scalar_one_or_none()
+    return exame
+
+
+@router.put("/{projeto_id}/exame", response_model=ExameOut)
+def upsert_exame(
+    projeto_id: UUID, body: ExameUpsert, user: CurrentUser, db: DBSession
+) -> Any:
+    """Cria ou atualiza o exame de consciência (upsert).
+
+    Campos não enviados não são sobrescritos (merge parcial por campo).
+    Dados sensíveis — acesso restrito ao dono do projeto.
+    """
+    db.execute(
+        select(ProjetoVidaMensal.id).where(
+            ProjetoVidaMensal.id == projeto_id,
+            ProjetoVidaMensal.user_id == user.id,
+        )
+    ).scalar_one_or_none() or _raise_not_found()
+
+    exame = db.execute(
+        select(ProjetoVidaExame).where(ProjetoVidaExame.projeto_id == projeto_id)
+    ).scalar_one_or_none()
+
+    if exame is None:
+        exame = ProjetoVidaExame(projeto_id=projeto_id)
+        db.add(exame)
+
+    # Merge parcial: apenas atualiza campos enviados (não None no body)
+    for field in ("gracas_recebidas", "infidelidades", "dificuldades_espirituais",
+                  "jesus_abandonado", "onde_deixei_de_responder", "proposito_conversao"):
+        value = getattr(body, field)
+        if value is not None:
+            setattr(exame, field, value)
+
+    db.commit()
+    db.refresh(exame)
+    return exame
 
 
 @router.put("/{projeto_id}", response_model=ProjetoVidaMensalFull)
