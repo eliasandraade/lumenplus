@@ -20,6 +20,7 @@ import projetoVidaMensalApi, {
   type IntercessaoUpsert,
 } from '@/services/projetoVidaMensal';
 import { getMotivacaoContent } from '@/data/conteudoVocacional';
+import { CalendarPicker, HorarioInput } from '@/components/ui';
 
 // ── Tipos locais ─────────────────────────────────────────────────────────────
 
@@ -303,6 +304,8 @@ export default function WizardScreen() {
             areaData={data.areas.FAMILIA_VOCACIONAL}
             onChange={patch => update({ areas: { ...data.areas, FAMILIA_VOCACIONAL: { ...data.areas.FAMILIA_VOCACIONAL, ...patch } } })}
             t={t} r={r}
+            mesCiclo={Number(data.mes) || undefined}
+            anoCiclo={Number(data.ano) || undefined}
           />
         );
 
@@ -310,10 +313,12 @@ export default function WizardScreen() {
         return (
           <AreaMensalStep
             titulo="Ministério Bom Pastor"
-            descricaoOrientadora="Seu serviço e missão apostólica. Liste atividades pastorais, atendimentos e compromissos de serviço que você assume neste mês."
+            descricaoOrientadora="O Ministério Bom Pastor é o coração apostólico do seu caminho. Registre o dia do seu encontro de acompanhamento — esse compromisso é sagrado. Se você também é acompanhador, registre os dias em que estará presente para os seus acompanhados."
             areaData={data.areas.MINISTERIO_BOM_PASTOR}
             onChange={patch => update({ areas: { ...data.areas, MINISTERIO_BOM_PASTOR: { ...data.areas.MINISTERIO_BOM_PASTOR, ...patch } } })}
             t={t} r={r}
+            mesCiclo={Number(data.mes) || undefined}
+            anoCiclo={Number(data.ano) || undefined}
           />
         );
 
@@ -325,6 +330,8 @@ export default function WizardScreen() {
             areaData={data.areas.GRUPO_FORMATIVO}
             onChange={patch => update({ areas: { ...data.areas, GRUPO_FORMATIVO: { ...data.areas.GRUPO_FORMATIVO, ...patch } } })}
             t={t} r={r}
+            mesCiclo={Number(data.mes) || undefined}
+            anoCiclo={Number(data.ano) || undefined}
           />
         );
 
@@ -336,6 +343,8 @@ export default function WizardScreen() {
             areaData={data.areas.SAUDE_LAZER}
             onChange={patch => update({ areas: { ...data.areas, SAUDE_LAZER: { ...data.areas.SAUDE_LAZER, ...patch } } })}
             t={t} r={r}
+            mesCiclo={Number(data.mes) || undefined}
+            anoCiclo={Number(data.ano) || undefined}
           />
         );
 
@@ -347,6 +356,8 @@ export default function WizardScreen() {
             areaData={data.areas.FAMILIA_ORIGEM}
             onChange={patch => update({ areas: { ...data.areas, FAMILIA_ORIGEM: { ...data.areas.FAMILIA_ORIGEM, ...patch } } })}
             t={t} r={r}
+            mesCiclo={Number(data.mes) || undefined}
+            anoCiclo={Number(data.ano) || undefined}
           />
         );
 
@@ -694,6 +705,8 @@ function AreaMensalStep({
   onChange,
   t,
   r,
+  mesCiclo,
+  anoCiclo,
 }: {
   titulo: string;
   descricaoOrientadora: string;
@@ -701,6 +714,8 @@ function AreaMensalStep({
   onChange: (patch: Partial<AreaData>) => void;
   t: ThemeTokens;
   r: RadiiTokens;
+  mesCiclo?: number;
+  anoCiclo?: number;
 }) {
   const inputStyle = {
     backgroundColor: t.bg.surface,
@@ -768,11 +783,23 @@ function AreaMensalStep({
           </View>
           <TextInput style={inputStyle} placeholder="Descrição" placeholderTextColor={t.text.tertiary}
             value={c.descricao ?? ''} onChangeText={v => updateCompromisso(idx, { descricao: v })} />
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TextInput style={[inputStyle, { flex: 1 }]} placeholder="Data" placeholderTextColor={t.text.tertiary}
-              value={c.data ?? ''} onChangeText={v => updateCompromisso(idx, { data: v })} />
-            <TextInput style={[inputStyle, { flex: 1 }]} placeholder="Horário" placeholderTextColor={t.text.tertiary}
-              value={c.horario ?? ''} onChangeText={v => updateCompromisso(idx, { horario: v })} />
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+            <View style={{ flex: 1 }}>
+              <CalendarPicker
+                value={c.data ?? ''}
+                onChange={v => updateCompromisso(idx, { data: v })}
+                label="Selecionar data"
+                mes={mesCiclo}
+                ano={anoCiclo}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <HorarioInput
+                value={c.horario ?? ''}
+                onChange={v => updateCompromisso(idx, { horario: v })}
+                placeholder="Horário"
+              />
+            </View>
           </View>
           <TextInput style={inputStyle} placeholder="Local (opcional)" placeholderTextColor={t.text.tertiary}
             value={c.local ?? ''} onChangeText={v => updateCompromisso(idx, { local: v })} />
