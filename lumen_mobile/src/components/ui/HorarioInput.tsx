@@ -1,5 +1,7 @@
-import { useState } from 'react';
+// lumen_mobile/src/components/ui/HorarioInput.tsx
+import { useState, useEffect } from 'react';
 import { View, TextInput, Text, StyleSheet } from 'react-native';
+import type { StyleProp, TextStyle } from 'react-native';
 import { useTheme } from '@/theme';
 
 export function formatarHorario(raw: string): string {
@@ -9,7 +11,7 @@ export function formatarHorario(raw: string): string {
 }
 
 export function horarioValido(v: string): boolean {
-  if (v === '') return true; // campo opcional
+  if (v === '') return true;
   if (!/^\d{2}:\d{2}$/.test(v)) return false;
   const [h, m] = v.split(':').map(Number);
   return h >= 0 && h <= 23 && m >= 0 && m <= 59;
@@ -19,12 +21,17 @@ interface HorarioInputProps {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
-  style?: object;
+  style?: StyleProp<TextStyle>;
 }
 
 export function HorarioInput({ value, onChange, placeholder = 'HH:MM', style }: HorarioInputProps) {
   const { t, r } = useTheme();
   const [erro, setErro] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (value === '') setErro(false);
+  }, [value]);
 
   const handleChange = (raw: string) => {
     setErro(false);
@@ -32,31 +39,31 @@ export function HorarioInput({ value, onChange, placeholder = 'HH:MM', style }: 
   };
 
   const handleBlur = () => {
+    setIsFocused(false);
     if (!horarioValido(value)) {
       setErro(true);
       onChange('');
     }
   };
 
+  const borderColor = erro ? t.status.error : isFocused ? t.border.focus : t.border.subtle;
+
   return (
     <View>
       <TextInput
         style={[
+          styles.input,
           {
             backgroundColor: t.bg.surface,
             borderRadius: r.md,
-            borderWidth: StyleSheet.hairlineWidth,
-            borderColor: erro ? t.status.error : t.border.subtle,
-            padding: 12,
-            fontSize: 15,
-            fontFamily: 'Nunito-Regular',
+            borderColor,
             color: t.text.primary,
-            minHeight: 48,
           },
           style,
         ]}
         value={value}
         onChangeText={handleChange}
+        onFocus={() => setIsFocused(true)}
         onBlur={handleBlur}
         placeholder={placeholder}
         placeholderTextColor={t.text.tertiary}
@@ -64,10 +71,25 @@ export function HorarioInput({ value, onChange, placeholder = 'HH:MM', style }: 
         maxLength={5}
       />
       {erro && (
-        <Text style={{ fontSize: 11, fontFamily: 'Nunito-Regular', color: t.status.error, marginTop: 3 }}>
+        <Text style={[styles.errorText, { color: t.status.error }]}>
           Horário inválido — use o formato HH:MM (ex.: 07:30)
         </Text>
       )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  input: {
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 12,
+    fontSize: 15,
+    fontFamily: 'Nunito-Regular',
+    minHeight: 48,
+  },
+  errorText: {
+    fontSize: 11,
+    fontFamily: 'Nunito-Regular',
+    marginTop: 3,
+  },
+});
