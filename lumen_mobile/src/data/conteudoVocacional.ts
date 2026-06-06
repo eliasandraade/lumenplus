@@ -181,7 +181,8 @@ export function getMotivacaoContent(
 ): MotivacaoContent {
   const key = vocationalRealityCode ?? 'GENERICO';
   const content = MOTIVACAO_CONTENT[key] ?? MOTIVACAO_CONTENT.GENERICO;
-  return { ...content, saudacao: content.saudacao.replace('{nome}', nome.split(' ')[0]) };
+  const primeiroNome = (nome?.trim().split(' ')[0] ?? 'você') || 'você';
+  return { ...content, saudacao: content.saudacao.replace('{nome}', primeiroNome) };
 }
 
 export function getDeveEstadoTemplate(lifeStateCode: string | null | undefined): DeveEstadoTemplate {
