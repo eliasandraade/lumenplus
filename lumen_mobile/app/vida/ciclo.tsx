@@ -313,12 +313,32 @@ export default function CicloScreen() {
       )}
 
       {/* Acesso ao Projeto Semanal */}
-      <View style={{ paddingHorizontal: 20, paddingVertical: 16 }}>
+      <View style={{ paddingHorizontal: 20, paddingVertical: 16, flexDirection: 'row', gap: 10 }}>
         <TouchableOpacity
           style={{
-            flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-            gap: 8, padding: 16, borderRadius: r.xl,
+            flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+            gap: 6, padding: 14, borderRadius: r.xl,
             backgroundColor: t.brand.primaryDim, borderWidth: 1.5, borderColor: t.brand.primary,
+          }}
+          onPress={() => router.push({
+            pathname: '/vida/semanal-view' as any,
+            params: { projetoId },
+          })}
+          activeOpacity={0.8}
+          accessibilityLabel="Ver Projeto Semanal"
+          accessibilityRole="button"
+        >
+          <Ionicons name={'eye-outline' as IoniconsName} size={16} color={t.brand.primary} />
+          <Text style={{ fontSize: 14, fontFamily: 'Nunito-Bold', color: t.brand.primary }}>
+            Ver semana
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={{
+            flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+            gap: 6, padding: 14, borderRadius: r.xl,
+            backgroundColor: t.bg.elevated, borderWidth: 1, borderColor: t.border.default,
           }}
           onPress={() => router.push({
             pathname: '/vida/semanal',
@@ -328,14 +348,13 @@ export default function CicloScreen() {
             },
           })}
           activeOpacity={0.8}
-          accessibilityLabel="Abrir Projeto Semanal"
+          accessibilityLabel="Editar Projeto Semanal"
           accessibilityRole="button"
         >
-          <Ionicons name={'calendar-outline' as IoniconsName} size={18} color={t.brand.primary} />
-          <Text style={{ fontSize: 15, fontFamily: 'Nunito-Bold', color: t.brand.primary }}>
-            Projeto Semanal
+          <Ionicons name={'pencil-outline' as IoniconsName} size={16} color={t.text.secondary} />
+          <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.secondary }}>
+            Editar semana
           </Text>
-          <Ionicons name={'chevron-forward' as IoniconsName} size={16} color={t.brand.primary} />
         </TouchableOpacity>
       </View>
 
