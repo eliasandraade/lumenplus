@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, StyleSheet,
 } from 'react-native';
@@ -37,8 +37,23 @@ export function CalendarPicker({ value, onChange, label, mes, ano }: CalendarPic
   const { t, r } = useTheme();
   const hoje = new Date();
   const [open, setOpen] = useState(false);
-  const [curMes, setCurMes] = useState(mes ? mes - 1 : hoje.getMonth()); // 0-based
-  const [curAno, setCurAno] = useState(ano ?? hoje.getFullYear());
+  const [curMes, setCurMes] = useState(() => {
+    const parsed = parseDDMMYYYY(value);
+    if (parsed) return parsed.getMonth();
+    return mes ? mes - 1 : hoje.getMonth();
+  });
+  const [curAno, setCurAno] = useState(() => {
+    const parsed = parseDDMMYYYY(value);
+    if (parsed) return parsed.getFullYear();
+    return ano ?? hoje.getFullYear();
+  });
+
+  useEffect(() => {
+    if (typeof document === 'undefined' || !open) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open]);
 
   const selected = parseDDMMYYYY(value);
 
