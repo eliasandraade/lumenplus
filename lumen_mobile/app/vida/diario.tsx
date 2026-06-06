@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { IoniconsName } from '@/types/icons';
 import projetoVidaMensalApi, { type PlanoDiarioItem } from '@/services/projetoVidaMensal';
 import { useTheme } from '@/theme';
+import { HorarioInput } from '@/components/ui/HorarioInput';
 
 const DIAS_SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'] as const;
 const DIA_LABELS: Record<string, string> = {
@@ -36,10 +37,13 @@ function formatarDataAmanha(): string {
 }
 
 export default function DiarioScreen() {
-  const { semanalId } = useLocalSearchParams<{ semanalId?: string }>();
+  const { semanalId, dia } = useLocalSearchParams<{ semanalId?: string; dia?: string }>();
   const { t, r } = useTheme();
 
-  const [diaAtivo, setDiaAtivo] = useState<string>(getDiaSeguinte());
+  const DIAS_SEMANA_SET = new Set(['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom']);
+  const [diaAtivo, setDiaAtivo] = useState<string>(
+    dia && DIAS_SEMANA_SET.has(dia) ? dia : getDiaSeguinte()
+  );
   const [diaData, setDiaData] = useState<PlanoDiarioItem>({});
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -176,12 +180,11 @@ export default function DiarioScreen() {
             />
           </View>
           {diaData.missa && (
-            <TextInput
-              style={inputStyle}
+            <HorarioInput
               value={diaData.horario_missa ?? ''}
-              onChangeText={v => update({ horario_missa: v || null })}
+              onChange={v => update({ horario_missa: v || null })}
               placeholder="Horário da Missa (ex.: 07:00)"
-              placeholderTextColor={t.text.tertiary}
+              style={{ marginBottom: 12 }}
             />
           )}
 
