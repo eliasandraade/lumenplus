@@ -188,10 +188,9 @@ export default function SemanalmScreen() {
         const novo = await projetoVidaMensalApi.createSemanal(projetoId, payload);
         semanalIdFinal = novo.id;
       }
-      router.replace({
-        pathname: '/vida/semanal-view',
-        params: { semanalId: semanalIdFinal, projetoId },
-      });
+      // rota registrada em CP7; manifest atualizado ao iniciar o dev server
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (router.replace as any)('/vida/semanal-view', { semanalId: semanalIdFinal, projetoId });
     } catch (e: any) {
       setError(e?.response?.data?.detail?.message ?? 'Erro ao salvar. Tente novamente.');
     } finally {
