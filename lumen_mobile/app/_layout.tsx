@@ -22,6 +22,7 @@ import {
 } from '@expo-google-fonts/nunito';
 import * as SplashScreen from 'expo-splash-screen';
 import { ThemeProvider, useTheme } from '@/theme';
+import { UnlockedCyclesProvider } from '@/contexts/UnlockedCyclesContext';
 
 // Sentry — inicializa antes de qualquer render
 Sentry.init({
@@ -135,9 +136,11 @@ export default function RootLayout() {
     <Sentry.ErrorBoundary fallback={({ error }) => <CrashFallback error={error as Error} />}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <SafeAreaProvider>
-            <AppStack />
-          </SafeAreaProvider>
+          <UnlockedCyclesProvider>
+            <SafeAreaProvider>
+              <AppStack />
+            </SafeAreaProvider>
+          </UnlockedCyclesProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </Sentry.ErrorBoundary>

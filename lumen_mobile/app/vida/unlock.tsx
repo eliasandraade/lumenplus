@@ -13,10 +13,12 @@ import { Ionicons } from '@expo/vector-icons';
 import type { IoniconsName } from '@/types/icons';
 import projetoVidaMensalApi from '@/services/projetoVidaMensal';
 import { useTheme } from '@/theme';
+import { useUnlockedCycles } from '@/contexts/UnlockedCyclesContext';
 
 export default function UnlockScreen() {
   const { t, r } = useTheme();
   const { projetoId } = useLocalSearchParams<{ projetoId: string }>();
+  const { markUnlocked } = useUnlockedCycles();
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +34,7 @@ export default function UnlockScreen() {
     try {
       const result = await projetoVidaMensalApi.verificarPin(projetoId, pin);
       if (result.valid) {
+        markUnlocked(projetoId);
         router.replace({ pathname: '/vida/ciclo', params: { projetoId } });
       } else {
         setError('PIN incorreto. Tente novamente.');
