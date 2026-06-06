@@ -108,7 +108,7 @@ const formatDate = (v: string): string => {
 // =============================================================================
 
 export default function ProfileScreen() {
-  const { t } = useTheme();
+  const { t, isDark, setTheme } = useTheme();
   const styles = makeStyles(t);
 
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -575,6 +575,53 @@ export default function ProfileScreen() {
           <InfoRow icon="person-add-outline" label="Nome" value={ec?.name} t={t} />
           <InfoRow icon="heart-circle-outline" label="Parentesco" value={ec?.relationship} t={t} />
           <InfoRow icon="call-outline" label="Telefone" value={e164ToDisplay(ec?.phone_e164) || undefined} last t={t} />
+        </View>
+
+        {/* ── Aparência ── */}
+        <View style={styles.appearanceCard}>
+          <Text style={styles.appearanceLabel}>
+            Aparência
+          </Text>
+          <View style={styles.appearanceRow}>
+            <TouchableOpacity
+              style={[
+                styles.themeBtn,
+                !isDark && styles.themeBtnActive,
+                { borderColor: !isDark ? t.brand.primary : t.border.subtle },
+              ]}
+              onPress={() => setTheme('light')}
+              activeOpacity={0.8}
+              accessibilityLabel="Tema claro"
+              accessibilityRole="button"
+            >
+              <Text style={[
+                styles.themeBtnText,
+                { color: !isDark ? t.brand.primary : t.text.secondary },
+                !isDark && styles.themeBtnTextActive,
+              ]}>
+                Claro
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.themeBtn,
+                isDark && styles.themeBtnActive,
+                { borderColor: isDark ? t.brand.primary : t.border.subtle },
+              ]}
+              onPress={() => setTheme('dark')}
+              activeOpacity={0.8}
+              accessibilityLabel="Tema escuro"
+              accessibilityRole="button"
+            >
+              <Text style={[
+                styles.themeBtnText,
+                { color: isDark ? t.brand.primary : t.text.secondary },
+                isDark && styles.themeBtnTextActive,
+              ]}>
+                Escuro
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── Sair ── */}
@@ -1397,4 +1444,44 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   subItemSelected: { backgroundColor: t.brand.primaryDim },
   subItemText: { fontSize: 16, color: t.text.primary, fontFamily: 'Nunito-Regular' },
   subItemTextSelected: { color: t.brand.primary, fontFamily: 'Nunito-Bold' },
+
+  appearanceCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: t.bg.elevated,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: t.border.subtle,
+  },
+  appearanceLabel: {
+    fontSize: 13,
+    fontFamily: 'Nunito-Bold',
+    color: t.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 12,
+  },
+  appearanceRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  themeBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    backgroundColor: t.bg.surface,
+  },
+  themeBtnActive: {
+    backgroundColor: t.brand.primaryDim,
+  },
+  themeBtnText: {
+    fontFamily: 'Nunito-Regular',
+    fontSize: 14,
+  },
+  themeBtnTextActive: {
+    fontFamily: 'Nunito-Bold',
+  },
 });
