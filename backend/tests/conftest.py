@@ -27,6 +27,15 @@ from app.db.models import Base
 from app.db.session import get_db as session_get_db
 from app.main import app
 
+# SQLite não suporta tipos específicos do PostgreSQL (UUID, JSONB, ARRAY).
+# Este patch ensina o compilador SQLite a tratar todos como TEXT,
+# permitindo que Base.metadata.create_all() funcione em testes.
+from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler  # noqa: E402
+
+SQLiteTypeCompiler.visit_UUID = lambda self, type_, **kw: "TEXT"  # noqa: E305
+SQLiteTypeCompiler.visit_JSONB = lambda self, type_, **kw: "TEXT"
+SQLiteTypeCompiler.visit_ARRAY = lambda self, type_, **kw: "TEXT"
+
 
 # =============================================================================
 # DATABASE FIXTURES

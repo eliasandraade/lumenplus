@@ -50,16 +50,16 @@ def test_schema_pin_validation():
 
 
 def test_criar_projeto(client: TestClient):
+    # "tema" não é exposto na API (campo interno), enviá-lo no body é ignorado
     r = client.post(
         "/projeto-vida-mensal/",
-        json={"mes": 4, "ano": 2026, "tema": "Fé e perseverança"},
+        json={"mes": 4, "ano": 2026},
         headers=HEADERS,
     )
     assert r.status_code == 201
     data = r.json()
     assert data["mes"] == 4
     assert data["ano"] == 2026
-    assert data["tema"] == "Fé e perseverança"
     assert data["has_pin"] is False
     assert data["concluido"] is False
 
@@ -88,11 +88,16 @@ def test_update_projeto(client: TestClient):
         headers=HEADERS,
     )
     pid = r.json()["id"]
+    # comunidade.partilha_acompanhador é agora JSONB (lista de EventoItem)
     r2 = client.put(
         f"/projeto-vida-mensal/{pid}",
         json={
-            "tema": "Novo tema",
-            "comunidade": {"partilha_acompanhador": "Com o Pe. João"},
+            "comunidade": {
+                "partilha_acompanhador": [{"data": "10/06", "horario": "19:00", "local": "Sede", "observacoes": ""}],
+                "encontro_familia": [],
+                "dias_grupo": [],
+                "outros": [],
+            },
             "compromissos": [
                 {"semana": "s1", "titulo": "Missa diária", "dia": "Segunda", "horario": "07:00", "obs": "", "ordem": 0}
             ],
@@ -101,8 +106,7 @@ def test_update_projeto(client: TestClient):
     )
     assert r2.status_code == 200
     data = r2.json()
-    assert data["tema"] == "Novo tema"
-    assert data["comunidade"]["partilha_acompanhador"] == "Com o Pe. João"
+    assert len(data["comunidade"]["partilha_acompanhador"]) == 1
     assert len(data["compromissos"]) == 1
 
 
@@ -129,6 +133,8 @@ def test_pin_verificar(client: TestClient):
 
 
 def test_upsert_revisao(client: TestClient):
+    # Revisão usa campos v2 (migration 034): pratica_melhorar, taticas_vigilancia,
+    # rotina_evangelizacao, outra_area_atencao. Campos antigos (graca, decisao) foram removidos.
     r = client.post(
         "/projeto-vida-mensal/",
         json={"mes": 8, "ano": 2026},
@@ -137,11 +143,11 @@ def test_upsert_revisao(client: TestClient):
     pid = r.json()["id"]
     r2 = client.put(
         f"/projeto-vida-mensal/{pid}/revisao",
-        json={"graca": "Vi a graça em...", "decisao": "Orar mais"},
+        json={"pratica_melhorar": "Oração diária", "rotina_evangelizacao": "30 min por dia"},
         headers=HEADERS,
     )
     assert r2.status_code == 200
-    assert r2.json()["revisao"]["graca"] == "Vi a graça em..."
+    assert r2.json()["revisao"]["pratica_melhorar"] == "Oração diária"
 
 
 def test_contexto_vocacional_usuario_sem_perfil(client: TestClient, auth_headers: dict):

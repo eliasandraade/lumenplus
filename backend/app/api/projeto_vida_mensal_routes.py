@@ -32,6 +32,7 @@ from app.db.models import (
     ProjetoVidaMensal,
     ProjetoVidaPratica,
     ProjetoVidaRevisao,
+    UserIdentity,
     UserProfile,
 )
 from app.schemas.projeto_vida_mensal import (
@@ -205,14 +206,18 @@ def get_contexto_vocacional(
     perfil_incompleto = vocational_code is None or life_state_code is None
 
     # Resolve nome: UserProfile.full_name → identity email → empty string
+    # Query explícita para evitar acesso lazy em sessão fechada
     nome: str = ""
     if profile and profile.full_name:
         nome = profile.full_name
     else:
-        for identity in user.identities:
-            if identity.email:
-                nome = identity.email
-                break
+        identity_row = db.execute(
+            select(UserIdentity.email)
+            .where(UserIdentity.user_id == user.id, UserIdentity.email.is_not(None))
+            .limit(1)
+        ).scalar_one_or_none()
+        if identity_row:
+            nome = identity_row
 
     return {
         "vocational_reality_code": vocational_code,
