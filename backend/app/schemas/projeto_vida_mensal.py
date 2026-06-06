@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ── Sub-schemas: itens de lista ─────────────────────────────────────────────
@@ -123,6 +123,51 @@ class RevisaoOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Áreas mensais ───────────────────────────────────────────────────────────
+
+TIPOS_AREA_VALIDOS = frozenset({
+    "FAMILIA_VOCACIONAL",
+    "MINISTERIO_BOM_PASTOR",
+    "GRUPO_FORMATIVO",
+    "SAUDE_LAZER",
+    "FAMILIA_ORIGEM",
+})
+
+
+class CompromissoAreaItem(BaseModel):
+    descricao: Optional[str] = Field(None, max_length=500)
+    data: Optional[str] = Field(None, max_length=20)
+    horario: Optional[str] = Field(None, max_length=20)
+    local: Optional[str] = Field(None, max_length=300)
+    obs: Optional[str] = Field(None, max_length=1000)
+
+
+class AreaMensalIn(BaseModel):
+    tipo_area: str
+    objetivo: Optional[str] = Field(None, max_length=3000)
+    compromissos: Optional[List[CompromissoAreaItem]] = []
+    observacoes: Optional[str] = Field(None, max_length=3000)
+
+    @field_validator("tipo_area")
+    @classmethod
+    def validar_tipo_area(cls, v: str) -> str:
+        if v not in TIPOS_AREA_VALIDOS:
+            raise ValueError(
+                f"tipo_area inválido: '{v}'. Valores aceitos: {sorted(TIPOS_AREA_VALIDOS)}"
+            )
+        return v
+
+
+class AreaMensalOut(BaseModel):
+    id: UUID
+    tipo_area: str
+    objetivo: Optional[str] = None
+    compromissos: Optional[List[CompromissoAreaItem]] = []
+    observacoes: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
 # ── Top-level schemas ──────────────────────────────────────────────────────
 
 
@@ -131,12 +176,15 @@ class ProjetoVidaMensalCreate(BaseModel):
     ano: int = Field(..., ge=2024, le=2100)
     pin: Optional[str] = Field(None, min_length=4, max_length=4, pattern=r"^\d{4}$")
     intencao: Optional[str] = Field(None, max_length=2000)
+    reflexao_evangelizacao: Optional[str] = Field(None, max_length=3000)
 
 
 class ProjetoVidaMensalUpdate(BaseModel):
     observacoes_mes: Optional[str] = Field(None, max_length=3000)
     concluido: Optional[bool] = None
     intencao: Optional[str] = Field(None, max_length=2000)
+    reflexao_evangelizacao: Optional[str] = Field(None, max_length=3000)
+    areas: Optional[List[AreaMensalIn]] = None
     comunidade: Optional[ComunidadeData] = None
     cuidado: Optional[CuidadoData] = None
     compromissos: Optional[List[CompromissoIn]] = None
@@ -159,6 +207,9 @@ class ProjetoVidaMensalFull(BaseModel):
     has_pin: bool
     concluido: bool
     observacoes_mes: Optional[str] = None
+    reflexao_evangelizacao: Optional[str] = None
+    has_new_structure: bool = False
+    areas: List[AreaMensalOut] = []
     intencao: Optional[str] = None
     comunidade: Optional[ComunidadeData] = None
     cuidado: Optional[CuidadoData] = None
