@@ -225,6 +225,21 @@ export interface ExameUpsert {
   proposito_conversao?: string | null;
 }
 
+export interface IntercessaoOut {
+  id: string;
+  intencoes_pessoais: string | null;
+  intencoes_comunitarias: string | null;
+  oferecimento: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IntercessaoUpsert {
+  intencoes_pessoais?: string | null;
+  intencoes_comunitarias?: string | null;
+  oferecimento?: string | null;
+}
+
 // ── API ────────────────────────────────────────────────────────────────────
 
 export const projetoVidaMensalApi = {
@@ -259,6 +274,9 @@ export const projetoVidaMensalApi = {
 
   upsertExame: (id: string, data: ExameUpsert) =>
     api.put<ExameOut>(`/projeto-vida-mensal/${id}/exame`, data as Record<string, unknown>),
+
+  upsertIntercessao: (id: string, data: IntercessaoUpsert) =>
+    api.put<IntercessaoOut>(`/projeto-vida-mensal/${id}/intercessao`, data as Record<string, unknown>),
 };
 
 export default projetoVidaMensalApi;

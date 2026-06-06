@@ -1,7 +1,7 @@
 /**
  * Projeto de Vida Mensal — Wizard de Criação
  * ============================================
- * 10 passos: Motivação → Ciclo → 5 Áreas → Evangelização → PIN → Confirmar
+ * 11 passos: Motivação → Ciclo → 5 Áreas → Evangelização → Intercessão → PIN → Confirmar
  */
 
 import { useState, useEffect } from 'react';
@@ -17,6 +17,7 @@ import projetoVidaMensalApi, {
   MESES,
   type CompromissoAreaItem, type AreaMensalIn,
   type ContextoVocacionalOut,
+  type IntercessaoUpsert,
 } from '@/services/projetoVidaMensal';
 import { getMotivacaoContent } from '@/data/conteudoVocacional';
 
@@ -34,6 +35,9 @@ interface WizardData {
   pin: string;
   intencao: string;
   reflexao_evangelizacao: string;
+  intencoes_pessoais: string;
+  intencoes_comunitarias: string;
+  oferecimento: string;
   areas: Record<string, AreaData>;
 }
 
@@ -44,6 +48,9 @@ const defaultData = (): WizardData => ({
   pin: '',
   intencao: '',
   reflexao_evangelizacao: '',
+  intencoes_pessoais: '',
+  intencoes_comunitarias: '',
+  oferecimento: '',
   areas: {
     FAMILIA_VOCACIONAL:    { objetivo: '', compromissos: [], observacoes: '' },
     MINISTERIO_BOM_PASTOR: { objetivo: '', compromissos: [], observacoes: '' },
@@ -57,7 +64,7 @@ const STEP_TITLES = [
   'Motivação', 'Ciclo Mensal',
   'Família Vocacional', 'Ministério Bom Pastor', 'Grupo Formativo',
   'Saúde e Lazer', 'Família de Origem', 'Evangelização Ser Feliz',
-  'Privacidade', 'Confirmar',
+  'Intercessão', 'Privacidade', 'Confirmar',
 ];
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -120,6 +127,16 @@ export default function WizardScreen() {
         reflexao_evangelizacao: data.reflexao_evangelizacao || null,
         areas: areasArray,
       });
+
+      // Salvar intercessão (todos os campos opcionais)
+      if (data.intencoes_pessoais || data.intencoes_comunitarias || data.oferecimento) {
+        await projetoVidaMensalApi.upsertIntercessao(projetoId, {
+          intencoes_pessoais: data.intencoes_pessoais || null,
+          intencoes_comunitarias: data.intencoes_comunitarias || null,
+          oferecimento: data.oferecimento || null,
+        });
+      }
+
       router.replace({ pathname: '/vida/ciclo', params: { projetoId } });
     } catch (e: any) {
       const msg = e?.response?.data?.detail?.message ?? 'Erro ao salvar. Tente novamente.';
@@ -370,8 +387,102 @@ export default function WizardScreen() {
           </View>
         );
 
-      // ── Step 8: PIN / Privacidade ─────────────────────────────────────────
+      // ── Step 8: Intercessão ──────────────────────────────────────────────────
       case 8:
+        return (
+          <View style={{ padding: 20 }}>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <Ionicons name={'heart' as IoniconsName} size={32} color={t.accent.spiritual} />
+              <Text style={{ fontSize: 18, fontFamily: 'Nunito-Bold', color: t.text.primary, textAlign: 'center', marginTop: 10, marginBottom: 8 }}>
+                Encerre em oração
+              </Text>
+              <Text style={{ fontSize: 14, fontFamily: 'Nunito-Italic', color: t.text.secondary, textAlign: 'center', lineHeight: 22 }}>
+                Termine o seu Projeto de Vida entregando tudo ao Senhor.
+              </Text>
+            </View>
+
+            {/* Intenções pessoais */}
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Bold', color: t.text.secondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+              Intenções pessoais
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: t.bg.surface,
+                borderRadius: r.md,
+                borderWidth: StyleSheet.hairlineWidth,
+                borderColor: t.border.subtle,
+                padding: 14,
+                fontSize: 15,
+                fontFamily: 'Nunito-Regular',
+                color: t.text.primary,
+                minHeight: 80,
+                textAlignVertical: 'top',
+                marginBottom: 16,
+              }}
+              value={data.intencoes_pessoais}
+              onChangeText={v => update({ intencoes_pessoais: v })}
+              multiline
+              numberOfLines={3}
+              placeholder="Pessoas e intenções que carrego no coração..."
+              placeholderTextColor={t.text.tertiary}
+            />
+
+            {/* Intenções comunitárias */}
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Bold', color: t.text.secondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+              Intenções comunitárias
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: t.bg.surface,
+                borderRadius: r.md,
+                borderWidth: StyleSheet.hairlineWidth,
+                borderColor: t.border.subtle,
+                padding: 14,
+                fontSize: 15,
+                fontFamily: 'Nunito-Regular',
+                color: t.text.primary,
+                minHeight: 80,
+                textAlignVertical: 'top',
+                marginBottom: 16,
+              }}
+              value={data.intencoes_comunitarias}
+              onChangeText={v => update({ intencoes_comunitarias: v })}
+              multiline
+              numberOfLines={3}
+              placeholder="Intenções pela comunidade, irmãos, missão..."
+              placeholderTextColor={t.text.tertiary}
+            />
+
+            {/* Oferecimento */}
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Bold', color: t.text.secondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+              Oferecimento do mês
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: t.bg.surface,
+                borderRadius: r.md,
+                borderWidth: StyleSheet.hairlineWidth,
+                borderColor: t.border.subtle,
+                padding: 14,
+                fontSize: 15,
+                fontFamily: 'Nunito-Regular',
+                color: t.text.primary,
+                minHeight: 64,
+                textAlignVertical: 'top',
+                marginBottom: 16,
+              }}
+              value={data.oferecimento}
+              onChangeText={v => update({ oferecimento: v })}
+              multiline
+              numberOfLines={2}
+              placeholder="Ofereço este ciclo ao Senhor por..."
+              placeholderTextColor={t.text.tertiary}
+            />
+          </View>
+        );
+
+      // ── Step 9: PIN / Privacidade ─────────────────────────────────────────
+      case 9:
         return (
           <View style={styles.stepContent}>
             {/* Bloco de privacidade */}
@@ -421,8 +532,8 @@ export default function WizardScreen() {
           </View>
         );
 
-      // ── Step 9: Confirmar ─────────────────────────────────────────────────
-      case 9:
+      // ── Step 10: Confirmar ─────────────────────────────────────────────────
+      case 10:
         return (
           <View style={styles.stepContent}>
             <View style={{ backgroundColor: t.brand.primaryDim, borderRadius: 14, padding: 20, marginBottom: 20, gap: 8 }}>
@@ -447,6 +558,9 @@ export default function WizardScreen() {
               })}
               {data.reflexao_evangelizacao ? (
                 <Text style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.primary }}>✦ Evangelização Ser Feliz preenchida</Text>
+              ) : null}
+              {(data.intencoes_pessoais || data.intencoes_comunitarias || data.oferecimento) ? (
+                <Text style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.primary }}>🙏 Intercessão preenchida</Text>
               ) : null}
             </View>
             {error && (
