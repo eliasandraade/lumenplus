@@ -596,7 +596,7 @@ Response: `IntercessaoOut` completo.
 - Todos verificam que o `user_id` do projeto corresponde ao usuário autenticado
 - Retornam 403 se o projeto pertence a outro usuário
 - Nenhum dado é incluído em audit logs ou dashboards administrativos
-- PIN do projeto pai é verificado antes de qualquer acesso a exame, semanal e intercessão
+- **Proteção por PIN:** É uma guarda client-side, não server-side. O backend não recebe o PIN em cada chamada. A verificação de autoria é a única guarda server-side. O frontend garante que ciclos protegidos por PIN só são acessíveis após verificação via `UnlockedCyclesContext` (ver RN-03 para o mecanismo completo)
 
 ---
 
@@ -792,7 +792,12 @@ Response: `IntercessaoOut` completo.
 
 - **RN-01:** Nenhum dado do módulo Projeto de Vida é incluído em audit logs, respostas administrativas ou dashboards.
 - **RN-02:** Todos os endpoints verificam que o `user_id` do projeto pertence ao usuário autenticado. 403 caso contrário.
-- **RN-03:** Se o projeto tem PIN, o acesso a exame, semanal, intercessão e ciclo requer verificação prévia do PIN (fluxo de unlock existente estendido para os novos recursos).
+- **RN-03:** Se o projeto tem PIN, o acesso a exame, semanal, intercessão e ciclo requer que o PIN tenha sido verificado na sessão atual. O mecanismo é:
+  1. O usuário passa pela tela `/vida/unlock`, que chama `POST /{id}/pin/verificar` e recebe `{ valid: true }`.
+  2. O frontend armazena o `projeto_id` como "desbloqueado" em um contexto React em memória (`UnlockedCyclesContext`). Este estado é **in-memory apenas** — não persiste em AsyncStorage nem entre reinicializações do app.
+  3. Ao navegar para exame, semanal, diário ou intercessão de um ciclo protegido, o frontend verifica `unlockedCycleIds.has(projetoId)` antes de renderizar a tela. Se não estiver desbloqueado, redireciona para `/vida/unlock` com o `projetoId` como parâmetro e `returnTo` indicando a tela de destino.
+  4. O backend **não** recebe o PIN em cada chamada dos novos endpoints — a verificação de autoria (`user_id == usuário autenticado`) é a única guarda server-side. A proteção por PIN é uma guarda client-side de acesso à interface, consistente com o comportamento atual do módulo.
+  5. O `UnlockedCyclesContext` é limpo quando o app vai para background por mais de 15 minutos (TTL configurável). Isso garante que a proteção não fique permanentemente contornada em uma sessão longa.
 - **RN-04:** A equipe técnica não pode acessar o conteúdo escrito pelo usuário.
 
 ### 8.2 Integridade dos dados
@@ -817,7 +822,12 @@ Response: `IntercessaoOut` completo.
 
 - **RN-14:** O exame é sempre vinculado ao ciclo **encerrado** (ciclo anterior), não ao novo ciclo que será criado.
 - **RN-15:** O exame pode ser criado ou atualizado a qualquer momento após o ciclo ser marcado como concluído.
-- **RN-16:** O exame não é obrigatório para criar um novo ciclo. O hub sugere; o usuário pode pular.
+- **RN-16:** O exame de consciência é sugerido, nunca obrigatório. Regras de não-bloqueio:
+  - O hub exibe o convite ao exame como card informativo, com dois botões de ação visíveis: **"Fazer o Exame"** e **"Pular por enquanto"**.
+  - "Pular por enquanto" leva diretamente ao wizard sem nenhum aviso adicional ou pop-up de confirmação.
+  - O wizard sempre pode ser acessado diretamente via `/vida/wizard`, independentemente de exame pendente.
+  - O usuário nunca é bloqueado em uma tela de exame sem saída. A tela de exame também tem botão "Pular" visível no header.
+  - Se o usuário pular, o convite ao exame continuará aparecendo no hub nas próximas visitas até que o exame seja feito — mas sem caráter impeditivo.
 
 ### 8.6 Evangelização Ser Feliz
 
@@ -849,18 +859,28 @@ Response: `IntercessaoOut` completo.
 
 ### 9.2 Verificação pré-migration
 
-Antes da migration 035 (alter table mensal), executar:
+Antes da migration 039 (alter table mensal), executar:
 ```sql
 SELECT COUNT(*) FROM projetos_vida_mensal WHERE tema IS NOT NULL;
 SELECT COUNT(*) FROM projetos_vida_mensal WHERE intencao IS NOT NULL;
 ```
 Ambas devem retornar 0. Caso retornem valores, investigar antes de prosseguir.
 
-### 9.3 Rollback por fase
+### 9.3 Estratégia de rollback por fase
 
-- **Fase 0:** Rollback é apenas código (sem migration). Reverter o deploy.
-- **Fases 1–5:** Cada migration tem `downgrade()` implementado. O downgrade remove as colunas/tabelas adicionadas sem afetar dados existentes.
-- **Dados criados nas novas tabelas após o deploy não são perdidos no rollback do schema** — as tabelas históricas continuam intactas.
+**Fase 0 (sem migration):** Rollback é apenas reversão de código/deploy. Sem risco de perda de dados.
+
+**Staging / Dev (qualquer fase):** O `downgrade()` de cada migration deve ser testado explicitamente antes do deploy em produção. O teste deve:
+1. Aplicar a migration (`upgrade`)
+2. Inserir dados de teste nas novas tabelas/colunas
+3. Executar `downgrade` e verificar que o schema voltou ao estado anterior
+4. Verificar que as tabelas históricas permanecem intactas
+
+**Produção — antes de haver dados reais nas novas tabelas:** O `downgrade()` pode ser usado. Janela típica: primeiras horas após o deploy, antes de usuários popularem as novas estruturas.
+
+**Produção — após haver dados reais nas novas tabelas:** **Não executar `downgrade()`.** O rollback preferencial é rollback de código (redeploy da versão anterior). Os dados persistem no banco; o código antigo simplesmente não os exibe. As tabelas novas ficam inertes até o próximo deploy. Essa abordagem garante zero perda de dados do usuário.
+
+> **Regra:** `downgrade()` é uma ferramenta de desenvolvimento. Em produção com dados reais, é um procedimento de último recurso que exige aprovação explícita e backup prévio — nunca a primeira resposta a um incidente.
 
 ### 9.4 Coexistência das estruturas
 
@@ -900,12 +920,12 @@ Escopo:
 
 ### FASE 1 — Áreas mensais reestruturadas
 **Duração estimada:** 4–5 dias  
-**Migrations:** 035, 036  
+**Migrations:** 039, 040  
 **Entrega:** Novos ciclos usam as 5 áreas estruturadas do Documento Oficial
 
 Escopo:
-- Migration 035: ADD `reflexao_evangelizacao` em `projetos_vida_mensal`
-- Migration 036: CREATE `projetos_vida_areas_mensais`
+- Migration 039: ADD `reflexao_evangelizacao` em `projetos_vida_mensal`
+- Migration 040: CREATE `projetos_vida_areas_mensais`
 - Backend: novos schemas (`AreaMensalIn/Out`, `CompromissoAreaItem`)
 - Backend: atualizar `ProjetoVidaMensalCreate/Update/Full` com campos novos
 - Backend: lógica de upsert de áreas em `PUT /{id}`
@@ -921,11 +941,11 @@ Escopo:
 
 ### FASE 2 — Exame de Consciência
 **Duração estimada:** 2–3 dias  
-**Migrations:** 037  
+**Migrations:** 041  
 **Entrega:** Transição entre ciclos com exame espiritual de entrada
 
 Escopo:
-- Migration 037: CREATE `projetos_vida_exame`
+- Migration 041: CREATE `projetos_vida_exame`
 - Backend: schemas `ExameUpsert/Out`
 - Backend: endpoints `GET/PUT /projeto-vida-mensal/{id}/exame`
 - Frontend: criar `app/vida/exame.tsx` com 6 campos + Ato de Contrição
@@ -938,11 +958,11 @@ Escopo:
 
 ### FASE 3 — Intercessão
 **Duração estimada:** 1–2 dias  
-**Migrations:** 039  
+**Migrations:** 043  
 **Entrega:** Wizard fecha em oração
 
 Escopo:
-- Migration 039: CREATE `projetos_vida_intercessao`
+- Migration 043: CREATE `projetos_vida_intercessao`
 - Backend: schemas `IntercessaoUpsert/Out`
 - Backend: endpoints `GET/PUT /projeto-vida-mensal/{id}/intercessao`
 - Frontend: adicionar Passo 8 (Intercessão) no wizard
@@ -954,11 +974,11 @@ Escopo:
 
 ### FASE 4 — Projeto Semanal
 **Duração estimada:** 5–6 dias  
-**Migrations:** 038  
+**Migrations:** 042  
 **Entrega:** Camada semanal com Dever de Estado, Vida Interior e Evangelização
 
 Escopo:
-- Migration 038: CREATE `projetos_vida_semanal`
+- Migration 042: CREATE `projetos_vida_semanal`
 - Backend: schemas `ProjetoVidaSemanasCreate/Update/Out`
 - Backend: endpoints `GET/POST /projeto-vida-mensal/{id}/semanal`
 - Backend: endpoints `GET/PUT /projeto-vida-semanal/{id}` (com merge parcial para `plano_diario`)
@@ -1058,7 +1078,17 @@ Escopo:
 ### CA-09 — Privacidade e segurança
 - [ ] Usuário A não pode acessar o projeto de Usuário B (403)
 - [ ] Nenhum dado do módulo aparece em responses administrativas
-- [ ] PIN continua funcionando para todos os recursos do ciclo (incluindo semanal e exame)
+- [ ] `UnlockedCyclesContext` bloqueia acesso a semanal/exame/intercessão de ciclos com PIN não verificado na sessão
+- [ ] Navegar para semanal sem PIN verificado redireciona para `/vida/unlock` com `returnTo` correto
+- [ ] Após 15 minutos em background, o ciclo volta a exigir PIN (UnlockedCyclesContext limpo)
+- [ ] PIN continua funcionando para ciclo, exame, semanal e intercessão
+
+### CA-09b — Exame de consciência não obrigatório
+- [ ] Hub exibe dois botões visíveis: "Fazer o Exame" e "Pular por enquanto"
+- [ ] "Pular por enquanto" leva diretamente ao wizard sem avisos adicionais
+- [ ] A rota `/vida/wizard` é acessível diretamente (sem passar pelo exame)
+- [ ] A tela de exame tem botão "Pular" visível no header
+- [ ] O convite ao exame reaparece no hub nas próximas visitas até o exame ser feito
 
 ### CA-10 — Retrocompatibilidade
 - [ ] Ciclos criados antes da evolução continuam exibindo dados corretos
@@ -1070,13 +1100,14 @@ Escopo:
 ## 12. CHECKLIST DE GO-LIVE
 
 ### Banco de dados
-- [ ] Migration 035 executada e verificada em staging
-- [ ] Migration 036 executada e verificada em staging
-- [ ] Migration 037 executada e verificada em staging
-- [ ] Migration 038 executada e verificada em staging
 - [ ] Migration 039 executada e verificada em staging
-- [ ] Query de verificação: `SELECT COUNT(*) FROM projetos_vida_mensal WHERE tema IS NOT NULL` = 0 antes da migration 035
-- [ ] Todos os downgrade() testados em staging
+- [ ] Migration 040 executada e verificada em staging
+- [ ] Migration 041 executada e verificada em staging
+- [ ] Migration 042 executada e verificada em staging
+- [ ] Migration 043 executada e verificada em staging
+- [ ] Query de verificação: `SELECT COUNT(*) FROM projetos_vida_mensal WHERE tema IS NOT NULL` = 0 antes da migration 039
+- [ ] Todos os downgrade() testados em staging (upgrade → dados de teste → downgrade → schema verificado)
+- [ ] Estratégia de rollback em produção documentada e comunicada à equipe: rollback de código, não downgrade de schema quando houver dados reais
 - [ ] Backups realizados antes de cada migration em produção
 
 ### Backend
