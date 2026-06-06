@@ -3,3 +3,5 @@ export { Input } from './Input';
 export { Card } from './Card';
 export { Loading } from './Loading';
 export { HorarioInput, formatarHorario, horarioValido } from './HorarioInput';
+export { CalendarPicker } from './CalendarPicker';
+export type { CalendarPickerProps } from './CalendarPicker';
