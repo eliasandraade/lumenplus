@@ -25,12 +25,14 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DBSession
 from app.db.models import (
+    ProfileCatalogItem,
     ProjetoVidaComunidade,
     ProjetoVidaCuidado,
     ProjetoVidaCompromisso,
     ProjetoVidaMensal,
     ProjetoVidaPratica,
     ProjetoVidaRevisao,
+    UserProfile,
 )
 from app.schemas.projeto_vida_mensal import (
     ComunidadeData,
@@ -168,6 +170,56 @@ def get_historico(user: CurrentUser, db: DBSession) -> Any:
         )
         for p in projetos
     ]
+
+
+@router.get("/contexto-vocacional")
+def get_contexto_vocacional(
+    user: CurrentUser,
+    db: DBSession,
+) -> Any:
+    """Retorna códigos vocacionais do perfil para personalização do wizard."""
+    profile = db.execute(
+        select(UserProfile).where(UserProfile.user_id == user.id)
+    ).scalar_one_or_none()
+
+    vocational_code: str | None = None
+    life_state_code: str | None = None
+
+    if profile:
+        if profile.vocational_reality_item_id:
+            item = db.execute(
+                select(ProfileCatalogItem).where(
+                    ProfileCatalogItem.id == profile.vocational_reality_item_id
+                )
+            ).scalar_one_or_none()
+            vocational_code = item.code if item else None
+
+        if profile.life_state_item_id:
+            item = db.execute(
+                select(ProfileCatalogItem).where(
+                    ProfileCatalogItem.id == profile.life_state_item_id
+                )
+            ).scalar_one_or_none()
+            life_state_code = item.code if item else None
+
+    perfil_incompleto = vocational_code is None or life_state_code is None
+
+    # Resolve nome: UserProfile.full_name → identity email → empty string
+    nome: str = ""
+    if profile and profile.full_name:
+        nome = profile.full_name
+    else:
+        for identity in user.identities:
+            if identity.email:
+                nome = identity.email
+                break
+
+    return {
+        "vocational_reality_code": vocational_code,
+        "life_state_code": life_state_code,
+        "perfil_incompleto": perfil_incompleto,
+        "nome": nome,
+    }
 
 
 @router.post("/", response_model=ProjetoVidaMensalFull, status_code=201)

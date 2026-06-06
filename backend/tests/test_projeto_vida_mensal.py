@@ -142,3 +142,25 @@ def test_upsert_revisao(client: TestClient):
     )
     assert r2.status_code == 200
     assert r2.json()["revisao"]["graca"] == "Vi a graça em..."
+
+
+def test_contexto_vocacional_usuario_sem_perfil(client: TestClient, auth_headers: dict):
+    """Usuário sem perfil retorna 200 com perfil_incompleto=True e campos null."""
+    resp = client.get("/projeto-vida-mensal/contexto-vocacional", headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "vocational_reality_code" in data
+    assert "life_state_code" in data
+    assert "perfil_incompleto" in data
+    assert "nome" in data
+    assert data["perfil_incompleto"] is True
+    assert data["vocational_reality_code"] is None
+    assert data["life_state_code"] is None
+
+
+def test_contexto_vocacional_retorna_nome(client: TestClient, auth_headers: dict):
+    """O nome retornado nunca é None — usa email como fallback."""
+    resp = client.get("/projeto-vida-mensal/contexto-vocacional", headers=auth_headers)
+    assert resp.status_code == 200
+    assert resp.json()["nome"] is not None
+    assert len(resp.json()["nome"]) > 0
