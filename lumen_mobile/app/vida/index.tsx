@@ -15,6 +15,7 @@ import type { Href } from 'expo-router';
 import projetoVidaMensalApi, {
   type ProjetoVidaMensalFull,
   type ExameOut,
+  type ProjetoVidaSemanasSummary,
   MESES,
 } from '@/services/projetoVidaMensal';
 import { useTheme } from '@/theme';
@@ -26,6 +27,7 @@ export default function VidaHubScreen() {
   const [projeto, setProjeto] = useState<ProjetoVidaMensalFull | null>(null);
   const [exame, setExame] = useState<ExameOut | null | undefined>(undefined);
   // undefined = não carregado; null = carregado, sem exame; ExameOut = existe
+  const [semanalAtual, setSemanalAtual] = useState<ProjetoVidaSemanasSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +52,29 @@ export default function VidaHubScreen() {
         }
       } else {
         setExame(undefined);
+      }
+      // Buscar semanal mais próximo da semana atual
+      if (data) {
+        try {
+          const semanas = await projetoVidaMensalApi.listSemanas(data.id);
+          if (semanas.length > 0) {
+            // Semana atual do mês (1-based): quantos dias do mês passaram / 7
+            const diaDoMes = now.getDate();
+            const semanaAtualNum = Math.min(Math.ceil(diaDoMes / 7), 5);
+            // Escolher a semana mais próxima do número atual
+            const melhor = semanas.reduce((prev, curr) =>
+              Math.abs(curr.numero_semana - semanaAtualNum) <
+              Math.abs(prev.numero_semana - semanaAtualNum) ? curr : prev
+            );
+            setSemanalAtual(melhor);
+          } else {
+            setSemanalAtual(null);
+          }
+        } catch {
+          setSemanalAtual(null);
+        }
+      } else {
+        setSemanalAtual(null);
       }
     } catch {
       setError('Erro ao carregar projeto. Tente novamente.');
@@ -296,6 +321,38 @@ export default function VidaHubScreen() {
             <Text style={styles.primaryBtnText}>Iniciar novo ciclo</Text>
           </TouchableOpacity>
         </View>
+      )}
+
+      {/* Card "Amanhã com o Emanuel" */}
+      {projeto && semanalAtual && (
+        <TouchableOpacity
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: 12,
+            backgroundColor: t.bg.elevated, borderRadius: r.xl, padding: 16,
+            marginBottom: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: t.border.subtle,
+            ...t.shadow.sm,
+          }}
+          onPress={() => router.push({
+            pathname: '/vida/diario',
+            params: { semanalId: semanalAtual.id },
+          })}
+          activeOpacity={0.8}
+          accessibilityLabel="Planejar amanhã com o Emanuel"
+          accessibilityRole="button"
+        >
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: t.brand.primaryDim, justifyContent: 'center', alignItems: 'center' }}>
+            <Ionicons name={'moon-outline' as IoniconsName} size={20} color={t.brand.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 15, fontFamily: 'Nunito-Bold', color: t.text.primary }}>
+              Amanhã com o Emanuel
+            </Text>
+            <Text style={{ fontSize: 12, fontFamily: 'Nunito-Regular', color: t.text.tertiary }}>
+              Planeje o dia de amanhã
+            </Text>
+          </View>
+          <Ionicons name={'chevron-forward' as IoniconsName} size={16} color={t.text.tertiary} />
+        </TouchableOpacity>
       )}
 
       {/* ── Privacidade ── */}

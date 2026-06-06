@@ -269,6 +269,18 @@ export interface IntercessaoUpsert {
   oferecimento?: string | null;
 }
 
+export interface PlanoDiarioItem {
+  proposito?: string | null;
+  missa?: boolean | null;
+  horario_missa?: string | null;
+  oracao_manha?: string | null;
+  lectio?: string | null;
+  terco?: boolean | null;
+  leitura_espiritual?: string | null;
+  evangelizacao?: string | null;
+  compromissos?: string[] | null;
+}
+
 // ── API ────────────────────────────────────────────────────────────────────
 
 export const projetoVidaMensalApi = {

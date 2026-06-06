@@ -67,6 +67,13 @@ export default function VidaLayout() {
           headerShown: true,
         }}
       />
+      <Stack.Screen
+        name="diario"
+        options={{
+          header: () => <BreadcrumbHeader items={[VIDA, { label: 'Amanhã com o Emanuel' }]} />,
+          headerShown: true,
+        }}
+      />
     </Stack>
   );
 }
