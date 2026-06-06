@@ -170,3 +170,41 @@ def test_contexto_vocacional_retorna_nome(client: TestClient, auth_headers: dict
     assert resp.status_code == 200
     assert resp.json()["nome"] is not None
     assert len(resp.json()["nome"]) > 0
+
+
+def test_criar_projeto_com_intencao(client: TestClient, auth_headers: dict):
+    """Campo intencao é salvo e retornado."""
+    resp = client.post(
+        "/projeto-vida-mensal/",
+        json={"mes": 9, "ano": 2026, "intencao": "Viver este mês com mais presença"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["intencao"] == "Viver este mês com mais presença"
+
+
+def test_criar_projeto_sem_intencao(client: TestClient, auth_headers: dict):
+    """intencao é opcional — None quando não enviado."""
+    resp = client.post(
+        "/projeto-vida-mensal/",
+        json={"mes": 10, "ano": 2026},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["intencao"] is None
+
+
+def test_update_intencao(client: TestClient, auth_headers: dict):
+    """intencao pode ser atualizado via PUT."""
+    pid = client.post(
+        "/projeto-vida-mensal/",
+        json={"mes": 11, "ano": 2026},
+        headers=auth_headers,
+    ).json()["id"]
+    resp = client.put(
+        f"/projeto-vida-mensal/{pid}",
+        json={"intencao": "Crescer na oração"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["intencao"] == "Crescer na oração"

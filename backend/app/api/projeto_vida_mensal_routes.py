@@ -100,6 +100,7 @@ def _to_full(p: ProjetoVidaMensal) -> ProjetoVidaMensalFull:
         has_pin=p.pin_hash is not None,
         concluido=p.concluido,
         observacoes_mes=p.observacoes_mes,
+        intencao=p.intencao,
         comunidade=ComunidadeData(
             partilha_acompanhador=p.comunidade.partilha_acompanhador or [],
             encontro_familia=p.comunidade.encontro_familia or [],
@@ -248,6 +249,7 @@ def criar_projeto(body: ProjetoVidaMensalCreate, user: CurrentUser, db: DBSessio
         mes=body.mes,
         ano=body.ano,
         pin_hash=_hash_pin(body.pin, user.id) if body.pin else None,
+        intencao=body.intencao,
     )
     db.add(projeto)
     db.flush()
@@ -278,6 +280,8 @@ def update_projeto(
         projeto.observacoes_mes = body.observacoes_mes
     if body.concluido is not None:
         projeto.concluido = body.concluido
+    if body.intencao is not None:
+        projeto.intencao = body.intencao
 
     if body.comunidade is not None:
         if not projeto.comunidade:

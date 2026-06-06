@@ -130,11 +130,13 @@ class ProjetoVidaMensalCreate(BaseModel):
     mes: int = Field(..., ge=1, le=12)
     ano: int = Field(..., ge=2024, le=2100)
     pin: Optional[str] = Field(None, min_length=4, max_length=4, pattern=r"^\d{4}$")
+    intencao: Optional[str] = Field(None, max_length=2000)
 
 
 class ProjetoVidaMensalUpdate(BaseModel):
     observacoes_mes: Optional[str] = Field(None, max_length=3000)
     concluido: Optional[bool] = None
+    intencao: Optional[str] = Field(None, max_length=2000)
     comunidade: Optional[ComunidadeData] = None
     cuidado: Optional[CuidadoData] = None
     compromissos: Optional[List[CompromissoIn]] = None
@@ -157,6 +159,7 @@ class ProjetoVidaMensalFull(BaseModel):
     has_pin: bool
     concluido: bool
     observacoes_mes: Optional[str] = None
+    intencao: Optional[str] = None
     comunidade: Optional[ComunidadeData] = None
     cuidado: Optional[CuidadoData] = None
     compromissos: List[CompromissoOut] = []
