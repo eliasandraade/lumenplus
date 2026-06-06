@@ -4,7 +4,7 @@
  * 8 passos: Intro → Ciclo → Comunidade → Cuidado → Compromissos → Oração → PIN → Confirmar
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, KeyboardAvoidingView, Platform,
@@ -18,7 +18,9 @@ import projetoVidaMensalApi, {
   type CompromissoIn, type PraticaIn,
   type EventoItem, type OutroItemComunidade,
   type CuidadoEventoItem, type OutroItemCuidado,
+  type ContextoVocacionalOut,
 } from '@/services/projetoVidaMensal';
+import { getMotivacaoContent } from '@/data/conteudoVocacional';
 
 // ── Tipos locais ─────────────────────────────────────────────────────────────
 
@@ -40,6 +42,7 @@ interface WizardData {
   };
   compromissos: CompromissoIn[];
   praticas: PraticaIn[];
+  intencao: string;
 }
 
 const emptyEvento = (): EventoItem => ({ data: '', horario: '', local: '', observacoes: '' });
@@ -56,6 +59,7 @@ const defaultData = (): WizardData => ({
   cuidado: { consultas: [], exames: [], descanso: [], outros: [] },
   compromissos: [],
   praticas: [],
+  intencao: '',
 });
 
 const STEP_TITLES = [
@@ -73,8 +77,18 @@ export default function WizardScreen() {
   const [activeDia, setActiveDia] = useState('seg');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [contextoVoc, setContextoVoc] = useState<ContextoVocacionalOut | null>(null);
+  const [loadingContexto, setLoadingContexto] = useState(true);
 
   const update = (partial: Partial<WizardData>) => setData(d => ({ ...d, ...partial }));
+
+  useEffect(() => {
+    setLoadingContexto(true);
+    projetoVidaMensalApi.getContextoVocacional()
+      .then(res => setContextoVoc(res))
+      .catch(() => setContextoVoc(null))
+      .finally(() => setLoadingContexto(false));
+  }, []);
 
   // ── Compromissos ────────────────────────────────────────────────────────────
 
@@ -183,7 +197,11 @@ export default function WizardScreen() {
 
       let projetoId: string;
       try {
-        const criado = await projetoVidaMensalApi.criar({ mes, ano, pin: data.pin || null });
+        const criado = await projetoVidaMensalApi.criar({
+          mes, ano,
+          pin: data.pin || null,
+          intencao: data.intencao || null,
+        });
         projetoId = criado.id;
       } catch (e: any) {
         if (e?.response?.status === 409 || e?.status === 409) {
@@ -230,39 +248,94 @@ export default function WizardScreen() {
   const renderStep = () => {
     switch (step) {
 
-      // ── Step 0: Intro ─────────────────────────────────────────────────────
-      case 0:
+      // ── Step 0: Motivação adaptada ao perfil vocacional ───────────────────
+      case 0: {
+        if (loadingContexto) {
+          return (
+            <View style={[styles.stepContent, { alignItems: 'center', paddingTop: 48 }]}>
+              <ActivityIndicator size="large" color={t.brand.primary} />
+            </View>
+          );
+        }
+
+        const motivacao = getMotivacaoContent(
+          contextoVoc?.vocational_reality_code,
+          contextoVoc?.nome ?? '',
+        );
+
         return (
           <View style={styles.stepContent}>
-            <View style={{ padding: 24, alignItems: 'center', gap: 16 }}>
+            {/* Saudação */}
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
               <Ionicons name={'compass-outline' as IoniconsName} size={48} color={t.brand.primary} />
-              <Text style={{ fontSize: 22, fontFamily: 'Nunito-ExtraBold', color: t.text.primary, textAlign: 'center' }}>
-                Novo Ciclo
-              </Text>
-              <Text style={{ fontSize: 15, fontFamily: 'Nunito-Italic', color: t.text.secondary, textAlign: 'center', lineHeight: 24 }}>
-                Reserve um momento de silêncio antes de começar. Este é um tempo sagrado.
+              <Text style={{ fontSize: 22, fontFamily: 'Nunito-ExtraBold', color: t.text.primary, textAlign: 'center', marginTop: 12 }}>
+                {motivacao.saudacao}
               </Text>
             </View>
-            <View style={{ backgroundColor: '#fef3c7', borderRadius: 14, padding: 20, marginBottom: 20, alignItems: 'center', borderWidth: 1, borderColor: '#fde68a' }}>
-              <Ionicons name={'sparkles' as IoniconsName} size={20} color={'#b45309'} style={{ marginBottom: 12 }} />
-              <Text style={{ fontSize: 16, color: '#b45309', fontFamily: 'Nunito-Italic', textAlign: 'center', lineHeight: 24 }}>
-                "O Projeto de Vida não é um check list do que eu consegui ou não pontuar,
-                mas é um ponto de partida para que eu possa amar a Deus segundo a segundo no meu dia."
+
+            {/* Reflexão adaptada */}
+            <View style={{ backgroundColor: '#fef3c7', borderRadius: 14, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: '#fde68a' }}>
+              <Ionicons name={'sparkles' as IoniconsName} size={18} color={'#b45309'} style={{ marginBottom: 10, alignSelf: 'center' }} />
+              <Text style={{ fontSize: 15, color: '#92400e', fontFamily: 'Nunito-Regular', textAlign: 'center', lineHeight: 24, marginBottom: 12 }}>
+                {motivacao.reflexao}
+              </Text>
+              <Text style={{ fontSize: 14, color: '#b45309', fontFamily: 'Nunito-Italic', textAlign: 'center', lineHeight: 22 }}>
+                {motivacao.escritura}
               </Text>
             </View>
-            <Text style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.secondary, textAlign: 'center', marginBottom: 20, lineHeight: 22 }}>
-              Este é um caminho mensal de conversão, organização e fidelidade ao chamado de Deus.
+
+            {/* Questão de meditação */}
+            <Text style={{ fontSize: 15, fontFamily: 'Nunito-SemiBold', color: t.text.secondary, textAlign: 'center', marginBottom: 20, lineHeight: 22 }}>
+              {motivacao.questaoMeditacao}
             </Text>
-            <View style={{ backgroundColor: t.bg.elevated, borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: t.border.subtle }}>
-              <Ionicons name={'shield-checkmark-outline' as IoniconsName} size={18} color={t.brand.primary} style={{ marginBottom: 8 }} />
-              <Text style={{ fontSize: 14, fontFamily: 'Nunito-Bold', color: t.brand.primary, marginBottom: 6 }}>Privacidade garantida</Text>
+
+            {/* Campo intenção */}
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 13, fontFamily: 'Nunito-Bold', color: t.text.secondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+                Minha intenção para este ciclo
+              </Text>
+              <TextInput
+                style={{
+                  backgroundColor: t.bg.surface,
+                  borderRadius: r.md,
+                  borderWidth: StyleSheet.hairlineWidth,
+                  borderColor: t.border.subtle,
+                  padding: 14,
+                  fontSize: 15,
+                  fontFamily: 'Nunito-Regular',
+                  color: t.text.primary,
+                  minHeight: 80,
+                  textAlignVertical: 'top',
+                }}
+                value={data.intencao}
+                onChangeText={v => update({ intencao: v })}
+                multiline
+                numberOfLines={3}
+                placeholder="Opcional. Uma palavra ou frase que oferece este mês ao Senhor..."
+                placeholderTextColor={t.text.tertiary}
+              />
+            </View>
+
+            {/* Nota de perfil incompleto */}
+            {contextoVoc?.perfil_incompleto && (
+              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: t.brand.primaryDim, borderRadius: r.md, padding: 12 }}>
+                <Ionicons name={'information-circle-outline' as IoniconsName} size={16} color={t.brand.primary} />
+                <Text style={{ flex: 1, fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.secondary, lineHeight: 18 }}>
+                  Complete seu perfil para uma experiência mais personalizada.
+                </Text>
+              </View>
+            )}
+
+            {/* Nota de privacidade */}
+            <View style={{ backgroundColor: t.bg.elevated, borderRadius: 12, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: t.border.subtle, marginTop: 16 }}>
+              <Ionicons name={'shield-checkmark-outline' as IoniconsName} size={16} color={t.brand.primary} style={{ marginBottom: 6 }} />
               <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.secondary, textAlign: 'center', lineHeight: 18 }}>
-                A partir deste momento, tudo o que você escrever será protegido pela sua senha.
-                A Equipe Lumen+ não terá acesso ao conteúdo que você escrever.
+                Tudo o que você escrever aqui é seu. A Equipe Lumen+ não acessa o conteúdo do seu Projeto de Vida.
               </Text>
             </View>
           </View>
         );
+      }
 
       // ── Step 1: Ciclo Mensal ──────────────────────────────────────────────
       case 1:

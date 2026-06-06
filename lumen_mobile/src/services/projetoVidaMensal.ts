@@ -154,6 +154,7 @@ export interface CreateProjetoInput {
   mes: number;
   ano: number;
   pin?: string | null;
+  intencao?: string | null;
 }
 
 export interface UpdateProjetoInput {
@@ -170,6 +171,13 @@ export interface RevisaoInput {
   taticas_vigilancia?: string | null;
   rotina_evangelizacao?: string | null;
   outra_area_atencao?: string | null;
+}
+
+export interface ContextoVocacionalOut {
+  vocational_reality_code: string | null;
+  life_state_code: string | null;
+  perfil_incompleto: boolean;
+  nome: string;
 }
 
 // ── API ────────────────────────────────────────────────────────────────────
@@ -197,6 +205,9 @@ export const projetoVidaMensalApi = {
 
   verificarPin: (id: string, pin: string) =>
     api.post<{ valid: boolean }>(`/projeto-vida-mensal/${id}/pin/verificar`, { pin }),
+
+  getContextoVocacional: () =>
+    api.get<ContextoVocacionalOut>('/projeto-vida-mensal/contexto-vocacional'),
 };
 
 export default projetoVidaMensalApi;
