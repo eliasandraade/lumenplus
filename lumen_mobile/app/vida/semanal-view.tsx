@@ -10,7 +10,7 @@ import projetoVidaMensalApi, {
   type ProjetoVidaSemanasOut,
   type PlanoDiarioItem,
 } from '@/services/projetoVidaMensal';
-import { useTheme } from '@/theme';
+import { useTheme, type SemanticTokens } from '@/theme';
 
 const DIAS_SEMANA = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'] as const;
 type DiaSemana = typeof DIAS_SEMANA[number];
@@ -284,25 +284,27 @@ export default function SemanalViewScreen() {
 
       {/* Rodapé fixo */}
       <View style={[styles.footer, { backgroundColor: t.bg.elevated, borderTopColor: t.border.subtle }]}>
-        <TouchableOpacity
-          style={[styles.footerBtn, { borderColor: t.border.default, borderRadius: r.lg }]}
-          onPress={() => router.push({
-            pathname: '/vida/semanal',
-            params: { projetoId: projetoId ?? '' },
-          })}
-          activeOpacity={0.8}
-        >
-          <Ionicons name={'pencil-outline' as IoniconsName} size={16} color={t.text.secondary} />
-          <Text style={{ fontSize: 15, fontFamily: 'Nunito-SemiBold', color: t.text.secondary }}>
-            Editar Semana
-          </Text>
-        </TouchableOpacity>
+        {projetoId ? (
+          <TouchableOpacity
+            style={[styles.footerBtn, { borderColor: t.border.default, borderRadius: r.lg }]}
+            onPress={() => router.push({
+              pathname: '/vida/semanal',
+              params: { projetoId },
+            })}
+            activeOpacity={0.8}
+          >
+            <Ionicons name={'pencil-outline' as IoniconsName} size={16} color={t.text.secondary} />
+            <Text style={{ fontSize: 15, fontFamily: 'Nunito-SemiBold', color: t.text.secondary }}>
+              Editar Semana
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </View>
   );
 }
 
-function CampoView({ label, value, t }: { label: string; value: string; t: any }) {
+function CampoView({ label, value, t }: { label: string; value: string; t: SemanticTokens }) {
   return (
     <View style={{ marginBottom: 10 }}>
       <Text style={{ fontSize: 11, fontFamily: 'Nunito-Bold', color: t.text.tertiary, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 3 }}>
