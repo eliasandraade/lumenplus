@@ -60,6 +60,13 @@ export default function VidaLayout() {
           headerShown: true,
         }}
       />
+      <Stack.Screen
+        name="semanal"
+        options={{
+          header: () => <BreadcrumbHeader items={[VIDA, { label: 'Projeto Semanal' }]} />,
+          headerShown: true,
+        }}
+      />
     </Stack>
   );
 }

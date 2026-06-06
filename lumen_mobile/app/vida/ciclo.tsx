@@ -312,6 +312,33 @@ export default function CicloScreen() {
         </>
       )}
 
+      {/* Acesso ao Projeto Semanal */}
+      <View style={{ paddingHorizontal: 20, paddingVertical: 16 }}>
+        <TouchableOpacity
+          style={{
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+            gap: 8, padding: 16, borderRadius: r.xl,
+            backgroundColor: t.brand.primaryDim, borderWidth: 1.5, borderColor: t.brand.primary,
+          }}
+          onPress={() => router.push({
+            pathname: '/vida/semanal',
+            params: {
+              projetoId,
+              reflexaoEvangelizacao: projeto?.reflexao_evangelizacao ?? '',
+            },
+          })}
+          activeOpacity={0.8}
+          accessibilityLabel="Abrir Projeto Semanal"
+          accessibilityRole="button"
+        >
+          <Ionicons name={'calendar-outline' as IoniconsName} size={18} color={t.brand.primary} />
+          <Text style={{ fontSize: 15, fontFamily: 'Nunito-Bold', color: t.brand.primary }}>
+            Projeto Semanal
+          </Text>
+          <Ionicons name={'chevron-forward' as IoniconsName} size={16} color={t.brand.primary} />
+        </TouchableOpacity>
+      </View>
+
       {/* Ações */}
       {!projeto.concluido && (
         <TouchableOpacity

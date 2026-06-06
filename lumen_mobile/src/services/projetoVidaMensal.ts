@@ -197,6 +197,35 @@ export interface RevisaoInput {
   outra_area_atencao?: string | null;
 }
 
+export interface ProjetoVidaSemanasCreate {
+  numero_semana: number;
+  dever_estado?: object | null;
+  vida_interior?: object | null;
+  evangelizacao_disposicao?: string | null;
+  evangelizacao_momentos?: Array<{ descricao: string }>;
+  plano_diario?: Record<string, object>;
+  observacoes?: string | null;
+}
+
+export interface ProjetoVidaSemanasOut {
+  id: string;
+  numero_semana: number;
+  dever_estado?: object | null;
+  vida_interior?: object | null;
+  evangelizacao_disposicao?: string | null;
+  evangelizacao_momentos?: Array<{ descricao: string }>;
+  plano_diario?: Record<string, object> | null;
+  observacoes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjetoVidaSemanasSummary {
+  id: string;
+  numero_semana: number;
+  created_at: string;
+}
+
 export interface ContextoVocacionalOut {
   vocational_reality_code: string | null;
   life_state_code: string | null;
@@ -277,6 +306,18 @@ export const projetoVidaMensalApi = {
 
   upsertIntercessao: (id: string, data: IntercessaoUpsert) =>
     api.put<IntercessaoOut>(`/projeto-vida-mensal/${id}/intercessao`, data as Record<string, unknown>),
+
+  listSemanas: (projetoId: string) =>
+    api.get<ProjetoVidaSemanasSummary[]>(`/projeto-vida-mensal/${projetoId}/semanal`),
+
+  createSemanal: (projetoId: string, data: ProjetoVidaSemanasCreate) =>
+    api.post<ProjetoVidaSemanasOut>(`/projeto-vida-mensal/${projetoId}/semanal`, data as Record<string, unknown>),
+
+  getSemanal: (id: string) =>
+    api.get<ProjetoVidaSemanasOut>(`/projeto-vida-semanal/${id}`),
+
+  updateSemanal: (id: string, data: Partial<ProjetoVidaSemanasCreate>) =>
+    api.put<ProjetoVidaSemanasOut>(`/projeto-vida-semanal/${id}`, data as Record<string, unknown>),
 };
 
 export default projetoVidaMensalApi;
