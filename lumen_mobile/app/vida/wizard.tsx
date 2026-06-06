@@ -1,7 +1,7 @@
 /**
  * Projeto de Vida Mensal — Wizard de Criação
  * ============================================
- * 8 passos: Intro → Ciclo → Comunidade → Cuidado → Compromissos → Oração → PIN → Confirmar
+ * 10 passos: Motivação → Ciclo → 5 Áreas → Evangelização → PIN → Confirmar
  */
 
 import { useState, useEffect } from 'react';
@@ -14,57 +14,50 @@ import { Ionicons } from '@expo/vector-icons';
 import type { IoniconsName } from '@/types/icons';
 import { useTheme } from '@/theme';
 import projetoVidaMensalApi, {
-  MESES, SEMANAS, SEMANA_LABELS, DIAS, DIA_LABELS, TIPOS_PRATICA,
-  type CompromissoIn, type PraticaIn,
-  type EventoItem, type OutroItemComunidade,
-  type CuidadoEventoItem, type OutroItemCuidado,
+  MESES,
+  type CompromissoAreaItem, type AreaMensalIn,
   type ContextoVocacionalOut,
 } from '@/services/projetoVidaMensal';
 import { getMotivacaoContent } from '@/data/conteudoVocacional';
 
 // ── Tipos locais ─────────────────────────────────────────────────────────────
 
+interface AreaData {
+  objetivo: string;
+  compromissos: CompromissoAreaItem[];
+  observacoes: string;
+}
+
 interface WizardData {
   mes: string;
   ano: string;
   pin: string;
-  comunidade: {
-    partilha_acompanhador: EventoItem[];
-    encontro_familia: EventoItem[];
-    dias_grupo: EventoItem[];
-    outros: OutroItemComunidade[];
-  };
-  cuidado: {
-    consultas: CuidadoEventoItem[];
-    exames: CuidadoEventoItem[];
-    descanso: CuidadoEventoItem[];
-    outros: OutroItemCuidado[];
-  };
-  compromissos: CompromissoIn[];
-  praticas: PraticaIn[];
   intencao: string;
+  reflexao_evangelizacao: string;
+  areas: Record<string, AreaData>;
 }
-
-const emptyEvento = (): EventoItem => ({ data: '', horario: '', local: '', observacoes: '' });
-const emptyCuidadoEvento = (): CuidadoEventoItem => ({ data: '', horario: '', local: '', descricao: '' });
-const emptyOutroComunidade = (): OutroItemComunidade => ({ titulo: '', descricao: '', local: '', data: '', horario: '' });
-const emptyOutroCuidado = (): OutroItemCuidado => ({ titulo: '', descricao: '', local: '', data: '', horario: '' });
 
 const now = new Date();
 const defaultData = (): WizardData => ({
   mes: String(now.getMonth() + 1),
   ano: String(now.getFullYear()),
   pin: '',
-  comunidade: { partilha_acompanhador: [], encontro_familia: [], dias_grupo: [], outros: [] },
-  cuidado: { consultas: [], exames: [], descanso: [], outros: [] },
-  compromissos: [],
-  praticas: [],
   intencao: '',
+  reflexao_evangelizacao: '',
+  areas: {
+    FAMILIA_VOCACIONAL:    { objetivo: '', compromissos: [], observacoes: '' },
+    MINISTERIO_BOM_PASTOR: { objetivo: '', compromissos: [], observacoes: '' },
+    GRUPO_FORMATIVO:       { objetivo: '', compromissos: [], observacoes: '' },
+    SAUDE_LAZER:           { objetivo: '', compromissos: [], observacoes: '' },
+    FAMILIA_ORIGEM:        { objetivo: '', compromissos: [], observacoes: '' },
+  },
 });
 
 const STEP_TITLES = [
-  'Início', 'Ciclo Mensal', 'Comunidade', 'Cuidado Pessoal',
-  'Compromissos', 'Oração Diária', 'Privacidade', 'Confirmar',
+  'Motivação', 'Ciclo Mensal',
+  'Família Vocacional', 'Ministério Bom Pastor', 'Grupo Formativo',
+  'Saúde e Lazer', 'Família de Origem', 'Evangelização Ser Feliz',
+  'Privacidade', 'Confirmar',
 ];
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -73,8 +66,6 @@ export default function WizardScreen() {
   const { t, r } = useTheme();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizardData>(defaultData());
-  const [activeSemana, setActiveSemana] = useState('s1');
-  const [activeDia, setActiveDia] = useState('seg');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [contextoVoc, setContextoVoc] = useState<ContextoVocacionalOut | null>(null);
@@ -89,102 +80,6 @@ export default function WizardScreen() {
       .catch(() => setContextoVoc(null))
       .finally(() => setLoadingContexto(false));
   }, []);
-
-  // ── Compromissos ────────────────────────────────────────────────────────────
-
-  const addCompromisso = () => {
-    update({
-      compromissos: [
-        ...data.compromissos,
-        { semana: activeSemana, titulo: '', dia: '', horario: '', obs: '', ordem: data.compromissos.length },
-      ],
-    });
-  };
-  const removeCompromisso = (idx: number) =>
-    update({ compromissos: data.compromissos.filter((_, i) => i !== idx) });
-  const updateCompromisso = (idx: number, patch: Partial<CompromissoIn>) => {
-    const list = [...data.compromissos]; list[idx] = { ...list[idx], ...patch };
-    update({ compromissos: list });
-  };
-
-  // ── Práticas ────────────────────────────────────────────────────────────────
-
-  const addPratica = () => {
-    update({
-      praticas: [
-        ...data.praticas,
-        { dia_semana: activeDia, tipo: TIPOS_PRATICA[0], horario: '', duracao: '', obs: '', ordem: data.praticas.length },
-      ],
-    });
-  };
-  const removePratica = (idx: number) =>
-    update({ praticas: data.praticas.filter((_, i) => i !== idx) });
-  const updatePratica = (idx: number, patch: Partial<PraticaIn>) => {
-    const list = [...data.praticas]; list[idx] = { ...list[idx], ...patch };
-    update({ praticas: list });
-  };
-
-  // ── Helpers de lista de eventos ─────────────────────────────────────────────
-
-  const updateEventoItem = (
-    field: 'partilha_acompanhador' | 'encontro_familia' | 'dias_grupo',
-    idx: number,
-    patch: Partial<EventoItem>,
-  ) => {
-    const arr = [...data.comunidade[field]];
-    arr[idx] = { ...arr[idx], ...patch };
-    update({ comunidade: { ...data.comunidade, [field]: arr } });
-  };
-
-  const addEventoItem = (field: 'partilha_acompanhador' | 'encontro_familia' | 'dias_grupo') => {
-    update({ comunidade: { ...data.comunidade, [field]: [...data.comunidade[field], emptyEvento()] } });
-  };
-
-  const removeEventoItem = (field: 'partilha_acompanhador' | 'encontro_familia' | 'dias_grupo', idx: number) => {
-    update({ comunidade: { ...data.comunidade, [field]: data.comunidade[field].filter((_, i) => i !== idx) } });
-  };
-
-  const addOutroComunidade = () => {
-    update({ comunidade: { ...data.comunidade, outros: [...data.comunidade.outros, emptyOutroComunidade()] } });
-  };
-  const removeOutroComunidade = (idx: number) => {
-    update({ comunidade: { ...data.comunidade, outros: data.comunidade.outros.filter((_, i) => i !== idx) } });
-  };
-  const updateOutroComunidade = (idx: number, patch: Partial<OutroItemComunidade>) => {
-    const arr = [...data.comunidade.outros]; arr[idx] = { ...arr[idx], ...patch };
-    update({ comunidade: { ...data.comunidade, outros: arr } });
-  };
-
-  // ── Helpers de lista de cuidado ─────────────────────────────────────────────
-
-  const updateCuidadoItem = (
-    field: 'consultas' | 'exames' | 'descanso',
-    idx: number,
-    patch: Partial<CuidadoEventoItem>,
-  ) => {
-    const arr = [...data.cuidado[field]];
-    arr[idx] = { ...arr[idx], ...patch };
-    update({ cuidado: { ...data.cuidado, [field]: arr } });
-  };
-
-  const addCuidadoItem = (field: 'consultas' | 'exames' | 'descanso') => {
-    update({ cuidado: { ...data.cuidado, [field]: [...data.cuidado[field], emptyCuidadoEvento()] } });
-  };
-
-  const removeCuidadoItem = (field: 'consultas' | 'exames' | 'descanso', idx: number) => {
-    update({ cuidado: { ...data.cuidado, [field]: data.cuidado[field].filter((_, i) => i !== idx) } });
-  };
-
-  const addOutroCuidado = () => {
-    update({ cuidado: { ...data.cuidado, outros: [...data.cuidado.outros, emptyOutroCuidado()] } });
-  };
-  const removeOutroCuidado = (idx: number) => {
-    update({ cuidado: { ...data.cuidado, outros: data.cuidado.outros.filter((_, i) => i !== idx) } });
-  };
-  const updateOutroCuidado = (idx: number, patch: Partial<OutroItemCuidado>) => {
-    const arr = [...data.cuidado.outros]; arr[idx] = { ...arr[idx], ...patch };
-    update({ cuidado: { ...data.cuidado, outros: arr } });
-  };
 
   // ── Save ─────────────────────────────────────────────────────────────────────
 
@@ -214,11 +109,16 @@ export default function WizardScreen() {
         }
       }
 
+      const areasArray: AreaMensalIn[] = Object.entries(data.areas).map(([tipo_area, areaData]) => ({
+        tipo_area,
+        objetivo: areaData.objetivo || null,
+        compromissos: areaData.compromissos,
+        observacoes: areaData.observacoes || null,
+      }));
+
       await projetoVidaMensalApi.update(projetoId, {
-        comunidade: data.comunidade,
-        cuidado: data.cuidado,
-        compromissos: data.compromissos,
-        praticas: data.praticas,
+        reflexao_evangelizacao: data.reflexao_evangelizacao || null,
+        areas: areasArray,
       });
       router.replace({ pathname: '/vida/ciclo', params: { projetoId } });
     } catch (e: any) {
@@ -377,318 +277,101 @@ export default function WizardScreen() {
           </View>
         );
 
-      // ── Step 2: Comunidade ────────────────────────────────────────────────
+      // ── Steps 2-6: 5 Áreas Mensais ───────────────────────────────────────────
       case 2:
         return (
-          <View style={styles.stepContent}>
-            {/* Partilha com acompanhador */}
-            <SectionTitle label="Partilha com acompanhador" t={t} />
-            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
-              Indique a data do próximo encontro de partilha com seu acompanhador espiritual.
-            </Text>
-            {data.comunidade.partilha_acompanhador.map((item, idx) => (
-              <EventoCard
-                key={idx}
-                index={idx}
-                item={item}
-                onRemove={() => removeEventoItem('partilha_acompanhador', idx)}
-                onChange={patch => updateEventoItem('partilha_acompanhador', idx, patch)}
-                t={t} r={r}
-              />
-            ))}
-            <AddButton label="+ Adicionar data de partilha" onPress={() => addEventoItem('partilha_acompanhador')} t={t} />
-
-            <View style={{ height: 1, backgroundColor: t.border.subtle, marginVertical: 20 }} />
-
-            {/* Encontro com família vocacional */}
-            <SectionTitle label="Encontro com a família vocacional" t={t} />
-            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
-              Informe a data do próximo encontro do grupo da família vocacional.
-            </Text>
-            {data.comunidade.encontro_familia.map((item, idx) => (
-              <EventoCard
-                key={idx}
-                index={idx}
-                item={item}
-                onRemove={() => removeEventoItem('encontro_familia', idx)}
-                onChange={patch => updateEventoItem('encontro_familia', idx, patch)}
-                t={t} r={r}
-              />
-            ))}
-            <AddButton label="+ Adicionar encontro" onPress={() => addEventoItem('encontro_familia')} t={t} />
-
-            <View style={{ height: 1, backgroundColor: t.border.subtle, marginVertical: 20 }} />
-
-            {/* Dias do grupo */}
-            <SectionTitle label="Dias do grupo no mês" t={t} />
-            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
-              Informe todos os dias/horários em que o seu grupo se reúne no mês.{'\n'}
-              Ex.: 04/04 às 19h na Sede Mater Dei; 19/04 às 10h no Oásis da Paz.{'\n'}
-              Adicione diversos dias/horários se necessário.
-            </Text>
-            {data.comunidade.dias_grupo.map((item, idx) => (
-              <EventoCard
-                key={idx}
-                index={idx}
-                item={item}
-                onRemove={() => removeEventoItem('dias_grupo', idx)}
-                onChange={patch => updateEventoItem('dias_grupo', idx, patch)}
-                t={t} r={r}
-              />
-            ))}
-            <AddButton label="+ Adicionar dia de grupo" onPress={() => addEventoItem('dias_grupo')} t={t} />
-
-            <View style={{ height: 1, backgroundColor: t.border.subtle, marginVertical: 20 }} />
-
-            {/* Outros */}
-            <SectionTitle label="Outros compromissos comunitários" t={t} />
-            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
-              Descreva outros compromissos comunitários que você assume (exemplo: serviço, ministério, retiros, etc).
-            </Text>
-            {data.comunidade.outros.map((item, idx) => (
-              <OutroComCard
-                key={idx}
-                index={idx}
-                item={item}
-                onRemove={() => removeOutroComunidade(idx)}
-                onChange={patch => updateOutroComunidade(idx, patch)}
-                t={t} r={r}
-              />
-            ))}
-            <AddButton label="+ Adicionar outro compromisso" onPress={addOutroComunidade} t={t} />
-          </View>
+          <AreaMensalStep
+            titulo="Família Vocacional"
+            descricaoOrientadora="Sua família vocacional é o coração de sua jornada comunitária. Planeje encontros, partilhas com o acompanhador e compromissos com a comunidade."
+            areaData={data.areas.FAMILIA_VOCACIONAL}
+            onChange={patch => update({ areas: { ...data.areas, FAMILIA_VOCACIONAL: { ...data.areas.FAMILIA_VOCACIONAL, ...patch } } })}
+            t={t} r={r}
+          />
         );
 
-      // ── Step 3: Cuidado Pessoal ───────────────────────────────────────────
       case 3:
         return (
-          <View style={styles.stepContent}>
-            {/* Consultas */}
-            <SectionTitle label="Consultas" t={t} />
-            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
-              Liste aqui consultas médicas, acompanhamentos ou outros atendimentos de saúde.
-            </Text>
-            {data.cuidado.consultas.map((item, idx) => (
-              <CuidadoCard
-                key={idx}
-                index={idx}
-                item={item}
-                onRemove={() => removeCuidadoItem('consultas', idx)}
-                onChange={patch => updateCuidadoItem('consultas', idx, patch)}
-                t={t} r={r}
-              />
-            ))}
-            <AddButton label="+ Adicionar consulta" onPress={() => addCuidadoItem('consultas')} t={t} />
-
-            <View style={{ height: 1, backgroundColor: t.border.subtle, marginVertical: 20 }} />
-
-            {/* Exames */}
-            <SectionTitle label="Exames" t={t} />
-            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
-              Descreva exames ou procedimentos importantes para sua saúde.
-            </Text>
-            {data.cuidado.exames.map((item, idx) => (
-              <CuidadoCard
-                key={idx}
-                index={idx}
-                item={item}
-                onRemove={() => removeCuidadoItem('exames', idx)}
-                onChange={patch => updateCuidadoItem('exames', idx, patch)}
-                t={t} r={r}
-              />
-            ))}
-            <AddButton label="+ Adicionar exame" onPress={() => addCuidadoItem('exames')} t={t} />
-
-            <View style={{ height: 1, backgroundColor: t.border.subtle, marginVertical: 20 }} />
-
-            {/* Descanso */}
-            <SectionTitle label="Descanso" t={t} />
-            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
-              Inclua períodos de descanso, férias ou pausas importantes para seu bem-estar.
-            </Text>
-            {data.cuidado.descanso.map((item, idx) => (
-              <CuidadoCard
-                key={idx}
-                index={idx}
-                item={item}
-                onRemove={() => removeCuidadoItem('descanso', idx)}
-                onChange={patch => updateCuidadoItem('descanso', idx, patch)}
-                t={t} r={r}
-              />
-            ))}
-            <AddButton label="+ Adicionar período de descanso" onPress={() => addCuidadoItem('descanso')} t={t} />
-
-            <View style={{ height: 1, backgroundColor: t.border.subtle, marginVertical: 20 }} />
-
-            {/* Outros */}
-            <SectionTitle label="Outros compromissos pessoais" t={t} />
-            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.tertiary, lineHeight: 20, marginBottom: 12 }}>
-              Registre outros compromissos pessoais que sejam relevantes para seu cuidado integral.
-            </Text>
-            {data.cuidado.outros.map((item, idx) => (
-              <OutroCuidadoCard
-                key={idx}
-                index={idx}
-                item={item}
-                onRemove={() => removeOutroCuidado(idx)}
-                onChange={patch => updateOutroCuidado(idx, patch)}
-                t={t} r={r}
-              />
-            ))}
-            <AddButton label="+ Adicionar outro compromisso" onPress={addOutroCuidado} t={t} />
-          </View>
+          <AreaMensalStep
+            titulo="Ministério Bom Pastor"
+            descricaoOrientadora="Seu serviço e missão apostólica. Liste atividades pastorais, atendimentos e compromissos de serviço que você assume neste mês."
+            areaData={data.areas.MINISTERIO_BOM_PASTOR}
+            onChange={patch => update({ areas: { ...data.areas, MINISTERIO_BOM_PASTOR: { ...data.areas.MINISTERIO_BOM_PASTOR, ...patch } } })}
+            t={t} r={r}
+          />
         );
 
-      // ── Step 4: Compromissos semanais ─────────────────────────────────────
-      case 4: {
-        const semanaIndexes = data.compromissos
-          .map((c, i) => ({ c, i }))
-          .filter(({ c }) => c.semana === activeSemana);
+      case 4:
         return (
-          <View style={styles.stepContent}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-              <View style={styles.chipRow}>
-                {SEMANAS.map(s => (
-                  <TouchableOpacity
-                    key={s}
-                    style={[
-                      styles.chip,
-                      { borderColor: t.border.default, backgroundColor: t.bg.elevated },
-                      activeSemana === s && { backgroundColor: t.brand.primary, borderColor: t.brand.primary },
-                    ]}
-                    onPress={() => setActiveSemana(s)}
-                  >
-                    <Text style={[
-                      { fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.secondary },
-                      activeSemana === s && { color: '#ffffff', fontFamily: 'Nunito-SemiBold' },
-                    ]}>
-                      {SEMANA_LABELS[s]}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-
-            {semanaIndexes.map(({ c, i }, localIdx) => (
-              <View key={i} style={[styles.itemCard, { backgroundColor: t.bg.elevated, borderColor: t.border.subtle }]}>
-                <View style={styles.itemCardHeader}>
-                  <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary }}>Compromisso {localIdx + 1}</Text>
-                  <TouchableOpacity onPress={() => removeCompromisso(i)}>
-                    <Ionicons name={'trash-outline' as IoniconsName} size={18} color={t.status.error} />
-                  </TouchableOpacity>
-                </View>
-                <TextInput style={inputStyle} placeholder="Título" placeholderTextColor={t.text.tertiary}
-                  value={c.titulo} onChangeText={v => updateCompromisso(i, { titulo: v })} />
-                <View style={styles.row}>
-                  <TextInput style={[inputStyle, { flex: 1, marginRight: 8 }]} placeholder="Dia"
-                    placeholderTextColor={t.text.tertiary} value={c.dia}
-                    onChangeText={v => updateCompromisso(i, { dia: v })} />
-                  <TextInput style={[inputStyle, { flex: 1 }]} placeholder="Horário"
-                    placeholderTextColor={t.text.tertiary} value={c.horario}
-                    onChangeText={v => updateCompromisso(i, { horario: v })} />
-                </View>
-                <TextInput style={[inputStyle, styles.textarea]} placeholder="Observações"
-                  placeholderTextColor={t.text.tertiary} value={c.obs}
-                  onChangeText={v => updateCompromisso(i, { obs: v })} multiline numberOfLines={2} />
-              </View>
-            ))}
-
-            <AddButton label={`+ Adicionar compromisso em ${SEMANA_LABELS[activeSemana]}`} onPress={addCompromisso} t={t} />
-          </View>
+          <AreaMensalStep
+            titulo="Grupo Formativo"
+            descricaoOrientadora="Datas e compromissos do seu grupo formativo. Inclua os encontros do grupo, retiros e formações previstas para este mês."
+            areaData={data.areas.GRUPO_FORMATIVO}
+            onChange={patch => update({ areas: { ...data.areas, GRUPO_FORMATIVO: { ...data.areas.GRUPO_FORMATIVO, ...patch } } })}
+            t={t} r={r}
+          />
         );
-      }
 
-      // ── Step 5: Oração Diária ─────────────────────────────────────────────
-      case 5: {
-        const diaIndexes = data.praticas
-          .map((p, i) => ({ p, i }))
-          .filter(({ p }) => p.dia_semana === activeDia);
+      case 5:
         return (
-          <View style={styles.stepContent}>
-            {/* Comunhão Comunitária — destaque */}
+          <AreaMensalStep
+            titulo="Saúde, Descanso e Lazer"
+            descricaoOrientadora="Cuidar de si é parte da vocação. Liste consultas, momentos de descanso, atividades físicas e lazer que você planeja neste mês."
+            areaData={data.areas.SAUDE_LAZER}
+            onChange={patch => update({ areas: { ...data.areas, SAUDE_LAZER: { ...data.areas.SAUDE_LAZER, ...patch } } })}
+            t={t} r={r}
+          />
+        );
+
+      case 6:
+        return (
+          <AreaMensalStep
+            titulo="Família de Origem"
+            descricaoOrientadora="Sua família de sangue é um presente de Deus. Planeje momentos concretos de presença, contato e cuidado com seus familiares neste mês."
+            areaData={data.areas.FAMILIA_ORIGEM}
+            onChange={patch => update({ areas: { ...data.areas, FAMILIA_ORIGEM: { ...data.areas.FAMILIA_ORIGEM, ...patch } } })}
+            t={t} r={r}
+          />
+        );
+
+      // ── Step 7: Evangelização Ser Feliz ─────────────────────────────────────
+      case 7:
+        return (
+          <View style={{ padding: 20 }}>
             <View style={{ backgroundColor: '#f97316', borderRadius: 14, padding: 18, marginBottom: 20 }}>
-              <Text style={{ fontSize: 11, fontFamily: 'Nunito-Bold', color: 'rgba(255,255,255,0.8)', letterSpacing: 1, marginBottom: 6 }}>✦ COMUNHÃO COMUNITÁRIA</Text>
-              <Text style={{ fontSize: 16, fontFamily: 'Nunito-Bold', color: '#ffffff', marginBottom: 10 }}>Momento de Evangelização Ser Feliz</Text>
-              <Text style={{ fontSize: 14, fontFamily: 'Nunito-Regular', color: 'rgba(255,255,255,0.95)', lineHeight: 21 }}>
-                Meu irmão, a comunidade propõe que cada membro disponha de, no mínimo,{' '}
-                <Text style={{ fontFamily: 'Nunito-Bold' }}>30 minutos por dia</Text> para a Evangelização Ser Feliz,
-                podendo ser fracionado ao longo de todo o dia. É uma forma de correspondermos ao chamado do
-                Emanuel para nós como comunidade. O desejo do nosso coração é que todos os membros cresçam
-                até <Text style={{ fontFamily: 'Nunito-Bold' }}>1 hora ou mais</Text> por dia de acordo com a
-                possibilidade de cada um. Agradecemos desde já pela comunhão e permanecemos unidos em oração.
+              <Text style={{ fontSize: 11, fontFamily: 'Nunito-Bold' as const, color: 'rgba(255,255,255,0.8)', letterSpacing: 1, marginBottom: 6 }}>✦ COMUNHÃO COMUNITÁRIA</Text>
+              <Text style={{ fontSize: 16, fontFamily: 'Nunito-Bold' as const, color: '#ffffff', marginBottom: 10 }}>Evangelização Ser Feliz</Text>
+              <Text style={{ fontSize: 14, fontFamily: 'Nunito-Regular' as const, color: 'rgba(255,255,255,0.95)', lineHeight: 21 }}>
+                Como você quer viver a Evangelização Ser Feliz neste mês? Quais pessoas estão no seu coração?
               </Text>
             </View>
-
-            {/* Abas de dias */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-              <View style={styles.chipRow}>
-                {DIAS.map(d => (
-                  <TouchableOpacity
-                    key={d}
-                    style={[
-                      styles.chip,
-                      { borderColor: t.border.default, backgroundColor: t.bg.elevated },
-                      activeDia === d && { backgroundColor: t.brand.primary, borderColor: t.brand.primary },
-                    ]}
-                    onPress={() => setActiveDia(d)}
-                  >
-                    <Text style={[
-                      { fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.secondary },
-                      activeDia === d && { color: '#ffffff', fontFamily: 'Nunito-SemiBold' },
-                    ]}>
-                      {DIA_LABELS[d].slice(0, 3)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-
-            {diaIndexes.map(({ p, i }, idx) => (
-              <View key={i} style={[styles.itemCard, { backgroundColor: t.bg.elevated, borderColor: t.border.subtle }]}>
-                <View style={styles.itemCardHeader}>
-                  <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary }}>Prática {idx + 1}</Text>
-                  <TouchableOpacity onPress={() => removePratica(i)}>
-                    <Ionicons name={'trash-outline' as IoniconsName} size={18} color={t.status.error} />
-                  </TouchableOpacity>
-                </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-                  <View style={styles.chipRow}>
-                    {TIPOS_PRATICA.map(tp => (
-                      <TouchableOpacity key={tp} style={[
-                        styles.chip,
-                        { borderColor: t.border.default, backgroundColor: t.bg.elevated },
-                        p.tipo === tp && { backgroundColor: t.brand.primary, borderColor: t.brand.primary },
-                      ]}
-                        onPress={() => updatePratica(i, { tipo: tp })}>
-                        <Text style={[
-                          { fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.secondary },
-                          p.tipo === tp && { color: '#ffffff', fontFamily: 'Nunito-SemiBold' },
-                        ]}>{tp}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
-                <View style={styles.row}>
-                  <TextInput style={[inputStyle, { flex: 1, marginRight: 8 }]} placeholder="Horário"
-                    placeholderTextColor={t.text.tertiary} value={p.horario}
-                    onChangeText={v => updatePratica(i, { horario: v })} />
-                  <TextInput style={[inputStyle, { flex: 1 }]} placeholder="Duração (ex.: 30min)"
-                    placeholderTextColor={t.text.tertiary} value={p.duracao}
-                    onChangeText={v => updatePratica(i, { duracao: v })} />
-                </View>
-                <TextInput style={[inputStyle, styles.textarea]} placeholder="Observação (opcional)"
-                  placeholderTextColor={t.text.tertiary} value={p.obs}
-                  onChangeText={v => updatePratica(i, { obs: v })} multiline numberOfLines={2} />
-              </View>
-            ))}
-
-            <AddButton label={`+ Adicionar prática em ${DIA_LABELS[activeDia]}`} onPress={addPratica} t={t} />
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Bold' as const, color: t.text.secondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+              Reflexão e intenção
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: t.bg.surface,
+                borderRadius: r.md,
+                borderWidth: StyleSheet.hairlineWidth,
+                borderColor: t.border.subtle,
+                padding: 14,
+                fontSize: 15,
+                fontFamily: 'Nunito-Regular' as const,
+                color: t.text.primary,
+                minHeight: 120,
+                textAlignVertical: 'top',
+              }}
+              value={data.reflexao_evangelizacao}
+              onChangeText={v => update({ reflexao_evangelizacao: v })}
+              multiline
+              numberOfLines={4}
+              placeholder="Escreva livremente sobre como quer estar presente para evangelizar neste mês..."
+              placeholderTextColor={t.text.tertiary}
+            />
           </View>
         );
-      }
 
-      // ── Step 6: PIN / Privacidade ─────────────────────────────────────────
-      case 6:
+      // ── Step 8: PIN / Privacidade ─────────────────────────────────────────
+      case 8:
         return (
           <View style={styles.stepContent}>
             {/* Bloco de privacidade */}
@@ -738,8 +421,8 @@ export default function WizardScreen() {
           </View>
         );
 
-      // ── Step 7: Confirmar ─────────────────────────────────────────────────
-      case 7:
+      // ── Step 9: Confirmar ─────────────────────────────────────────────────
+      case 9:
         return (
           <View style={styles.stepContent}>
             <View style={{ backgroundColor: t.brand.primaryDim, borderRadius: 14, padding: 20, marginBottom: 20, gap: 8 }}>
@@ -747,18 +430,24 @@ export default function WizardScreen() {
                 {MESES[parseInt(data.mes, 10) - 1]} {data.ano}
               </Text>
               {data.pin ? <Text style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.primary }}>🔒 Senha configurada</Text> : null}
-              <Text style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.primary }}>
-                👥 {data.comunidade.partilha_acompanhador.length + data.comunidade.encontro_familia.length + data.comunidade.dias_grupo.length} compromisso(s) comunitário(s)
-              </Text>
-              <Text style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.primary }}>
-                ❤️ {data.cuidado.consultas.length + data.cuidado.exames.length + data.cuidado.descanso.length} item(ns) de cuidado pessoal
-              </Text>
-              <Text style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.primary }}>
-                📅 {data.compromissos.length} compromisso(s) semanal(is)
-              </Text>
-              <Text style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.primary }}>
-                🙏 {data.praticas.length} prática(s) de oração
-              </Text>
+              {Object.entries(data.areas).map(([key, area]) => {
+                const labels: Record<string, string> = {
+                  FAMILIA_VOCACIONAL: 'Família Vocacional',
+                  MINISTERIO_BOM_PASTOR: 'Ministério Bom Pastor',
+                  GRUPO_FORMATIVO: 'Grupo Formativo',
+                  SAUDE_LAZER: 'Saúde e Lazer',
+                  FAMILIA_ORIGEM: 'Família de Origem',
+                };
+                const total = area.compromissos.length;
+                return (
+                  <Text key={key} style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.primary }}>
+                    • {labels[key] ?? key}: {total} compromisso(s)
+                  </Text>
+                );
+              })}
+              {data.reflexao_evangelizacao ? (
+                <Text style={{ fontSize: 15, fontFamily: 'Nunito-Regular', color: t.text.primary }}>✦ Evangelização Ser Feliz preenchida</Text>
+              ) : null}
             </View>
             {error && (
               <View style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca', borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 }}>
@@ -882,62 +571,20 @@ function AddButton({ label, onPress, t }: { label: string; onPress: () => void; 
   );
 }
 
-function EventoCard({
-  index, item, onRemove, onChange, t, r,
-}: {
-  index: number;
-  item: EventoItem;
-  onRemove: () => void;
-  onChange: (patch: Partial<EventoItem>) => void;
-  t: ThemeTokens;
-  r: RadiiTokens;
-}) {
-  const inputStyle = {
-    backgroundColor: t.bg.surface,
-    borderRadius: r.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: t.border.subtle,
-    padding: 12,
-    fontSize: 15,
-    fontFamily: 'Nunito-Regular',
-    color: t.text.primary,
-    minHeight: 48,
-    marginBottom: 10,
-  };
-  return (
-    <View style={[styles.itemCard, { backgroundColor: t.bg.elevated, borderColor: t.border.subtle }]}>
-      <View style={styles.itemCardHeader}>
-        <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary }}>Entrada {index + 1}</Text>
-        <TouchableOpacity onPress={onRemove}>
-          <Ionicons name={'trash-outline' as IoniconsName} size={18} color={t.status.error} />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.row}>
-        <TextInput style={[inputStyle, { flex: 1, marginRight: 8 }]}
-          placeholder="Data (ex.: 04/04/2026)" placeholderTextColor={t.text.tertiary}
-          value={item.data ?? ''} onChangeText={v => onChange({ data: v })} />
-        <TextInput style={[inputStyle, { flex: 1 }]}
-          placeholder="Horário" placeholderTextColor={t.text.tertiary}
-          value={item.horario ?? ''} onChangeText={v => onChange({ horario: v })} />
-      </View>
-      <TextInput style={inputStyle}
-        placeholder="Local" placeholderTextColor={t.text.tertiary}
-        value={item.local ?? ''} onChangeText={v => onChange({ local: v })} />
-      <TextInput style={[inputStyle, styles.textarea]}
-        placeholder="Observações (opcional)" placeholderTextColor={t.text.tertiary}
-        value={item.observacoes ?? ''} onChangeText={v => onChange({ observacoes: v })}
-        multiline numberOfLines={2} />
-    </View>
-  );
-}
+// ── Componente de Área Mensal ─────────────────────────────────────────────────
 
-function OutroComCard({
-  index, item, onRemove, onChange, t, r,
+function AreaMensalStep({
+  titulo,
+  descricaoOrientadora,
+  areaData,
+  onChange,
+  t,
+  r,
 }: {
-  index: number;
-  item: OutroItemComunidade;
-  onRemove: () => void;
-  onChange: (patch: Partial<OutroItemComunidade>) => void;
+  titulo: string;
+  descricaoOrientadora: string;
+  areaData: AreaData;
+  onChange: (patch: Partial<AreaData>) => void;
   t: ThemeTokens;
   r: RadiiTokens;
 }) {
@@ -948,138 +595,95 @@ function OutroComCard({
     borderColor: t.border.subtle,
     padding: 12,
     fontSize: 15,
-    fontFamily: 'Nunito-Regular',
+    fontFamily: 'Nunito-Regular' as const,
     color: t.text.primary,
     minHeight: 48,
     marginBottom: 10,
   };
-  return (
-    <View style={[styles.itemCard, { backgroundColor: t.bg.elevated, borderColor: t.border.subtle }]}>
-      <View style={styles.itemCardHeader}>
-        <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary }}>Compromisso {index + 1}</Text>
-        <TouchableOpacity onPress={onRemove}>
-          <Ionicons name={'trash-outline' as IoniconsName} size={18} color={t.status.error} />
-        </TouchableOpacity>
-      </View>
-      <TextInput style={inputStyle}
-        placeholder="Título do compromisso" placeholderTextColor={t.text.tertiary}
-        value={item.titulo ?? ''} onChangeText={v => onChange({ titulo: v })} />
-      <TextInput style={[inputStyle, styles.textarea]}
-        placeholder="Descrição" placeholderTextColor={t.text.tertiary}
-        value={item.descricao ?? ''} onChangeText={v => onChange({ descricao: v })}
-        multiline numberOfLines={2} />
-      <TextInput style={inputStyle}
-        placeholder="Local" placeholderTextColor={t.text.tertiary}
-        value={item.local ?? ''} onChangeText={v => onChange({ local: v })} />
-      <View style={styles.row}>
-        <TextInput style={[inputStyle, { flex: 1, marginRight: 8 }]}
-          placeholder="Data" placeholderTextColor={t.text.tertiary}
-          value={item.data ?? ''} onChangeText={v => onChange({ data: v })} />
-        <TextInput style={[inputStyle, { flex: 1 }]}
-          placeholder="Horário" placeholderTextColor={t.text.tertiary}
-          value={item.horario ?? ''} onChangeText={v => onChange({ horario: v })} />
-      </View>
-    </View>
-  );
-}
 
-function CuidadoCard({
-  index, item, onRemove, onChange, t, r,
-}: {
-  index: number;
-  item: CuidadoEventoItem;
-  onRemove: () => void;
-  onChange: (patch: Partial<CuidadoEventoItem>) => void;
-  t: ThemeTokens;
-  r: RadiiTokens;
-}) {
-  const inputStyle = {
-    backgroundColor: t.bg.surface,
-    borderRadius: r.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: t.border.subtle,
-    padding: 12,
-    fontSize: 15,
-    fontFamily: 'Nunito-Regular',
-    color: t.text.primary,
-    minHeight: 48,
-    marginBottom: 10,
-  };
-  return (
-    <View style={[styles.itemCard, { backgroundColor: t.bg.elevated, borderColor: t.border.subtle }]}>
-      <View style={styles.itemCardHeader}>
-        <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary }}>Entrada {index + 1}</Text>
-        <TouchableOpacity onPress={onRemove}>
-          <Ionicons name={'trash-outline' as IoniconsName} size={18} color={t.status.error} />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.row}>
-        <TextInput style={[inputStyle, { flex: 1, marginRight: 8 }]}
-          placeholder="Data" placeholderTextColor={t.text.tertiary}
-          value={item.data ?? ''} onChangeText={v => onChange({ data: v })} />
-        <TextInput style={[inputStyle, { flex: 1 }]}
-          placeholder="Horário" placeholderTextColor={t.text.tertiary}
-          value={item.horario ?? ''} onChangeText={v => onChange({ horario: v })} />
-      </View>
-      <TextInput style={inputStyle}
-        placeholder="Local" placeholderTextColor={t.text.tertiary}
-        value={item.local ?? ''} onChangeText={v => onChange({ local: v })} />
-      <TextInput style={[inputStyle, styles.textarea]}
-        placeholder="Descrição (opcional)" placeholderTextColor={t.text.tertiary}
-        value={item.descricao ?? ''} onChangeText={v => onChange({ descricao: v })}
-        multiline numberOfLines={2} />
-    </View>
-  );
-}
+  const addCompromisso = () =>
+    onChange({
+      compromissos: [
+        ...areaData.compromissos,
+        { descricao: '', data: '', horario: '', local: '', obs: '' },
+      ],
+    });
 
-function OutroCuidadoCard({
-  index, item, onRemove, onChange, t, r,
-}: {
-  index: number;
-  item: OutroItemCuidado;
-  onRemove: () => void;
-  onChange: (patch: Partial<OutroItemCuidado>) => void;
-  t: ThemeTokens;
-  r: RadiiTokens;
-}) {
-  const inputStyle = {
-    backgroundColor: t.bg.surface,
-    borderRadius: r.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: t.border.subtle,
-    padding: 12,
-    fontSize: 15,
-    fontFamily: 'Nunito-Regular',
-    color: t.text.primary,
-    minHeight: 48,
-    marginBottom: 10,
+  const removeCompromisso = (idx: number) =>
+    onChange({ compromissos: areaData.compromissos.filter((_, i) => i !== idx) });
+
+  const updateCompromisso = (idx: number, patch: Partial<CompromissoAreaItem>) => {
+    const list = [...areaData.compromissos];
+    list[idx] = { ...list[idx], ...patch };
+    onChange({ compromissos: list });
   };
+
   return (
-    <View style={[styles.itemCard, { backgroundColor: t.bg.elevated, borderColor: t.border.subtle }]}>
-      <View style={styles.itemCardHeader}>
-        <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: t.text.primary }}>Compromisso {index + 1}</Text>
-        <TouchableOpacity onPress={onRemove}>
-          <Ionicons name={'trash-outline' as IoniconsName} size={18} color={t.status.error} />
-        </TouchableOpacity>
-      </View>
-      <TextInput style={inputStyle}
-        placeholder="Título" placeholderTextColor={t.text.tertiary}
-        value={item.titulo ?? ''} onChangeText={v => onChange({ titulo: v })} />
-      <TextInput style={[inputStyle, styles.textarea]}
-        placeholder="Descrição" placeholderTextColor={t.text.tertiary}
-        value={item.descricao ?? ''} onChangeText={v => onChange({ descricao: v })}
-        multiline numberOfLines={2} />
-      <TextInput style={inputStyle}
-        placeholder="Local" placeholderTextColor={t.text.tertiary}
-        value={item.local ?? ''} onChangeText={v => onChange({ local: v })} />
-      <View style={styles.row}>
-        <TextInput style={[inputStyle, { flex: 1, marginRight: 8 }]}
-          placeholder="Data" placeholderTextColor={t.text.tertiary}
-          value={item.data ?? ''} onChangeText={v => onChange({ data: v })} />
-        <TextInput style={[inputStyle, { flex: 1 }]}
-          placeholder="Horário" placeholderTextColor={t.text.tertiary}
-          value={item.horario ?? ''} onChangeText={v => onChange({ horario: v })} />
-      </View>
+    <View style={{ padding: 20 }}>
+      <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular' as const, color: t.text.tertiary, lineHeight: 20, marginBottom: 16 }}>
+        {descricaoOrientadora}
+      </Text>
+
+      {/* Objetivo */}
+      <Text style={{ fontSize: 13, fontFamily: 'Nunito-Bold' as const, color: t.text.secondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+        Objetivo do mês
+      </Text>
+      <TextInput
+        style={[inputStyle, { minHeight: 64, textAlignVertical: 'top' }]}
+        value={areaData.objetivo}
+        onChangeText={v => onChange({ objetivo: v })}
+        multiline
+        numberOfLines={2}
+        placeholder="O que você pretende viver nesta área este mês?"
+        placeholderTextColor={t.text.tertiary}
+      />
+
+      {/* Compromissos */}
+      <Text style={{ fontSize: 13, fontFamily: 'Nunito-Bold' as const, color: t.text.secondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8, marginTop: 8 }}>
+        Compromissos concretos
+      </Text>
+      {areaData.compromissos.map((c, idx) => (
+        <View key={idx} style={{ backgroundColor: t.bg.elevated, borderRadius: 10, padding: 12, marginBottom: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: t.border.subtle }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-SemiBold' as const, color: t.text.primary }}>
+              Compromisso {idx + 1}
+            </Text>
+            <TouchableOpacity onPress={() => removeCompromisso(idx)}>
+              <Ionicons name={'trash-outline' as IoniconsName} size={16} color={t.status.error} />
+            </TouchableOpacity>
+          </View>
+          <TextInput style={inputStyle} placeholder="Descrição" placeholderTextColor={t.text.tertiary}
+            value={c.descricao ?? ''} onChangeText={v => updateCompromisso(idx, { descricao: v })} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TextInput style={[inputStyle, { flex: 1 }]} placeholder="Data" placeholderTextColor={t.text.tertiary}
+              value={c.data ?? ''} onChangeText={v => updateCompromisso(idx, { data: v })} />
+            <TextInput style={[inputStyle, { flex: 1 }]} placeholder="Horário" placeholderTextColor={t.text.tertiary}
+              value={c.horario ?? ''} onChangeText={v => updateCompromisso(idx, { horario: v })} />
+          </View>
+          <TextInput style={inputStyle} placeholder="Local (opcional)" placeholderTextColor={t.text.tertiary}
+            value={c.local ?? ''} onChangeText={v => updateCompromisso(idx, { local: v })} />
+        </View>
+      ))}
+      <TouchableOpacity
+        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 10, borderWidth: 1.5, borderColor: t.brand.primary, borderStyle: 'dashed', marginBottom: 16 }}
+        onPress={addCompromisso}
+      >
+        <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold' as const, color: t.brand.primary }}>+ Adicionar compromisso</Text>
+      </TouchableOpacity>
+
+      {/* Observações */}
+      <Text style={{ fontSize: 13, fontFamily: 'Nunito-Bold' as const, color: t.text.secondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+        Observações (opcional)
+      </Text>
+      <TextInput
+        style={[inputStyle, { minHeight: 64, textAlignVertical: 'top' }]}
+        value={areaData.observacoes}
+        onChangeText={v => onChange({ observacoes: v })}
+        multiline
+        numberOfLines={2}
+        placeholder="Notas livres sobre esta área..."
+        placeholderTextColor={t.text.tertiary}
+      />
     </View>
   );
 }

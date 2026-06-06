@@ -117,6 +117,9 @@ export interface ProjetoVidaMensalFull {
   compromissos: CompromissoOut[];
   praticas: PraticaOut[];
   revisao: RevisaoOut | null;
+  has_new_structure: boolean;
+  areas: AreaMensalOut[];
+  reflexao_evangelizacao: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -157,6 +160,25 @@ export interface CreateProjetoInput {
   intencao?: string | null;
 }
 
+export interface CompromissoAreaItem {
+  descricao: string | null;
+  data: string | null;
+  horario: string | null;
+  local: string | null;
+  obs: string | null;
+}
+
+export interface AreaMensalIn {
+  tipo_area: string;
+  objetivo: string | null;
+  compromissos: CompromissoAreaItem[];
+  observacoes: string | null;
+}
+
+export interface AreaMensalOut extends AreaMensalIn {
+  id: string;
+}
+
 export interface UpdateProjetoInput {
   observacoes_mes?: string | null;
   concluido?: boolean | null;
@@ -164,6 +186,8 @@ export interface UpdateProjetoInput {
   cuidado?: CuidadoData | null;
   compromissos?: CompromissoIn[] | null;
   praticas?: PraticaIn[] | null;
+  areas?: AreaMensalIn[] | null;
+  reflexao_evangelizacao?: string | null;
 }
 
 export interface RevisaoInput {
