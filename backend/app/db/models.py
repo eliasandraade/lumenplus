@@ -1865,6 +1865,12 @@ class ProjetoVidaMensal(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    semanas: Mapped[list["ProjetoVidaSemanal"]] = relationship(
+        "ProjetoVidaSemanal",
+        back_populates="projeto",
+        cascade="all, delete-orphan",
+        order_by="ProjetoVidaSemanal.numero_semana",
+    )
 
     __table_args__ = (
         UniqueConstraint("user_id", "mes", "ano", name="uq_projeto_vida_mensal_user_mes_ano"),
@@ -2100,4 +2106,50 @@ class ProjetoVidaIntercessao(Base):
 
     projeto: Mapped["ProjetoVidaMensal"] = relationship(
         "ProjetoVidaMensal", back_populates="intercessao"
+    )
+
+
+class ProjetoVidaSemanal(Base):
+    __tablename__ = "projetos_vida_semanal"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        default=_uuid_mod.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+    projeto_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("projetos_vida_mensal.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    numero_semana: Mapped[int] = mapped_column(Integer, nullable=False)
+    dever_estado: Mapped[Any | None] = mapped_column(
+        postgresql.JSONB(astext_type=Text()), nullable=True
+    )
+    vida_interior: Mapped[Any | None] = mapped_column(
+        postgresql.JSONB(astext_type=Text()), nullable=True
+    )
+    evangelizacao_disposicao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    evangelizacao_momentos: Mapped[Any | None] = mapped_column(
+        postgresql.JSONB(astext_type=Text()), nullable=True, server_default="'[]'::jsonb"
+    )
+    plano_diario: Mapped[Any | None] = mapped_column(
+        postgresql.JSONB(astext_type=Text()), nullable=True, server_default="'{}'::jsonb"
+    )
+    observacoes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    projeto: Mapped["ProjetoVidaMensal"] = relationship(
+        "ProjetoVidaMensal", back_populates="semanas"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("projeto_id", "numero_semana", name="uq_pv_semanal_projeto_semana"),
+        Index("ix_pv_semanal_projeto_id", "projeto_id"),
     )

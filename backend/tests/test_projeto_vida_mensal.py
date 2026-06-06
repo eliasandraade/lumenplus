@@ -411,3 +411,88 @@ def test_intercessao_upsert_idempotente(client: TestClient, auth_headers: dict):
     resp = client.get(f"/projeto-vida-mensal/{pid}/intercessao", headers=auth_headers)
     assert resp.json()["intencoes_pessoais"] == "v2"
     assert resp.json()["intencoes_comunitarias"] == "comunidade"
+
+
+def test_semanal_criar_e_listar(client: TestClient, auth_headers: dict):
+    """POST cria semana; GET lista retorna sumário sem plano_diario."""
+    pid = client.post(
+        "/projeto-vida-mensal/", json={"mes": 12, "ano": 2027}, headers=auth_headers
+    ).json()["id"]
+
+    resp = client.post(
+        f"/projeto-vida-mensal/{pid}/semanal",
+        json={"numero_semana": 1, "evangelizacao_disposicao": "Com disponibilidade"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+    sid = resp.json()["id"]
+    assert resp.json()["numero_semana"] == 1
+
+    resp_lista = client.get(f"/projeto-vida-mensal/{pid}/semanal", headers=auth_headers)
+    assert resp_lista.status_code == 200
+    lista = resp_lista.json()
+    assert len(lista) == 1
+    assert lista[0]["id"] == sid
+    # Sumário não deve incluir plano_diario completo
+    assert "evangelizacao_disposicao" not in lista[0]
+
+
+def test_semanal_duplicado_retorna_409(client: TestClient, auth_headers: dict):
+    """Criar semana com numero_semana já existente retorna 409."""
+    pid = client.post(
+        "/projeto-vida-mensal/", json={"mes": 1, "ano": 2028}, headers=auth_headers
+    ).json()["id"]
+    client.post(
+        f"/projeto-vida-mensal/{pid}/semanal", json={"numero_semana": 2}, headers=auth_headers
+    )
+    resp = client.post(
+        f"/projeto-vida-mensal/{pid}/semanal", json={"numero_semana": 2}, headers=auth_headers
+    )
+    assert resp.status_code == 409
+
+
+def test_semanal_get_completo(client: TestClient, auth_headers: dict):
+    """GET /projeto-vida-semanal/{id} retorna campos completos."""
+    pid = client.post(
+        "/projeto-vida-mensal/", json={"mes": 2, "ano": 2028}, headers=auth_headers
+    ).json()["id"]
+    sid = client.post(
+        f"/projeto-vida-mensal/{pid}/semanal",
+        json={"numero_semana": 3, "evangelizacao_disposicao": "Com amor"},
+        headers=auth_headers,
+    ).json()["id"]
+
+    resp = client.get(f"/projeto-vida-semanal/{sid}", headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["evangelizacao_disposicao"] == "Com amor"
+    assert "plano_diario" in data
+
+
+def test_semanal_merge_parcial_plano_diario(client: TestClient, auth_headers: dict):
+    """Atualizar apenas 'seg' não deve alterar 'sex'."""
+    pid = client.post(
+        "/projeto-vida-mensal/", json={"mes": 3, "ano": 2028}, headers=auth_headers
+    ).json()["id"]
+    sid = client.post(
+        f"/projeto-vida-mensal/{pid}/semanal", json={"numero_semana": 1}, headers=auth_headers
+    ).json()["id"]
+
+    # Salvar sex
+    client.put(
+        f"/projeto-vida-semanal/{sid}",
+        json={"plano_diario": {"sex": {"proposito": "paz", "missa": True}}},
+        headers=auth_headers,
+    )
+    # Salvar seg (não deve apagar sex)
+    client.put(
+        f"/projeto-vida-semanal/{sid}",
+        json={"plano_diario": {"seg": {"proposito": "foco"}}},
+        headers=auth_headers,
+    )
+
+    resp = client.get(f"/projeto-vida-semanal/{sid}", headers=auth_headers)
+    plano = resp.json()["plano_diario"]
+    assert plano["sex"]["proposito"] == "paz"
+    assert plano["sex"]["missa"] is True
+    assert plano["seg"]["proposito"] == "foco"

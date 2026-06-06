@@ -231,6 +231,7 @@ from app.api.routes.organization import router as org_router  # noqa: E402
 from app.api.verification_routes import router as verify_router  # noqa: E402
 from app.api.life_plan_routes import router as life_plan_router  # noqa: E402
 from app.api.projeto_vida_mensal_routes import router as projeto_vida_mensal_router  # noqa: E402
+from app.api.projeto_vida_semanal_routes import router as projeto_vida_semanal_router  # noqa: E402
 from app.api.routes.export import router as export_router  # noqa: E402
 from app.api.channel_routes import router as channel_router  # noqa: E402
 from app.api.push_routes import router as push_router  # noqa: E402
@@ -247,6 +248,7 @@ app.include_router(verify_router)
 app.include_router(legal_router)
 app.include_router(life_plan_router)
 app.include_router(projeto_vida_mensal_router)
+app.include_router(projeto_vida_semanal_router)
 app.include_router(export_router)
 app.include_router(channel_router)
 app.include_router(push_router)

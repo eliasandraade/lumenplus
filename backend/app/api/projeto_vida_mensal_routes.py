@@ -33,6 +33,7 @@ from app.db.models import (
     ProjetoVidaExame,
     ProjetoVidaIntercessao,
     ProjetoVidaMensal,
+    ProjetoVidaSemanal,
     ProjetoVidaPratica,
     ProjetoVidaRevisao,
     UserIdentity,
@@ -55,6 +56,9 @@ from app.schemas.projeto_vida_mensal import (
     ProjetoVidaMensalFull,
     ProjetoVidaMensalSummary,
     ProjetoVidaMensalUpdate,
+    ProjetoVidaSemanasCreate,
+    ProjetoVidaSemanasOut,
+    ProjetoVidaSemanasSummary,
     RevisaoOut,
     RevisaoUpsert,
 )
@@ -582,3 +586,70 @@ def verificar_pin(
 
     db.commit()
     return PinVerifyResponse(valid=valido)
+
+
+@router.get("/{projeto_id}/semanal", response_model=list[ProjetoVidaSemanasSummary])
+def list_semanas(projeto_id: UUID, user: CurrentUser, db: DBSession) -> Any:
+    """Lista semanas do ciclo (sumário — sem plano_diario)."""
+    db.execute(
+        select(ProjetoVidaMensal.id).where(
+            ProjetoVidaMensal.id == projeto_id,
+            ProjetoVidaMensal.user_id == user.id,
+        )
+    ).scalar_one_or_none() or _raise_not_found()
+
+    semanas = db.execute(
+        select(ProjetoVidaSemanal)
+        .where(ProjetoVidaSemanal.projeto_id == projeto_id)
+        .order_by(ProjetoVidaSemanal.numero_semana)
+    ).scalars().all()
+    return semanas
+
+
+@router.post("/{projeto_id}/semanal", response_model=ProjetoVidaSemanasOut, status_code=201)
+def create_semanal(
+    projeto_id: UUID, body: ProjetoVidaSemanasCreate, user: CurrentUser, db: DBSession
+) -> Any:
+    """Cria uma semana para o ciclo. Retorna 409 se numero_semana já existe."""
+    db.execute(
+        select(ProjetoVidaMensal.id).where(
+            ProjetoVidaMensal.id == projeto_id,
+            ProjetoVidaMensal.user_id == user.id,
+        )
+    ).scalar_one_or_none() or _raise_not_found()
+
+    existente = db.execute(
+        select(ProjetoVidaSemanal).where(
+            ProjetoVidaSemanal.projeto_id == projeto_id,
+            ProjetoVidaSemanal.numero_semana == body.numero_semana,
+        )
+    ).scalar_one_or_none()
+    if existente:
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "conflict", "message": "Semana já existe para este ciclo"},
+        )
+
+    momentos = (
+        [m.model_dump() for m in body.evangelizacao_momentos]
+        if body.evangelizacao_momentos else []
+    )
+    plano = (
+        {dia: item.model_dump(exclude_none=True) for dia, item in body.plano_diario.items()}
+        if body.plano_diario else {}
+    )
+
+    semanal = ProjetoVidaSemanal(
+        projeto_id=projeto_id,
+        numero_semana=body.numero_semana,
+        dever_estado=body.dever_estado,
+        vida_interior=body.vida_interior,
+        evangelizacao_disposicao=body.evangelizacao_disposicao,
+        evangelizacao_momentos=momentos,
+        plano_diario=plano,
+        observacoes=body.observacoes,
+    )
+    db.add(semanal)
+    db.commit()
+    db.refresh(semanal)
+    return semanal

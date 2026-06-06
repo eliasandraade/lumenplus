@@ -272,4 +272,68 @@ class IntercessaoOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+
+# ── Projeto Semanal ─────────────────────────────────────────────────────────
+
+
+class EvangelizacaoMomentoItem(BaseModel):
+    """Momento relacional planejado — apenas descrição, sem métricas."""
+    descricao: str = Field(..., max_length=500)
+
+
+class PlanoDiarioItem(BaseModel):
+    """Planejamento de um dia — todos os campos opcionais."""
+    proposito: Optional[str] = Field(None, max_length=1000)
+    missa: Optional[bool] = None
+    horario_missa: Optional[str] = Field(None, max_length=20)
+    oracao_manha: Optional[str] = Field(None, max_length=500)
+    lectio: Optional[str] = Field(None, max_length=500)
+    terco: Optional[bool] = None
+    leitura_espiritual: Optional[str] = Field(None, max_length=500)
+    evangelizacao: Optional[str] = Field(None, max_length=500)
+    compromissos: Optional[List[str]] = None
+
+
+class ProjetoVidaSemanasCreate(BaseModel):
+    numero_semana: int = Field(..., ge=1, le=5)
+    dever_estado: Optional[Any] = None
+    vida_interior: Optional[Any] = None
+    evangelizacao_disposicao: Optional[str] = Field(None, max_length=3000)
+    evangelizacao_momentos: Optional[List[EvangelizacaoMomentoItem]] = None
+    plano_diario: Optional[dict[str, PlanoDiarioItem]] = None
+    observacoes: Optional[str] = Field(None, max_length=2000)
+
+
+class ProjetoVidaSemanasUpdate(BaseModel):
+    dever_estado: Optional[Any] = None
+    vida_interior: Optional[Any] = None
+    evangelizacao_disposicao: Optional[str] = Field(None, max_length=3000)
+    evangelizacao_momentos: Optional[List[EvangelizacaoMomentoItem]] = None
+    plano_diario: Optional[dict[str, PlanoDiarioItem]] = None
+    observacoes: Optional[str] = Field(None, max_length=2000)
+
+
+class ProjetoVidaSemanasOut(BaseModel):
+    id: UUID
+    numero_semana: int
+    dever_estado: Optional[Any] = None
+    vida_interior: Optional[Any] = None
+    evangelizacao_disposicao: Optional[str] = None
+    evangelizacao_momentos: Optional[List[EvangelizacaoMomentoItem]] = None
+    plano_diario: Optional[dict] = None
+    observacoes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ProjetoVidaSemanasSummary(BaseModel):
+    """Sumário sem plano_diario para listagem."""
+    id: UUID
+    numero_semana: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
     model_config = {"from_attributes": True}
