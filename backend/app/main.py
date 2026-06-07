@@ -143,6 +143,25 @@ app.add_middleware(
 )
 
 
+# Content-Security-Policy
+# Estrita por padrão: a API só serve JSON, então nada deve carregar recursos.
+# Defesa em profundidade contra XSS e clickjacking (frame-ancestors).
+_CSP_STRICT = "default-src 'none'; frame-ancestors 'none'"
+# Exceção dev-only: Swagger UI (/docs) e ReDoc (/redoc) carregam assets de CDN
+# e usam scripts/estilos inline. Esses endpoints só existem quando settings.is_dev
+# (docs_url/redoc_url=None em produção → 404), logo esta CSP relaxada nunca vale em prod.
+_CSP_DOCS = (
+    "default-src 'self'; "
+    "img-src 'self' data: https://fastapi.tiangolo.com https://cdn.jsdelivr.net; "
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+    "font-src 'self' https://fonts.gstatic.com; "
+    "worker-src 'self' blob:; "
+    "connect-src 'self'"
+)
+_DOCS_PATHS = {"/docs", "/redoc"}
+
+
 # Security headers — aplicados a todas as respostas
 @app.middleware("http")
 async def security_headers(request: Request, call_next: Any) -> Any:
@@ -150,9 +169,20 @@ async def security_headers(request: Request, call_next: Any) -> Any:
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    # Remover header que revela a tecnologia do servidor
-    # MutableHeaders não tem .pop() — usar del com guard
+    # X-XSS-Protection: 0 — o filtro XSS legado dos browsers é deprecado e pode
+    # introduzir vulnerabilidades; a proteção real vem da CSP abaixo (OWASP).
+    response.headers["X-XSS-Protection"] = "0"
+    # HSTS — força HTTPS por 1 ano. 'preload' fica para etapa posterior (após validar
+    # domínio + subdomínios). Sobre HTTP puro o browser ignora, então é seguro localmente.
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # CSP — estrita por padrão; exceção dev-only para a documentação interativa.
+    if settings.is_dev and request.url.path in _DOCS_PATHS:
+        response.headers["Content-Security-Policy"] = _CSP_DOCS
+    else:
+        response.headers["Content-Security-Policy"] = _CSP_STRICT
+    # Remover header que revela a tecnologia do servidor (uvicorn).
+    # Nota: o edge proxy do Railway re-injeta 'Server: railway-hikari', fora do alcance
+    # da app — não tentamos removê-lo aqui (MutableHeaders não tem .pop(); usar del com guard).
     if "server" in response.headers:
         del response.headers["server"]
     return response
