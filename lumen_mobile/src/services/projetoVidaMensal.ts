@@ -62,6 +62,12 @@ export interface OutroItemCuidado {
   horario: string | null;
 }
 
+export interface EvangelizacaoAcaoItem {
+  descricao: string | null;
+  como: string | null;
+  duracao_min: number | null;
+}
+
 // ── Types principais ───────────────────────────────────────────────────────
 
 export interface CompromissoOut {
@@ -120,6 +126,7 @@ export interface ProjetoVidaMensalFull {
   has_new_structure: boolean;
   areas: AreaMensalOut[];
   reflexao_evangelizacao: string | null;
+  evangelizacao_acoes?: EvangelizacaoAcaoItem[] | null;
   created_at: string;
   updated_at: string;
 }
