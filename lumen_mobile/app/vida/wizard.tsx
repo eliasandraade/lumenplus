@@ -18,11 +18,18 @@ import projetoVidaMensalApi, {
   type CompromissoAreaItem, type AreaMensalIn,
   type ContextoVocacionalOut,
   type IntercessaoUpsert,
+  type EvangelizacaoAcaoItem,
 } from '@/services/projetoVidaMensal';
 import { getMotivacaoContent } from '@/data/conteudoVocacional';
 import { CalendarPicker, HorarioInput } from '@/components/ui';
 
 // ── Tipos locais ─────────────────────────────────────────────────────────────
+
+interface EvangelizacaoAcaoItemLocal {
+  descricao: string;
+  como: string;
+  duracao_min: string;
+}
 
 interface AreaData {
   objetivo: string;
@@ -36,6 +43,7 @@ interface WizardData {
   pin: string;
   intencao: string;
   reflexao_evangelizacao: string;
+  evangelizacao_acoes: EvangelizacaoAcaoItemLocal[];
   intencoes_pessoais: string;
   intencoes_comunitarias: string;
   oferecimento: string;
@@ -49,6 +57,7 @@ const defaultData = (): WizardData => ({
   pin: '',
   intencao: '',
   reflexao_evangelizacao: '',
+  evangelizacao_acoes: [],
   intencoes_pessoais: '',
   intencoes_comunitarias: '',
   oferecimento: '',
@@ -126,6 +135,16 @@ export default function WizardScreen() {
 
       await projetoVidaMensalApi.update(projetoId, {
         reflexao_evangelizacao: data.reflexao_evangelizacao || null,
+        evangelizacao_acoes: data.evangelizacao_acoes
+          .filter(a => a.descricao.trim().length > 0)
+          .map(a => {
+            const n = parseInt(a.duracao_min, 10);
+            return {
+              descricao: a.descricao.trim(),
+              como: a.como.trim() || null,
+              duracao_min: Number.isFinite(n) && n >= 1 ? n : null,
+            } as EvangelizacaoAcaoItem;
+          }),
         areas: areasArray,
       });
 
@@ -365,15 +384,18 @@ export default function WizardScreen() {
       case 7:
         return (
           <View style={{ padding: 20 }}>
+            {/* Bloco de abertura */}
             <View style={{ backgroundColor: '#f97316', borderRadius: 14, padding: 18, marginBottom: 20 }}>
-              <Text style={{ fontSize: 11, fontFamily: 'Nunito-Bold' as const, color: 'rgba(255,255,255,0.8)', letterSpacing: 1, marginBottom: 6 }}>✦ COMUNHÃO COMUNITÁRIA</Text>
+              <Text style={{ fontSize: 11, fontFamily: 'Nunito-Bold' as const, color: 'rgba(255,255,255,0.8)', letterSpacing: 1, marginBottom: 6 }}>COMUNHÃO COMUNITÁRIA</Text>
               <Text style={{ fontSize: 16, fontFamily: 'Nunito-Bold' as const, color: '#ffffff', marginBottom: 10 }}>Evangelização Ser Feliz</Text>
-              <Text style={{ fontSize: 14, fontFamily: 'Nunito-Regular' as const, color: 'rgba(255,255,255,0.95)', lineHeight: 21 }}>
-                Como você quer viver a Evangelização Ser Feliz neste mês? Quais pessoas estão no seu coração?
+              <Text style={{ fontSize: 14, fontFamily: 'Nunito-Regular' as const, color: 'rgba(255,255,255,0.95)', lineHeight: 22 }}>
+                {'A Evangelização Ser Feliz é um chamado de comunhão: cada um de nós, no lugar onde está, oferece ao menos 15 minutos por dia à presença de Deus entre as pessoas. Esses minutos podem ser divididos — 5 de manhã, 5 à tarde, 5 à noite. Não é uma tarefa.\nÉ uma disponibilidade do coração.\n\nMas não pare nos 15 minutos. Deixe que Deus te surpreenda.\nQuais são as pessoas que Ele está colocando no seu caminho?\nQue ação concreta nasce do amor?'}
               </Text>
             </View>
+
+            {/* Campo de reflexão (mantido) */}
             <Text style={{ fontSize: 13, fontFamily: 'Nunito-Bold' as const, color: t.text.secondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
-              Reflexão e intenção
+              Reflexão sobre este mês
             </Text>
             <TextInput
               style={{
@@ -385,8 +407,9 @@ export default function WizardScreen() {
                 fontSize: 15,
                 fontFamily: 'Nunito-Regular' as const,
                 color: t.text.primary,
-                minHeight: 120,
+                minHeight: 100,
                 textAlignVertical: 'top',
+                marginBottom: 24,
               }}
               value={data.reflexao_evangelizacao}
               onChangeText={v => update({ reflexao_evangelizacao: v })}
@@ -395,6 +418,143 @@ export default function WizardScreen() {
               placeholder="Escreva livremente sobre como quer estar presente para evangelizar neste mês..."
               placeholderTextColor={t.text.tertiary}
             />
+
+            {/* Lista de ações concretas */}
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Bold' as const, color: t.text.secondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>
+              Ações concretas
+            </Text>
+            <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular' as const, color: t.text.tertiary, marginBottom: 12 }}>
+              O que você fará de concreto?
+            </Text>
+
+            {data.evangelizacao_acoes.map((acao, idx) => (
+              <View
+                key={idx}
+                style={{
+                  backgroundColor: t.bg.surface,
+                  borderRadius: r.md,
+                  borderWidth: StyleSheet.hairlineWidth,
+                  borderColor: t.border.subtle,
+                  padding: 14,
+                  marginBottom: 12,
+                }}
+              >
+                {/* O quê */}
+                <Text style={{ fontSize: 12, fontFamily: 'Nunito-Bold' as const, color: t.text.secondary, marginBottom: 4 }}>O quê</Text>
+                <TextInput
+                  style={{
+                    backgroundColor: t.bg.elevated,
+                    borderRadius: 8,
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderColor: t.border.subtle,
+                    padding: 10,
+                    fontSize: 14,
+                    fontFamily: 'Nunito-Regular' as const,
+                    color: t.text.primary,
+                    minHeight: 40,
+                    marginBottom: 10,
+                  }}
+                  value={acao.descricao}
+                  onChangeText={v => {
+                    const updated = [...data.evangelizacao_acoes];
+                    updated[idx] = { ...updated[idx], descricao: v };
+                    update({ evangelizacao_acoes: updated });
+                  }}
+                  placeholder="Descrição da ação"
+                  placeholderTextColor={t.text.tertiary}
+                />
+
+                {/* Como */}
+                <Text style={{ fontSize: 12, fontFamily: 'Nunito-Bold' as const, color: t.text.secondary, marginBottom: 4 }}>Como</Text>
+                <TextInput
+                  style={{
+                    backgroundColor: t.bg.elevated,
+                    borderRadius: 8,
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderColor: t.border.subtle,
+                    padding: 10,
+                    fontSize: 14,
+                    fontFamily: 'Nunito-Regular' as const,
+                    color: t.text.primary,
+                    minHeight: 40,
+                    marginBottom: 10,
+                  }}
+                  value={acao.como}
+                  onChangeText={v => {
+                    const updated = [...data.evangelizacao_acoes];
+                    updated[idx] = { ...updated[idx], como: v };
+                    update({ evangelizacao_acoes: updated });
+                  }}
+                  placeholder="De que forma vai acontecer"
+                  placeholderTextColor={t.text.tertiary}
+                />
+
+                {/* Quanto */}
+                <Text style={{ fontSize: 12, fontFamily: 'Nunito-Bold' as const, color: t.text.secondary, marginBottom: 4 }}>Quanto</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                  <TextInput
+                    style={{
+                      backgroundColor: t.bg.elevated,
+                      borderRadius: 8,
+                      borderWidth: StyleSheet.hairlineWidth,
+                      borderColor: t.border.subtle,
+                      padding: 10,
+                      fontSize: 14,
+                      fontFamily: 'Nunito-Regular' as const,
+                      color: t.text.primary,
+                      width: 72,
+                      textAlign: 'center',
+                    }}
+                    value={acao.duracao_min}
+                    onChangeText={v => {
+                      const updated = [...data.evangelizacao_acoes];
+                      updated[idx] = { ...updated[idx], duracao_min: v };
+                      update({ evangelizacao_acoes: updated });
+                    }}
+                    keyboardType="numeric"
+                    placeholder="15"
+                    placeholderTextColor={t.text.tertiary}
+                  />
+                  <Text style={{ fontSize: 14, fontFamily: 'Nunito-Regular' as const, color: t.text.secondary, marginLeft: 8 }}>min</Text>
+                </View>
+
+                {/* Remover */}
+                <TouchableOpacity
+                  onPress={() => {
+                    const updated = data.evangelizacao_acoes.filter((_, i) => i !== idx);
+                    update({ evangelizacao_acoes: updated });
+                  }}
+                  style={{ alignSelf: 'flex-end' }}
+                >
+                  <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular' as const, color: t.status.error }}>remover</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            {/* Botão adicionar */}
+            <TouchableOpacity
+              onPress={() => {
+                update({
+                  evangelizacao_acoes: [
+                    ...data.evangelizacao_acoes,
+                    { descricao: '', como: '', duracao_min: '' },
+                  ],
+                });
+              }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 12,
+                borderRadius: 10,
+                borderWidth: 1.5,
+                borderColor: t.brand.primary,
+                borderStyle: 'dashed',
+                marginBottom: 4,
+              }}
+            >
+              <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold' as const, color: t.brand.primary }}>+ Adicionar ação</Text>
+            </TouchableOpacity>
           </View>
         );
 

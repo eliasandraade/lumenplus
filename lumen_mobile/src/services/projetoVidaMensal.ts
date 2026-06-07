@@ -195,6 +195,7 @@ export interface UpdateProjetoInput {
   praticas?: PraticaIn[] | null;
   areas?: AreaMensalIn[] | null;
   reflexao_evangelizacao?: string | null;
+  evangelizacao_acoes?: EvangelizacaoAcaoItem[] | null;
 }
 
 export interface RevisaoInput {
