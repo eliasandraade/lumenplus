@@ -1812,6 +1812,9 @@ class ProjetoVidaMensal(Base):
     concluido: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     observacoes_mes: Mapped[str | None] = mapped_column(Text, nullable=True)
     reflexao_evangelizacao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    evangelizacao_acoes: Mapped[list | None] = mapped_column(
+        postgresql.JSONB(astext_type=Text()), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
