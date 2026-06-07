@@ -91,7 +91,7 @@ interface LiturgiaData {
   entry_title: string;
   readings: {
     first_reading: Reading | null;
-    psalm: { response: string; content_psalm: string[] } | null;
+    psalm: { response: string; content_psalm: string[]; text?: string } | null;
     second_reading: Reading | null;
     gospel: Reading | null;
   };

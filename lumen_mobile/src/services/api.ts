@@ -81,7 +81,7 @@ class ApiClient {
   private async request<T>(
     method: string,
     url: string,
-    data?: Record<string, unknown>
+    data?: unknown
   ): Promise<T> {
     const token = await this.getToken();
 
@@ -119,15 +119,15 @@ class ApiClient {
     return this.request<T>('GET', url);
   }
 
-  async post<T>(url: string, data?: Record<string, unknown>): Promise<T> {
+  async post<T>(url: string, data?: unknown): Promise<T> {
     return this.request<T>('POST', url, data);
   }
 
-  async put<T>(url: string, data?: Record<string, unknown>): Promise<T> {
+  async put<T>(url: string, data?: unknown): Promise<T> {
     return this.request<T>('PUT', url, data);
   }
 
-  async patch<T>(url: string, data?: Record<string, unknown>): Promise<T> {
+  async patch<T>(url: string, data?: unknown): Promise<T> {
     return this.request<T>('PATCH', url, data);
   }
 

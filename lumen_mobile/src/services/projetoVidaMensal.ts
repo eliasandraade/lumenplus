@@ -118,6 +118,7 @@ export interface ProjetoVidaMensalFull {
   has_pin: boolean;
   concluido: boolean;
   observacoes_mes: string | null;
+  intencao?: string | null;
   comunidade: ComunidadeData | null;
   cuidado: CuidadoData | null;
   compromissos: CompromissoOut[];
@@ -301,16 +302,16 @@ export const projetoVidaMensalApi = {
     api.get<ProjetoVidaMensalSummary[]>('/projeto-vida-mensal/historico'),
 
   criar: (data: CreateProjetoInput) =>
-    api.post<ProjetoVidaMensalFull>('/projeto-vida-mensal/', data as Record<string, unknown>),
+    api.post<ProjetoVidaMensalFull>('/projeto-vida-mensal/', data),
 
   get: (id: string) =>
     api.get<ProjetoVidaMensalFull>(`/projeto-vida-mensal/${id}`),
 
   update: (id: string, data: UpdateProjetoInput) =>
-    api.put<ProjetoVidaMensalFull>(`/projeto-vida-mensal/${id}`, data as Record<string, unknown>),
+    api.put<ProjetoVidaMensalFull>(`/projeto-vida-mensal/${id}`, data),
 
   upsertRevisao: (id: string, data: RevisaoInput) =>
-    api.put<ProjetoVidaMensalFull>(`/projeto-vida-mensal/${id}/revisao`, data as Record<string, unknown>),
+    api.put<ProjetoVidaMensalFull>(`/projeto-vida-mensal/${id}/revisao`, data),
 
   verificarPin: (id: string, pin: string) =>
     api.post<{ valid: boolean }>(`/projeto-vida-mensal/${id}/pin/verificar`, { pin }),
@@ -322,22 +323,22 @@ export const projetoVidaMensalApi = {
     api.get<ExameOut | null>(`/projeto-vida-mensal/${id}/exame`),
 
   upsertExame: (id: string, data: ExameUpsert) =>
-    api.put<ExameOut>(`/projeto-vida-mensal/${id}/exame`, data as Record<string, unknown>),
+    api.put<ExameOut>(`/projeto-vida-mensal/${id}/exame`, data),
 
   upsertIntercessao: (id: string, data: IntercessaoUpsert) =>
-    api.put<IntercessaoOut>(`/projeto-vida-mensal/${id}/intercessao`, data as Record<string, unknown>),
+    api.put<IntercessaoOut>(`/projeto-vida-mensal/${id}/intercessao`, data),
 
   listSemanas: (projetoId: string) =>
     api.get<ProjetoVidaSemanasSummary[]>(`/projeto-vida-mensal/${projetoId}/semanal`),
 
   createSemanal: (projetoId: string, data: ProjetoVidaSemanasCreate) =>
-    api.post<ProjetoVidaSemanasOut>(`/projeto-vida-mensal/${projetoId}/semanal`, data as Record<string, unknown>),
+    api.post<ProjetoVidaSemanasOut>(`/projeto-vida-mensal/${projetoId}/semanal`, data),
 
   getSemanal: (id: string) =>
     api.get<ProjetoVidaSemanasOut>(`/projeto-vida-semanal/${id}`),
 
   updateSemanal: (id: string, data: Partial<ProjetoVidaSemanasCreate>) =>
-    api.put<ProjetoVidaSemanasOut>(`/projeto-vida-semanal/${id}`, data as Record<string, unknown>),
+    api.put<ProjetoVidaSemanasOut>(`/projeto-vida-semanal/${id}`, data),
 };
 
 export default projetoVidaMensalApi;

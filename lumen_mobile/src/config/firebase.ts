@@ -13,12 +13,7 @@
 
 import { Platform } from 'react-native';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import {
-  getAuth,
-  initializeAuth,
-  getReactNativePersistence,
-  Auth,
-} from 'firebase/auth';
+import { getAuth, initializeAuth, Auth } from 'firebase/auth';
 
 /** true quando não há credenciais Firebase configuradas (ambiente local/dev) */
 export const IS_DEV_AUTH = !process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
@@ -48,6 +43,8 @@ function initFirebase(): { app: FirebaseApp; auth: Auth } {
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getReactNativePersistence } = require('firebase/auth');
       return initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
     } catch {
       return getAuth(app);

@@ -92,6 +92,7 @@ interface MyRegistration {
   payment_submitted_at: string | null;
   payment_confirmed_at: string | null;
   payment_rejection_reason: string | null;
+  retreat_role?: string | null;
 }
 
 interface RetreatDetail {

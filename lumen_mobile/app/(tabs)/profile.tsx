@@ -387,12 +387,11 @@ export default function ProfileScreen() {
         signOut(auth).then(() => router.replace('/(auth)/login'));
       }
     } else {
-      import('react-native').then(({ Alert }) => {
-        Alert.alert('Sair', 'Deseja realmente sair da sua conta?', [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Sair', style: 'destructive', onPress: async () => { await signOut(auth); router.replace('/(auth)/login'); } },
-        ]);
-      });
+      const { Alert } = require('react-native') as typeof import('react-native');
+      Alert.alert('Sair', 'Deseja realmente sair da sua conta?', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Sair', style: 'destructive', onPress: async () => { await signOut(auth); router.replace('/(auth)/login'); } },
+      ]);
     }
   };
 

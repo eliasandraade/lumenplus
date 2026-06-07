@@ -174,7 +174,7 @@ export const lifePlanApi = {
     api.get<CycleOut | null>('/life-plan/me/active'),
 
   createCycle: (data: { realidade_vocacional?: string | null }) =>
-    api.post<CycleOut>('/life-plan/cycles', data as Record<string, unknown>),
+    api.post<CycleOut>('/life-plan/cycles', data),
 
   getCycle: (cycleId: string) =>
     api.get<CycleOut>(`/life-plan/cycles/${cycleId}`),
@@ -192,39 +192,39 @@ export const lifePlanApi = {
 
   // Diagnoses
   upsertDiagnosis: (cycleId: string, data: DiagnosisUpsert) =>
-    api.post<DiagnosisOut>(`/life-plan/cycles/${cycleId}/diagnoses`, data as Record<string, unknown>),
+    api.post<DiagnosisOut>(`/life-plan/cycles/${cycleId}/diagnoses`, data),
 
   // Core
   upsertCore: (cycleId: string, data: CoreUpsert) =>
-    api.post<CoreOut>(`/life-plan/cycles/${cycleId}/core`, data as Record<string, unknown>),
+    api.post<CoreOut>(`/life-plan/cycles/${cycleId}/core`, data),
 
   // Goals
   createGoal: (cycleId: string, data: GoalCreate) =>
-    api.post<GoalOut>(`/life-plan/cycles/${cycleId}/goals`, data as Record<string, unknown>),
+    api.post<GoalOut>(`/life-plan/cycles/${cycleId}/goals`, data),
 
   updateGoal: (goalId: string, data: GoalUpdate) =>
-    api.patch<GoalOut>(`/life-plan/goals/${goalId}`, data as Record<string, unknown>),
+    api.patch<GoalOut>(`/life-plan/goals/${goalId}`, data),
 
   deleteGoal: (goalId: string) =>
     api.delete<void>(`/life-plan/goals/${goalId}`),
 
   // Actions
   createAction: (goalId: string, data: ActionCreate) =>
-    api.post<ActionOut>(`/life-plan/goals/${goalId}/actions`, data as Record<string, unknown>),
+    api.post<ActionOut>(`/life-plan/goals/${goalId}/actions`, data),
 
   updateAction: (actionId: string, data: ActionUpdate) =>
-    api.patch<ActionOut>(`/life-plan/actions/${actionId}`, data as Record<string, unknown>),
+    api.patch<ActionOut>(`/life-plan/actions/${actionId}`, data),
 
   deleteAction: (actionId: string) =>
     api.delete<void>(`/life-plan/actions/${actionId}`),
 
   // Routine
   upsertRoutine: (cycleId: string, data: SpiritualRoutineUpsert) =>
-    api.post<SpiritualRoutineOut>(`/life-plan/cycles/${cycleId}/routine`, data as Record<string, unknown>),
+    api.post<SpiritualRoutineOut>(`/life-plan/cycles/${cycleId}/routine`, data),
 
   // Reviews
   createReview: (cycleId: string, data: MonthlyReviewCreate) =>
-    api.post<MonthlyReviewOut>(`/life-plan/cycles/${cycleId}/reviews`, data as Record<string, unknown>),
+    api.post<MonthlyReviewOut>(`/life-plan/cycles/${cycleId}/reviews`, data),
 
   getReviews: (cycleId: string) =>
     api.get<MonthlyReviewOut[]>(`/life-plan/cycles/${cycleId}/reviews`),
