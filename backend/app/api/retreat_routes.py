@@ -15,7 +15,7 @@ from uuid import UUID
 
 import cloudinary
 import cloudinary.uploader
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 
@@ -56,6 +56,26 @@ FEE_CATEGORY_LABELS = {
     "EQUIPE_SERVICO_CV": "Equipe de Serviço da Comunidade de Vida",
     "HIBRIDO": "Híbrido",
 }
+
+# Limite de tamanho para upload de comprovante (H4A). 8 MB cobre fotos de
+# comprovante com folga sem permitir DoS por exaustão de memória/disco.
+MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+
+
+def _looks_like_image(data: bytes) -> bool:
+    """
+    Valida a assinatura real (magic bytes) do arquivo.
+
+    content_type é enviado pelo cliente e pode ser falsificado, então não basta
+    confiar nele — checamos os primeiros bytes contra JPEG, PNG e WEBP.
+    """
+    if data[:3] == b"\xff\xd8\xff":  # JPEG
+        return True
+    if data[:8] == b"\x89PNG\r\n\x1a\n":  # PNG
+        return True
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":  # WEBP (RIFF....WEBP)
+        return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -615,6 +635,7 @@ async def submit_payment_proof(
     retreat_id: UUID,
     current_user: CurrentUser,
     db: DBSession,
+    request: Request,
     file: UploadFile = File(...),
 ) -> Any:
     """Envia o comprovante de pagamento (imagem) para o Cloudinary."""
@@ -642,6 +663,37 @@ async def submit_payment_proof(
             detail={"error": "invalid_file", "message": "Apenas imagens são aceitas"},
         )
 
+    # Tamanho — rejeição precoce pelo Content-Length do envelope multipart...
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            declared = int(content_length)
+        except ValueError:
+            declared = 0
+        if declared > MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail={"error": "file_too_large", "message": "Arquivo muito grande. Máximo 8 MB."},
+            )
+
+    # ...e leitura com teto, para nunca carregar arquivo arbitrariamente grande na memória.
+    contents = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail={"error": "file_too_large", "message": "Arquivo muito grande. Máximo 8 MB."},
+        )
+
+    # Magic bytes — content_type é falsificável; exigir assinatura real de imagem.
+    if not _looks_like_image(contents):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "invalid_file",
+                "message": "Arquivo não é uma imagem válida (JPEG, PNG ou WEBP).",
+            },
+        )
+
     cloudinary.config(
         cloud_name=settings.cloudinary_cloud_name,
         api_key=settings.cloudinary_api_key,
@@ -666,7 +718,6 @@ async def submit_payment_proof(
         )
 
     try:
-        contents = await file.read()
         upload_result = cloudinary.uploader.upload(
             contents,
             folder=f"lumenplus/retreat_payments/{retreat_id}",

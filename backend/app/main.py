@@ -143,6 +143,44 @@ app.add_middleware(
 )
 
 
+# Limite global de tamanho de body para requisições não-multipart (JSON/form).
+# Uploads multipart têm limite próprio no endpoint (MAX_UPLOAD_BYTES em
+# retreat_routes). Usa Content-Length; se ausente, não lê o body aqui para não
+# interferir no parsing downstream.
+MAX_JSON_BODY_BYTES = 1 * 1024 * 1024  # 1 MB
+
+
+@app.middleware("http")
+async def limit_body_size(request: Request, call_next: Any) -> Any:
+    content_type = request.headers.get("content-type", "")
+    if not content_type.startswith("multipart/"):
+        content_length = request.headers.get("content-length")
+        if content_length:
+            try:
+                too_large = int(content_length) > MAX_JSON_BODY_BYTES
+            except ValueError:
+                too_large = False
+            if too_large:
+                response = JSONResponse(
+                    status_code=413,
+                    content={
+                        "detail": {
+                            "error": "payload_too_large",
+                            "message": "Requisição muito grande.",
+                        }
+                    },
+                )
+                # Early-return pode bypassar o CORSMiddleware — espelha o handler global.
+                origin = request.headers.get("origin", "")
+                if origin and (
+                    origin in settings.cors_origins_list or settings.cors_origins_list == ["*"]
+                ):
+                    response.headers["Access-Control-Allow-Origin"] = origin
+                    response.headers["Access-Control-Allow-Credentials"] = "true"
+                return response
+    return await call_next(request)
+
+
 # Content-Security-Policy
 # Estrita por padrão: a API só serve JSON, então nada deve carregar recursos.
 # Defesa em profundidade contra XSS e clickjacking (frame-ancestors).
