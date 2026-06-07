@@ -168,6 +168,12 @@ class AreaMensalOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class EvangelizacaoAcaoItem(BaseModel):
+    descricao: Optional[str] = None
+    como: Optional[str] = None
+    duracao_min: Optional[int] = Field(default=None, ge=1)
+
+
 # ── Top-level schemas ──────────────────────────────────────────────────────
 
 
@@ -184,6 +190,7 @@ class ProjetoVidaMensalUpdate(BaseModel):
     concluido: Optional[bool] = None
     intencao: Optional[str] = Field(None, max_length=2000)
     reflexao_evangelizacao: Optional[str] = Field(None, max_length=3000)
+    evangelizacao_acoes: Optional[List[EvangelizacaoAcaoItem]] = None
     areas: Optional[List[AreaMensalIn]] = None
     comunidade: Optional[ComunidadeData] = None
     cuidado: Optional[CuidadoData] = None
@@ -208,6 +215,7 @@ class ProjetoVidaMensalFull(BaseModel):
     concluido: bool
     observacoes_mes: Optional[str] = None
     reflexao_evangelizacao: Optional[str] = None
+    evangelizacao_acoes: Optional[List[EvangelizacaoAcaoItem]] = None
     has_new_structure: bool = False
     areas: List[AreaMensalOut] = []
     intencao: Optional[str] = None
