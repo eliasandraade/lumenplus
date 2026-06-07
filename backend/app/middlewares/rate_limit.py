@@ -81,10 +81,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def _get_client_id(self, request: Request) -> str:
         auth = request.headers.get("authorization", "")
         if auth.startswith("Bearer "):
-            token_part = auth[7:27] if len(auth) > 27 else auth[7:]
-            # sha256 garante estabilidade entre processos/workers (hash() é não-determinístico)
-            token_hash = hashlib.sha256(token_part.encode()).hexdigest()[:16]
-            return f"token:{token_hash}"
+            # Hash do token COMPLETO, não do prefixo: para JWT Firebase RS256 os ~20
+            # primeiros caracteres são o header base64 ({"alg":"RS256",...}), idêntico
+            # em todos os usuários — usar só o prefixo colocava todo mundo no mesmo bucket.
+            # sha256 garante estabilidade entre processos/workers (hash() é não-determinístico).
+            # Nunca logamos nem armazenamos o token bruto — apenas o hash truncado.
+            token = auth[7:]
+            token_hash = hashlib.sha256(token.encode()).hexdigest()[:16]
+            return f"auth:{token_hash}"
 
         # X-Forwarded-For: apenas confiável quando atrás de um proxy reverso confiável
         forwarded = request.headers.get("x-forwarded-for")
