@@ -456,7 +456,7 @@ export default function ProfileScreen() {
         const formData = new FormData();
         formData.append('file', { uri: photoUri, type: 'image/jpeg', name: 'profile.jpg' } as any);
         try {
-          await api.post('/profile/photo', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+          await api.postForm('/profile/photo', formData);
         } catch {
           console.warn('Erro ao enviar foto');
         }
