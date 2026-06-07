@@ -93,29 +93,29 @@ export type ColorScheme = 'light' | 'dark';
 
 const lightTokens = {
   bg: {
-    screen:   primitives.neutralGray[0],
-    elevated: primitives.neutralGray[50],
-    surface:  primitives.neutralGray[100],
+    screen:   primitives.neutralGray[0],    // #ffffff
+    elevated: primitives.neutralGray[100],  // #f5f5f5 — paleta original Lumen+
+    surface:  primitives.neutralGray[200],  // #e5e5e5 — paleta original Lumen+
     overlay:  'rgba(15, 25, 35, 0.45)',
     spiritual: '#fefcf5',
   },
   border: {
-    subtle:  primitives.neutralGray[200],
-    default: primitives.neutralGray[300],
-    focus:   primitives.navyBrand[800],
+    subtle:  primitives.neutralGray[200],   // #e5e5e5
+    default: primitives.neutralGray[300],   // #d4d4d4
+    focus:   primitives.navyBrand[800],     // #1a365d
   },
   text: {
-    primary:   primitives.neutralGray[900],
-    secondary: primitives.neutralGray[500],
-    tertiary:  primitives.neutralGray[400],
+    primary:   primitives.neutralGray[900], // #171717
+    secondary: primitives.neutralGray[600], // #525252 — paleta original Lumen+
+    tertiary:  primitives.neutralGray[500], // #737373 — paleta original Lumen+
     inverse:   primitives.neutralGray[0],
-    spiritual: primitives.navyBrand[800],
-    link:      primitives.navyBrand[600],
+    spiritual: primitives.navyBrand[800],   // #1a365d
+    link:      primitives.navyBrand[600],   // #0052b3
   },
   brand: {
-    primary:      primitives.navyBrand[800],
-    primaryLight: primitives.navyBrand[400],
-    primaryDim:   primitives.navyBrand[50],
+    primary:      primitives.navyBrand[800], // #1a365d
+    primaryLight: primitives.navyBrand[400], // #1a80ff
+    primaryDim:   primitives.navyBrand[50],  // #e6f0ff
     secondary:    primitives.gold[500],
     secondaryDim: '#fff8e1',
     admin:        primitives.purple[500],
@@ -134,11 +134,11 @@ const lightTokens = {
     infoBg:      '#eff6ff',
   },
   shadow: {
-    color:   primitives.navyBrand[800],
-    opacity: 0.08,
-    sm:  { shadowColor: primitives.navyBrand[800], shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3,  elevation: 1 },
-    md:  { shadowColor: primitives.navyBrand[800], shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.09, shadowRadius: 6,  elevation: 3 },
-    lg:  { shadowColor: primitives.navyBrand[800], shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 6 },
+    color:   '#000000',
+    opacity: 0.1,
+    sm:  { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2,  elevation: 1 },
+    md:  { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.10, shadowRadius: 4,  elevation: 3 },
+    lg:  { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8,  elevation: 5 },
   },
   accent: {
     spiritual: primitives.gold[500],
