@@ -58,6 +58,33 @@ export const primitives = {
   red:    { main: '#ef4444', light: '#fca5a5', dark: '#b91c1c' },
   amber:  { main: '#f59e0b', light: '#fde68a', dark: '#92400e' },
   info:   { main: '#3b82f6', light: '#93c5fd', dark: '#1d4ed8' },
+  // Azul navy original da Lumen+ (anterior ao CP3)
+  navyBrand: {
+    50:  '#e6f0ff',
+    100: '#b3d4ff',
+    200: '#80b8ff',
+    300: '#4d9cff',
+    400: '#1a80ff',
+    500: '#0066e6',
+    600: '#0052b3',
+    700: '#003d80',
+    800: '#1a365d',
+    900: '#0d1b2e',
+  },
+  // Cinzas neutros sem hue (anterior ao CP3)
+  neutralGray: {
+    0:   '#ffffff',
+    50:  '#fafafa',
+    100: '#f5f5f5',
+    200: '#e5e5e5',
+    300: '#d4d4d4',
+    400: '#a3a3a3',
+    500: '#737373',
+    600: '#525252',
+    700: '#404040',
+    800: '#262626',
+    900: '#171717',
+  },
 } as const;
 
 // ── Semantic tokens ────────────────────────────────────────────────────────────
@@ -66,29 +93,29 @@ export type ColorScheme = 'light' | 'dark';
 
 const lightTokens = {
   bg: {
-    screen:   primitives.neutral[0],
-    elevated: primitives.neutral[50],
-    surface:  primitives.neutral[100],
+    screen:   primitives.neutralGray[0],
+    elevated: primitives.neutralGray[50],
+    surface:  primitives.neutralGray[100],
     overlay:  'rgba(15, 25, 35, 0.45)',
-    spiritual: '#fefcf5', // creme quente para conteúdo espiritual
+    spiritual: '#fefcf5',
   },
   border: {
-    subtle:  primitives.neutral[200],
-    default: primitives.neutral[300],
-    focus:   primitives.teal[500],
+    subtle:  primitives.neutralGray[200],
+    default: primitives.neutralGray[300],
+    focus:   primitives.navyBrand[800],
   },
   text: {
-    primary:   primitives.neutral[900],
-    secondary: primitives.neutral[500],
-    tertiary:  primitives.neutral[400],
-    inverse:   primitives.neutral[0],
-    spiritual: primitives.blue[700], // versículos e reflexões
-    link:      primitives.teal[600],
+    primary:   primitives.neutralGray[900],
+    secondary: primitives.neutralGray[500],
+    tertiary:  primitives.neutralGray[400],
+    inverse:   primitives.neutralGray[0],
+    spiritual: primitives.navyBrand[800],
+    link:      primitives.navyBrand[600],
   },
   brand: {
-    primary:      primitives.teal[500],
-    primaryLight: primitives.teal[300],
-    primaryDim:   '#e6f4f7',
+    primary:      primitives.navyBrand[800],
+    primaryLight: primitives.navyBrand[400],
+    primaryDim:   primitives.navyBrand[50],
     secondary:    primitives.gold[500],
     secondaryDim: '#fff8e1',
     admin:        primitives.purple[500],
@@ -107,16 +134,15 @@ const lightTokens = {
     infoBg:      '#eff6ff',
   },
   shadow: {
-    color:   primitives.teal[700],
+    color:   primitives.navyBrand[800],
     opacity: 0.08,
-    sm:  { shadowColor: primitives.teal[700], shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3,  elevation: 1 },
-    md:  { shadowColor: primitives.teal[700], shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.09, shadowRadius: 6,  elevation: 3 },
-    lg:  { shadowColor: primitives.teal[700], shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 6 },
+    sm:  { shadowColor: primitives.navyBrand[800], shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3,  elevation: 1 },
+    md:  { shadowColor: primitives.navyBrand[800], shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.09, shadowRadius: 6,  elevation: 3 },
+    lg:  { shadowColor: primitives.navyBrand[800], shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 6 },
   },
-  // Ícone de divisa espiritual — borda esquerda dourada para versículos/avisos especiais
   accent: {
     spiritual: primitives.gold[500],
-    highlight: primitives.teal[500],
+    highlight: primitives.navyBrand[800],
     critical:  primitives.red.main,
   },
 } as const;
