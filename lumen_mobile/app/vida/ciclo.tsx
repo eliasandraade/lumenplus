@@ -127,12 +127,43 @@ export default function CicloScreen() {
             <AreaSection key={area.tipo_area} area={area} t={t} r={r} />
           ))}
 
-          {/* Reflexão sobre Evangelização */}
-          {projeto.reflexao_evangelizacao && (
+          {/* Evangelização Ser Feliz */}
+          {(projeto.reflexao_evangelizacao || (projeto.evangelizacao_acoes ?? []).length > 0) && (
             <Section title="Evangelização Ser Feliz" icon={'globe-outline' as IoniconsName} color={'#f97316'} t={t} r={r}>
-              <Text style={{ fontSize: 14, fontFamily: 'Nunito-Regular', color: t.text.primary, lineHeight: 22 }}>
-                {projeto.reflexao_evangelizacao}
-              </Text>
+              {projeto.reflexao_evangelizacao ? (
+                <Text style={{ fontSize: 14, fontFamily: 'Nunito-Regular', color: t.text.primary, lineHeight: 22, marginBottom: (projeto.evangelizacao_acoes ?? []).length > 0 ? 12 : 0 }}>
+                  {projeto.reflexao_evangelizacao}
+                </Text>
+              ) : null}
+              {(projeto.evangelizacao_acoes ?? []).map((acao, idx) => (
+                <View
+                  key={idx}
+                  style={{
+                    backgroundColor: t.bg.surface,
+                    borderRadius: r.md,
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderColor: t.border.subtle,
+                    padding: 12,
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text style={{ fontSize: 14, fontFamily: 'Nunito-Bold', color: t.text.primary, marginBottom: acao.como ? 4 : 0 }}>
+                    {acao.descricao}
+                  </Text>
+                  {acao.como ? (
+                    <Text style={{ fontSize: 13, fontFamily: 'Nunito-Regular', color: t.text.secondary, lineHeight: 20, marginBottom: acao.duracao_min != null ? 6 : 0 }}>
+                      Como: {acao.como}
+                    </Text>
+                  ) : null}
+                  {acao.duracao_min != null ? (
+                    <View style={{ alignSelf: 'flex-start', backgroundColor: '#f97316', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
+                      <Text style={{ fontSize: 12, fontFamily: 'Nunito-Bold', color: '#ffffff' }}>
+                        {acao.duracao_min} min
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              ))}
             </Section>
           )}
 
