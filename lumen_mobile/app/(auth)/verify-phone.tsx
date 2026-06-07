@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import api from '@/services/api';
+import { parseApiError } from '@/utils/error';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
 
@@ -71,7 +72,7 @@ export default function VerifyPhoneScreen() {
         Alert.alert('DEV Mode', `Código: ${response.debug_code}`);
       }
     } catch (err: any) {
-      const message = err.response?.data?.detail?.message || 'Erro ao enviar código';
+      const message = parseApiError(err, 'Erro ao enviar código');
       setError(message);
     } finally {
       setIsSending(false);
@@ -146,7 +147,7 @@ export default function VerifyPhoneScreen() {
         },
       ]);
     } catch (err: any) {
-      const message = err.response?.data?.detail?.message || 'Código inválido';
+      const message = parseApiError(err, 'Código inválido');
       setError(message);
       setCode(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();

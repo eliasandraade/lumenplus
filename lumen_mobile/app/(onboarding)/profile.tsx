@@ -39,6 +39,7 @@ import type { SemanticTokens } from '@/theme';
 import { Ionicons } from '@expo/vector-icons';
 import api from '@/services/api';
 import { profileService } from '@/services';
+import { parseApiError } from '@/utils/error';
 import brasilApi, { type Estado, type Municipio } from '@/services/brasilApi';
 
 // ─── Encontros Despertar numerados (1–47) ─────────────────────────────────────
@@ -466,7 +467,7 @@ export default function ProfileScreen() {
         { text: 'Continuar', onPress: () => router.replace('/(tabs)/home') },
       ]);
     } catch (err: any) {
-      const message = err.response?.data?.detail?.message || 'Erro ao salvar perfil';
+      const message = parseApiError(err, 'Erro ao salvar perfil');
       Alert.alert('Erro', message);
     } finally {
       setIsSaving(false);

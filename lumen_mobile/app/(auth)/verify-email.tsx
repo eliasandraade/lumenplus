@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { verificationService } from '@/services';
+import { parseApiError } from '@/utils/error';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
 
@@ -65,7 +66,7 @@ export default function VerifyEmailScreen() {
         setDebugToken(response.debug_token);
       }
     } catch (err: any) {
-      const msg = err.response?.data?.detail?.message || 'Erro ao enviar verificação';
+      const msg = parseApiError(err, 'Erro ao enviar verificação');
       if (err.response?.data?.detail?.error === 'already_verified') {
         setConfirmed(true);
         return;
@@ -84,7 +85,7 @@ export default function VerifyEmailScreen() {
       await verificationService.confirmEmail(debugToken);
       setConfirmed(true);
     } catch (err: any) {
-      const msg = err.response?.data?.detail?.message || 'Erro ao confirmar e-mail';
+      const msg = parseApiError(err, 'Erro ao confirmar e-mail');
       setError(msg);
     } finally {
       setIsLoading(false);

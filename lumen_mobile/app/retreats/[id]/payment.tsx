@@ -12,6 +12,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import api from '@/services/api';
+import { parseApiError } from '@/utils/error';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
 
@@ -89,7 +90,7 @@ export default function PaymentScreen() {
       await api.postForm(`/retreats/${id}/my-registration/payment`, formData);
       setSuccess(true);
     } catch (err: any) {
-      setError(err?.response?.data?.detail?.message || 'Erro ao enviar comprovante. Tente novamente.');
+      setError(parseApiError(err, 'Erro ao enviar comprovante. Tente novamente.'));
     } finally {
       setUploading(false);
     }

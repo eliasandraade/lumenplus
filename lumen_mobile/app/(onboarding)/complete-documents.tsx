@@ -20,6 +20,7 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { profileService } from '@/services';
+import { parseApiError } from '@/utils/error';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
 
@@ -80,11 +81,7 @@ export default function CompleteDocumentsScreen() {
 
       router.replace('/(tabs)/home');
     } catch (err: any) {
-      const detail = err?.response?.data?.detail;
-      let msg = 'Não foi possível salvar. Tente novamente.';
-      if (typeof detail === 'string') msg = detail;
-      else if (detail?.message) msg = detail.message;
-      else if (Array.isArray(detail) && detail[0]?.msg) msg = `Dado inválido: ${detail[0].msg}`;
+      const msg = parseApiError(err, 'Não foi possível salvar. Tente novamente.');
       setSaveError(msg);
     } finally {
       setIsLoading(false);
