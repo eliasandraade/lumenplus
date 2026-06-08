@@ -379,7 +379,16 @@ def edit_reply(
 ) -> ChannelReplyResponse:
     membership = _require_active_member(db, current_user.id, org_unit_id)
     is_admin = _is_global_admin(db, current_user.id)
-    reply = db.scalars(select(ChannelReply).where(ChannelReply.id == reply_id, ChannelReply.post_id == post_id, ChannelReply.deleted_at.is_(None))).first()
+    reply = db.scalars(
+        select(ChannelReply)
+        .join(ChannelPost, ChannelPost.id == ChannelReply.post_id)
+        .where(
+            ChannelReply.id == reply_id,
+            ChannelReply.post_id == post_id,
+            ChannelPost.org_unit_id == org_unit_id,
+            ChannelReply.deleted_at.is_(None),
+        )
+    ).first()
     if not reply:
         raise HTTPException(status_code=404, detail={"error": "not_found", "message": "Resposta não encontrada"})
     can_edit = reply.author_user_id == current_user.id or membership.role == OrgRoleCode.COORDINATOR or is_admin
@@ -399,7 +408,16 @@ def delete_reply(
 ) -> dict:
     membership = _require_active_member(db, current_user.id, org_unit_id)
     is_admin = _is_global_admin(db, current_user.id)
-    reply = db.scalars(select(ChannelReply).where(ChannelReply.id == reply_id, ChannelReply.post_id == post_id, ChannelReply.deleted_at.is_(None))).first()
+    reply = db.scalars(
+        select(ChannelReply)
+        .join(ChannelPost, ChannelPost.id == ChannelReply.post_id)
+        .where(
+            ChannelReply.id == reply_id,
+            ChannelReply.post_id == post_id,
+            ChannelPost.org_unit_id == org_unit_id,
+            ChannelReply.deleted_at.is_(None),
+        )
+    ).first()
     if not reply:
         raise HTTPException(status_code=404, detail={"error": "not_found", "message": "Resposta não encontrada"})
     if not (membership.role == OrgRoleCode.COORDINATOR or is_admin):

@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import select, or_, func, exists, nullslast, delete, desc
 from sqlalchemy.orm import Session
@@ -31,6 +31,8 @@ from app.db.models import (
     OrgInvite,
     InviteStatus,
     AuditLog,
+    SensitiveAccessRequest,
+    SensitiveAccessAudit,
 )
 from app.services.organization import get_user_global_roles, is_conselho_geral_coordinator  # noqa: F401
 
@@ -241,14 +243,20 @@ async def list_users(
 
 @router.get("/users/{user_id}/profile")
 async def get_user_full_profile(
+    request: Request,
     user_id: UUID,
     current_user: CurrentUser,
     db: DBSession,
 ) -> Any:
     """
-    Retorna perfil completo de um usuário, incluindo RG/CPF (descriptografados)
-    e histórico de auditoria.
-    Requer DEV, ADMIN ou SECRETARY.
+    Retorna perfil completo de um usuário e histórico de auditoria.
+    Requer DEV, ADMIN ou SECRETARY para os campos não-sensíveis.
+
+    SEGURANÇA (H5A-01): CPF/RG só são descriptografados/retornados com bypass DEV
+    ou uma SensitiveAccessRequest APROVADA e não expirada para (solicitante, alvo) —
+    mesmo controle de `get_user_documents` (separação de deveres + expiração + audit).
+    ADMIN/SECRETARY sem aprovação recebem cpf=rg=None e devem usar o fluxo
+    /admin/sensitive-access.
     """
     from app.crypto.service import crypto_service
 
@@ -264,11 +272,27 @@ async def get_user_full_profile(
     email = target.identities[0].email if target.identities else None
     user_roles = get_user_global_roles(db, user_id)
 
-    # Descriptografar RG e CPF
-    crypto = crypto_service
+    # SEGURANÇA: CPF/RG exigem bypass DEV ou SensitiveAccessRequest aprovada e válida.
+    is_dev = "DEV" in caller_roles
+    sensitive_access = None
+    if not is_dev:
+        sensitive_access = (
+            db.query(SensitiveAccessRequest)
+            .filter(
+                SensitiveAccessRequest.requester_user_id == current_user.id,
+                SensitiveAccessRequest.target_user_id == user_id,
+                SensitiveAccessRequest.status == "APPROVED",
+                SensitiveAccessRequest.expires_at > datetime.now(timezone.utc),
+            )
+            .first()
+        )
+    can_view_documents = is_dev or sensitive_access is not None
+
+    # Descriptografar RG e CPF — somente quando autorizado
     cpf_plain = None
     rg_plain = None
-    if profile:
+    if can_view_documents and profile:
+        crypto = crypto_service
         if profile.cpf_encrypted:
             try:
                 cpf_plain = crypto.decrypt(profile.cpf_encrypted)
@@ -280,16 +304,30 @@ async def get_user_full_profile(
             except Exception:
                 rg_plain = None
 
-    # Auditoria — registrar acesso
+    documents_disclosed = cpf_plain is not None or rg_plain is not None
+
+    # Auditoria — registrar acesso ao perfil
     db.add(
         AuditLog(
             actor_user_id=current_user.id,
             action="VIEW_FULL_PROFILE",
             entity_type="USER",
             entity_id=str(user_id),
-            extra_data={"caller_email": email},
+            extra_data={"caller_email": email, "documents_disclosed": documents_disclosed},
         )
     )
+    # Auditoria sensível dedicada quando CPF/RG forem efetivamente revelados
+    if documents_disclosed:
+        db.add(
+            SensitiveAccessAudit(
+                request_id=sensitive_access.id if sensitive_access else None,
+                viewer_user_id=current_user.id,
+                target_user_id=user_id,
+                action="VIEW_CPF_RG",
+                ip=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+            )
+        )
     db.commit()
 
     # Últimas 50 entradas de auditoria sobre este usuário
