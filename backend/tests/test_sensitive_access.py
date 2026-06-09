@@ -27,19 +27,13 @@ class TestAdminUserAccess:
 
 
 class TestSensitiveAccessDenial:
-    """Testes de negação de acesso — endpoints planejados (não implementados ainda)."""
+    """Testes de negação de acesso aos endpoints de dados sensíveis (já implementados)."""
 
-    @pytest.mark.xfail(
-        reason="Endpoint /admin/users/{id}/documents não implementado ainda", strict=True
-    )
     def test_documents_without_auth_returns_401(self, client: TestClient, seeded_db):
         """Documentos sem auth retorna 401."""
         response = client.get("/admin/users/00000000-0000-0000-0000-000000000000/documents")
         assert response.status_code == 401
 
-    @pytest.mark.xfail(
-        reason="Endpoint /admin/users/{id}/documents não implementado ainda", strict=True
-    )
     def test_documents_without_permission_returns_403(
         self, client: TestClient, auth_headers: dict, seeded_db
     ):
@@ -49,9 +43,6 @@ class TestSensitiveAccessDenial:
         )
         assert response.status_code == 403
 
-    @pytest.mark.xfail(
-        reason="Endpoint /admin/sensitive-access/request não implementado ainda", strict=True
-    )
     def test_request_access_without_role_returns_403(
         self, client: TestClient, auth_headers: dict, seeded_db
     ):
@@ -66,9 +57,6 @@ class TestSensitiveAccessDenial:
         )
         assert response.status_code == 403
 
-    @pytest.mark.xfail(
-        reason="Endpoint /admin/sensitive-access/pending não implementado ainda", strict=True
-    )
     def test_pending_list_without_role_returns_403(
         self, client: TestClient, auth_headers: dict, seeded_db
     ):

@@ -88,6 +88,29 @@ def client(db_engine) -> Generator[TestClient, None, None]:
 
 
 # =============================================================================
+# TEST ISOLATION
+# =============================================================================
+@pytest.fixture(autouse=True)
+def _reset_rate_limit_cache():
+    """
+    Isola o rate limiter entre testes (H6).
+
+    RateLimitMiddleware usa um dict global de módulo (_fallback_cache) quando o
+    Redis não está disponível — o caso dos testes. Sem reset, as contagens por
+    token acumulam ao longo da sessão (que roda dentro da janela de 60s); tokens
+    reutilizados (ex.: auth_headers) estouram rate_limit_requests_per_minute e
+    geram 429 espúrios nos testes mais tardios (flakes dependentes de ordem).
+    Limpar antes/depois de cada teste garante isolamento. NÃO desativa o rate
+    limiting — comportamento de produção inalterado.
+    """
+    from app.middlewares import rate_limit as _rl
+
+    _rl._fallback_cache.clear()
+    yield
+    _rl._fallback_cache.clear()
+
+
+# =============================================================================
 # AUTH FIXTURES
 # =============================================================================
 @pytest.fixture
