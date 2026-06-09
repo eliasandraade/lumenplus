@@ -351,6 +351,16 @@ async def get_org_unit(
             status_code=404, detail={"error": "not_found", "message": "Unidade não encontrada"}
         )
 
+    # SEGURANÇA (H5A-03): unidade RESTRICTED só é visível para membro ou admin.
+    # Reusa get_user_permissions.can_view (PUBLIC ∨ membro ∨ DEV/ADMIN), o mesmo
+    # critério reportado por GET /org/units/{id}/permissions e consistente com a
+    # filtragem de /org/tree e /org/units/{id}/members.
+    if not get_user_permissions(db, user.id, org_unit_id)["can_view"]:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "forbidden", "message": "Você não tem acesso a esta unidade"},
+        )
+
     return OrgUnitOut(
         id=unit.id,
         type=unit.type.value,

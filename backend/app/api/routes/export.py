@@ -474,6 +474,17 @@ async def approve_export(
             detail={"error": "not_pending", "current_status": export_req.status},
         )
 
+    # SEGURANÇA (H5A-04): separação de deveres — quem solicitou não pode aprovar
+    # a própria exportação. Espelha approve_sensitive_access.
+    if export_req.requested_by == current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "self_approval_denied",
+                "message": "Não é permitido aprovar sua própria solicitação de exportação.",
+            },
+        )
+
     now = datetime.now(timezone.utc)
     export_req.status = "GENERATED"
     export_req.approved_by = current_user.id
