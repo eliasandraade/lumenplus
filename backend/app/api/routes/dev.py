@@ -28,8 +28,28 @@ from app.db.models import (
     ProfileCatalogItem,
 )
 from app.api.routes.auth import get_current_user
+from app.settings import settings
 
-router = APIRouter(prefix="/dev", tags=["dev"])
+
+def _block_in_production() -> None:
+    """
+    Defesa em profundidade (H5A-05): os endpoints /dev (seed, bootstrap de DEV,
+    self-grant de permissões) nunca executam em produção, mesmo que
+    ENABLE_DEV_ENDPOINTS seja ligado por engano. Não dependemos apenas do flag
+    de inclusão do router em main.py. Retorna 404 para não revelar a superfície
+    /dev em produção.
+    """
+    if settings.is_production:
+        raise HTTPException(
+            status_code=404, detail={"error": "not_found", "message": "Not found"}
+        )
+
+
+router = APIRouter(
+    prefix="/dev",
+    tags=["dev"],
+    dependencies=[Depends(_block_in_production)],
+)
 
 
 @router.post("/seed")

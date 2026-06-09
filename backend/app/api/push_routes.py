@@ -46,8 +46,20 @@ def subscribe(body: SubscribeRequest, db: DBSession, current_user: CurrentUser) 
         select(PushSubscription).where(PushSubscription.endpoint == body.endpoint)
     ).first()
 
+    # SEGURANÇA (H5A-07): não permitir takeover de uma subscription de outro
+    # usuário só por conhecer o endpoint. Se o endpoint já pertence a outro dono,
+    # recusa (409) em vez de reatribuir o user_id.
+    if existing and existing.user_id != current_user.id:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "endpoint_conflict",
+                "message": "Este endpoint já está registrado para outro usuário.",
+            },
+        )
+
     if existing:
-        existing.user_id = current_user.id
+        # Atualiza a própria subscription (renovação de chaves/user agent).
         existing.p256dh = body.p256dh
         existing.auth = body.auth
         if body.user_agent:
