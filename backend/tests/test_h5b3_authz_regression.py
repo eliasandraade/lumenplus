@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import PushSubscription, User, UserIdentity
+from app.db.models import PushSubscription, User, UserIdentity, UserProfile
 from app.settings import settings
 
 
@@ -117,3 +117,58 @@ def test_h5a07_dono_atualiza_propria_subscription(client: TestClient, db_session
     ).scalar_one()
     assert sub.user_id == owner_id
     assert sub.p256dh == "new-key"  # própria subscription atualizada
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# H5A-06 — não ecoar full_name de terceiro via vocational_accompanist_user_id
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_h5a06_nao_ecoa_full_name_de_terceiro(client: TestClient, db_session: Session):
+    stranger = _mk_user(db_session, "strangerS-uid", "strangerS@test.com")
+    db_session.add(
+        UserProfile(user_id=stranger.id, full_name="Nome Secreto Terceiro", status="COMPLETE")
+    )
+    caller = _mk_user(db_session, "callerT-uid", "callerT@test.com")
+    db_session.add(
+        UserProfile(
+            user_id=caller.id,
+            full_name="Caller",
+            status="COMPLETE",
+            has_vocational_accompaniment=True,
+            vocational_accompanist_user_id=stranger.id,
+            vocational_accompanist_name=None,
+        )
+    )
+    db_session.commit()
+
+    r = client.get("/profile", headers=_headers("callerT-uid", "callerT@test.com"))
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["vocational_accompanist_display_name"] != "Nome Secreto Terceiro"
+    assert body["vocational_accompanist_display_name"] is None
+
+
+def test_h5a06_usa_texto_livre_do_proprio_usuario(client: TestClient, db_session: Session):
+    stranger = _mk_user(db_session, "strangerS2-uid", "strangerS2@test.com")
+    db_session.add(
+        UserProfile(user_id=stranger.id, full_name="Nome Secreto 2", status="COMPLETE")
+    )
+    caller = _mk_user(db_session, "callerT2-uid", "callerT2@test.com")
+    db_session.add(
+        UserProfile(
+            user_id=caller.id,
+            full_name="Caller2",
+            status="COMPLETE",
+            has_vocational_accompaniment=True,
+            vocational_accompanist_user_id=stranger.id,
+            vocational_accompanist_name="Pe. João",
+        )
+    )
+    db_session.commit()
+
+    r = client.get("/profile", headers=_headers("callerT2-uid", "callerT2@test.com"))
+    assert r.status_code == 200, r.text
+    body = r.json()
+    # Texto livre do próprio usuário é respeitado; nome do terceiro nunca aparece.
+    assert body["vocational_accompanist_display_name"] == "Pe. João"

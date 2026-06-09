@@ -24,7 +24,6 @@ from app.db.models import (
     OrgUnit,
     ProfileCatalog,
     ProfileCatalogItem,
-    User,
     UserEmergencyContact,
     UserProfile,
 )
@@ -546,12 +545,13 @@ def _build_profile_response(profile: UserProfile, db: DBSession) -> ProfileWithL
     marital_status_label = _get_catalog_label(db, profile.marital_status_item_id)
     vocational_reality_label = _get_catalog_label(db, profile.vocational_reality_item_id)
 
-    # Resolve nome do acompanhador vocacional
+    # Resolve nome do acompanhador vocacional.
+    # SEGURANÇA (H5A-06): NÃO resolvemos o full_name a partir de
+    # vocational_accompanist_user_id arbitrário — não existe modelo/regra de
+    # "acompanhador legítimo" (qualquer UUID pode ser informado no próprio
+    # perfil), então ecoar o nome permitiria descobrir o full_name de terceiros
+    # por UUID. Usamos apenas o nome em texto livre informado pelo usuário.
     accompanist_display_name = profile.vocational_accompanist_name
-    if profile.vocational_accompanist_user_id:
-        accompanist = db.get(User, profile.vocational_accompanist_user_id)
-        if accompanist and accompanist.profile:
-            accompanist_display_name = accompanist.profile.full_name
 
     # Resolve nome do ministério de interesse
     ministry_name = None
