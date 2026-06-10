@@ -8,7 +8,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Alert,
+  ActivityIndicator, RefreshControl, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { adminExportService, ExportRequest } from '@/services';
@@ -32,6 +32,10 @@ export default function ApprovalsScreen() {
   const [requests, setRequests] = useState<ExportRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // Confirmação inline (Alert.alert é silenciosamente bloqueado na web)
+  const [confirm, setConfirm] = useState<{ req: ExportRequest; mode: 'approve' | 'reject' } | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const fetchRequests = useCallback(async () => {
     try {
@@ -53,46 +57,33 @@ export default function ApprovalsScreen() {
   }, [fetchRequests]);
 
   const handleApprove = (req: ExportRequest) => {
-    Alert.alert(
-      'Aprovar exportação?',
-      `Campos: ${req.fields_requested.join(', ')}`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Aprovar',
-          onPress: async () => {
-            try {
-              await adminExportService.approve(req.id);
-              await fetchRequests();
-            } catch (e: any) {
-              Alert.alert('Erro', e?.response?.data?.detail?.message ?? 'Erro ao aprovar');
-            }
-          },
-        },
-      ]
-    );
+    setConfirmError(null);
+    setConfirm({ req, mode: 'approve' });
   };
 
   const handleReject = (req: ExportRequest) => {
-    Alert.alert(
-      'Rejeitar exportação?',
-      'Esta ação não pode ser desfeita.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Rejeitar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await adminExportService.reject(req.id);
-              await fetchRequests();
-            } catch (e: any) {
-              Alert.alert('Erro', e?.response?.data?.detail?.message ?? 'Erro ao rejeitar');
-            }
-          },
-        },
-      ]
-    );
+    setConfirmError(null);
+    setConfirm({ req, mode: 'reject' });
+  };
+
+  const handleConfirm = async () => {
+    if (!confirm) return;
+    setConfirmLoading(true);
+    setConfirmError(null);
+    try {
+      if (confirm.mode === 'approve') {
+        await adminExportService.approve(confirm.req.id);
+      } else {
+        await adminExportService.reject(confirm.req.id);
+      }
+      await fetchRequests();
+      setConfirm(null);
+    } catch (e: any) {
+      const fallback = confirm.mode === 'approve' ? 'Erro ao aprovar' : 'Erro ao rejeitar';
+      setConfirmError(e?.response?.data?.detail?.message ?? fallback);
+    } finally {
+      setConfirmLoading(false);
+    }
   };
 
   const renderItem = ({ item }: { item: ExportRequest }) => {
@@ -155,6 +146,65 @@ export default function ApprovalsScreen() {
           </View>
         }
       />
+
+      {/* Confirmação inline — funciona na web (Alert.alert é bloqueado) */}
+      <Modal
+        visible={!!confirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { if (!confirmLoading) setConfirm(null); }}
+      >
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmBox}>
+            <View
+              style={[
+                styles.confirmIcon,
+                { backgroundColor: confirm?.mode === 'approve' ? t.status.successBg : t.status.errorBg },
+              ]}
+            >
+              <Ionicons
+                name={confirm?.mode === 'approve' ? 'checkmark-circle-outline' : 'close-circle-outline'}
+                size={28}
+                color={confirm?.mode === 'approve' ? t.status.success : t.status.error}
+              />
+            </View>
+            <Text style={styles.confirmTitle}>
+              {confirm?.mode === 'approve' ? 'Aprovar exportação?' : 'Rejeitar exportação?'}
+            </Text>
+            <Text style={styles.confirmMsg}>
+              {confirm?.mode === 'approve'
+                ? `Campos: ${confirm?.req.fields_requested.join(', ')}`
+                : 'Esta ação não pode ser desfeita.'}
+            </Text>
+            {confirmError && <Text style={styles.confirmError}>{confirmError}</Text>}
+            <View style={styles.confirmActions}>
+              <TouchableOpacity
+                style={[styles.confirmBtn, styles.confirmBtnCancel]}
+                onPress={() => setConfirm(null)}
+                disabled={confirmLoading}
+              >
+                <Text style={styles.confirmBtnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.confirmBtn,
+                  { backgroundColor: confirm?.mode === 'approve' ? ADMIN_COLOR : t.status.error },
+                ]}
+                onPress={handleConfirm}
+                disabled={confirmLoading}
+              >
+                {confirmLoading ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.confirmBtnText}>
+                    {confirm?.mode === 'approve' ? 'Aprovar' : 'Rejeitar'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -187,4 +237,29 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
     borderRadius: 8, paddingVertical: 10, alignItems: 'center',
   },
   approveBtnText: { color: t.text.inverse, fontWeight: '700' },
+
+  // Modal de confirmação inline (substitui Alert.alert, bloqueado na web)
+  confirmOverlay: {
+    flex: 1, backgroundColor: t.bg.overlay,
+    alignItems: 'center', justifyContent: 'center', padding: 24,
+  },
+  confirmBox: {
+    backgroundColor: t.bg.elevated, borderRadius: 16,
+    padding: 24, width: '100%', maxWidth: 340, alignItems: 'center',
+  },
+  confirmIcon: {
+    width: 56, height: 56, borderRadius: 28,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 14,
+  },
+  confirmTitle: { fontSize: 17, fontWeight: '700', color: t.text.primary, marginBottom: 8 },
+  confirmMsg: {
+    fontSize: 14, color: t.text.secondary, textAlign: 'center',
+    marginBottom: 20, lineHeight: 20,
+  },
+  confirmError: { color: t.status.error, fontSize: 13, textAlign: 'center', marginBottom: 12 },
+  confirmActions: { flexDirection: 'row', gap: 12, width: '100%' },
+  confirmBtn: { flex: 1, borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
+  confirmBtnCancel: { borderWidth: 1.5, borderColor: t.border.subtle },
+  confirmBtnCancelText: { color: t.text.primary, fontWeight: '600', fontSize: 14 },
+  confirmBtnText: { color: '#ffffff', fontWeight: '700', fontSize: 14 },
 });

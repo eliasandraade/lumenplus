@@ -107,6 +107,13 @@ const adminOnlySections: AdminSection[] = [
         icon: 'shield-checkmark-outline',
         route: '/admin/audit-logs',
       },
+      {
+        id: 'approvals',
+        title: 'Aprovações',
+        description: 'Exportações aguardando aprovação',
+        icon: 'checkmark-done-outline',
+        route: '/admin/approvals',
+      },
     ],
   },
 ];

@@ -48,12 +48,55 @@ interface AuditLogsResponse {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Mapeia as ações REALMENTE emitidas pelo backend para rótulos amigáveis.
+ * Fonte: grep de AuditLog/create_audit_log em backend/app (Fase 1 do Admin 2.0).
+ */
 const ACTION_META: Record<string, { label: string; color: string; icon: string }> = {
-  member_removed:  { label: 'Membro removido',   color: '#dc2626', icon: 'person-remove-outline' },
-  member_invited:  { label: 'Convite enviado',    color: '#059669', icon: 'person-add-outline'    },
-  role_updated:    { label: 'Cargo alterado',     color: '#7c3aed', icon: 'swap-horizontal-outline'},
-  invite_accepted: { label: 'Convite aceito',     color: '#0891b2', icon: 'checkmark-circle-outline'},
-  invite_declined: { label: 'Convite recusado',   color: '#d97706', icon: 'close-circle-outline'  },
+  // Organização / membros
+  member_removed:       { label: 'Membro removido',          color: '#dc2626', icon: 'person-remove-outline' },
+  member_role_updated:  { label: 'Cargo de membro alterado', color: '#7c3aed', icon: 'swap-horizontal-outline' },
+  org_unit_created:     { label: 'Entidade criada',          color: '#059669', icon: 'git-network-outline' },
+  membership_requested: { label: 'Participação solicitada',  color: '#0891b2', icon: 'person-add-outline' },
+  membership_approved:  { label: 'Participação aprovada',    color: '#059669', icon: 'checkmark-circle-outline' },
+  membership_rejected:  { label: 'Participação recusada',    color: '#d97706', icon: 'close-circle-outline' },
+
+  // Acesso a dados pessoais (segurança)
+  VIEW_FULL_PROFILE:          { label: 'Perfil completo visualizado',     color: '#7c3aed', icon: 'eye-outline' },
+  VIEW_CPF_RG:                { label: 'CPF/RG visualizados',             color: '#dc2626', icon: 'lock-open-outline' },
+  sensitive_access_requested: { label: 'Acesso sensível solicitado',      color: '#d97706', icon: 'key-outline' },
+  sensitive_access_approved:  { label: 'Acesso sensível aprovado',        color: '#059669', icon: 'key-outline' },
+  sensitive_access_rejected:  { label: 'Acesso sensível rejeitado',       color: '#dc2626', icon: 'key-outline' },
+  sensitive_documents_viewed: { label: 'Documentos sensíveis visualizados', color: '#dc2626', icon: 'document-lock-outline' },
+
+  // Exportações
+  EXPORT_REQUESTED:  { label: 'Exportação solicitada', color: '#d97706', icon: 'download-outline' },
+  EXPORT_APPROVED:   { label: 'Exportação aprovada',   color: '#059669', icon: 'download-outline' },
+  EXPORT_REJECTED:   { label: 'Exportação rejeitada',  color: '#dc2626', icon: 'download-outline' },
+  EXPORT_DOWNLOADED: { label: 'Exportação baixada',    color: '#0891b2', icon: 'download-outline' },
+
+  // Conta e perfil
+  user_provisioned: { label: 'Primeiro acesso (conta criada)', color: '#059669', icon: 'person-add-outline' },
+  account_deleted:  { label: 'Conta excluída',                 color: '#dc2626', icon: 'trash-outline' },
+  profile_created:  { label: 'Perfil criado',                  color: '#0891b2', icon: 'create-outline' },
+  profile_updated:  { label: 'Perfil atualizado',              color: '#0891b2', icon: 'create-outline' },
+  legal_accepted:   { label: 'Termos aceitos',                 color: '#6b7280', icon: 'document-text-outline' },
+
+  // Verificações
+  phone_verification_started: { label: 'Verificação de telefone iniciada', color: '#6b7280', icon: 'call-outline' },
+  phone_verified:             { label: 'Telefone verificado',              color: '#059669', icon: 'call-outline' },
+  email_verification_started: { label: 'Verificação de e-mail iniciada',   color: '#6b7280', icon: 'mail-outline' },
+  email_verified:             { label: 'E-mail verificado',                color: '#059669', icon: 'mail-outline' },
+
+  // Comunicação / canais
+  inbox_critical_sent:            { label: 'Aviso crítico enviado',      color: '#dc2626', icon: 'megaphone-outline' },
+  channel_post_created:           { label: 'Post criado no canal',       color: '#059669', icon: 'chatbox-outline' },
+  channel_post_edited:            { label: 'Post editado',               color: '#0891b2', icon: 'chatbox-outline' },
+  channel_post_deleted:           { label: 'Post excluído',              color: '#dc2626', icon: 'chatbox-outline' },
+  channel_post_highlight_toggled: { label: 'Destaque de post alterado',  color: '#7c3aed', icon: 'star-outline' },
+  channel_reply_created:          { label: 'Resposta criada',            color: '#059669', icon: 'chatbubble-outline' },
+  channel_reply_edited:           { label: 'Resposta editada',           color: '#0891b2', icon: 'chatbubble-outline' },
+  channel_reply_deleted:          { label: 'Resposta excluída',          color: '#dc2626', icon: 'chatbubble-outline' },
 };
 
 function getActionMeta(action: string) {

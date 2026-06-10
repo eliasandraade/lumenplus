@@ -53,7 +53,10 @@ interface UnitTypeCount {
 }
 
 interface TopMinistry {
+  /** Campos novos da Fase 1 são opcionais para tolerar payload antigo na janela de deploy. */
+  id?: string;
   name: string;
+  sector_name?: string | null;
   member_count: number;
 }
 
@@ -61,7 +64,6 @@ interface DashboardData {
   users: {
     total: number;
     complete_profiles: number;
-    incomplete_profiles: number;
     new_last_7d: number;
     new_last_30d: number;
   };
@@ -81,6 +83,7 @@ interface DashboardData {
   };
   memberships: {
     total_active: number;
+    people_active?: number;
     by_unit_type: UnitTypeCount[];
   };
   invites: {
@@ -88,6 +91,8 @@ interface DashboardData {
     accepted: number;
     pending: number;
     declined: number;
+    expired?: number;
+    cancelled?: number;
     acceptance_rate: number;
   };
   top_ministries: TopMinistry[];
@@ -257,8 +262,30 @@ export default function DashboardScreen() {
   }
 
   const totalUsers = data.users.total || 1; // avoid div/0 in bars
-  const totalAgeCount =
-    data.age_ranges.reduce((s, r) => s + r.count, 0) || 1;
+  const completePct = Math.round((data.users.complete_profiles / totalUsers) * 100);
+
+  // Faixas etárias: % sobre quem informou; "Não informado" vira linha separada
+  const informedAges = data.age_ranges.filter((r) => r.range !== 'Não informado');
+  const unknownAges = data.age_ranges.find((r) => r.range === 'Não informado');
+  const totalAgeInformed = informedAges.reduce((s, r) => s + r.count, 0) || 1;
+
+  // Bases explícitas dos catálogos ("de N que informaram")
+  const lifeStateTotal = data.profile_breakdown.by_life_state.reduce((s, r) => s + r.count, 0);
+  const vocRealityTotal = data.profile_breakdown.by_vocational_reality.reduce(
+    (s, r) => s + r.count,
+    0
+  );
+  const maritalTotal = data.profile_breakdown.by_marital_status.reduce((s, r) => s + r.count, 0);
+
+  // Acompanhamento: com + sem = quem informou (denominador explícito)
+  const acompYes = data.profile_breakdown.with_vocational_accompaniment;
+  const acompTotal = acompYes + data.profile_breakdown.without_vocational_accompaniment;
+  const acompPct = acompTotal > 0 ? Math.round((acompYes / acompTotal) * 100) : 0;
+
+  // Campos novos da Fase 1 — defaults defensivos p/ payload antigo
+  const peopleActive = data.memberships.people_active ?? 0;
+  const invExpired = data.invites.expired ?? 0;
+  const invCancelled = data.invites.cancelled ?? 0;
 
   return (
     <>
@@ -285,35 +312,50 @@ export default function DashboardScreen() {
         <View style={styles.header}>
           <Ionicons name="bar-chart" size={32} color={t.text.inverse} />
           <Text style={styles.headerTitle}>Dashboard</Text>
-          <Text style={styles.headerSubtitle}>Visão geral do aplicativo</Text>
+          <Text style={styles.headerSubtitle}>Panorama da comunidade</Text>
         </View>
 
-        {/* ---- Usuários ---- */}
-        <SectionHeader title="Usuários" styles={styles} />
+        {/* ---- Membros ---- */}
+        <SectionHeader title="Membros" styles={styles} />
         <View style={styles.grid2}>
-          <MetricCard label="Total" value={data.users.total} color={ADMIN_COLOR} styles={styles} />
           <MetricCard
-            label="Perfis Completos"
-            value={data.users.complete_profiles}
+            label="Membros ativos"
+            value={data.users.total}
+            color={ADMIN_COLOR}
+            styles={styles}
+          />
+          <MetricCard
+            label={`Cadastros completos (${completePct}%)`}
+            value={`${data.users.complete_profiles} de ${data.users.total}`}
             color={t.status.success}
             styles={styles}
           />
-          <MetricCard label="Novos (7d)" value={data.users.new_last_7d} styles={styles} />
-          <MetricCard label="Novos (30d)" value={data.users.new_last_30d} styles={styles} />
+          <MetricCard label="Novos (7 dias)" value={data.users.new_last_7d} styles={styles} />
+          <MetricCard label="Novos (30 dias)" value={data.users.new_last_30d} styles={styles} />
         </View>
 
         {/* ---- Faixas Etárias ---- */}
         <SectionHeader title="Faixas Etárias" styles={styles} />
         <View style={styles.card}>
-          {data.age_ranges.map((r) => (
+          {informedAges.map((r) => (
             <BarRow
               key={r.range}
               label={r.range}
               count={r.count}
-              total={totalAgeCount}
+              total={totalAgeInformed}
               styles={styles}
             />
           ))}
+          {unknownAges && unknownAges.count > 0 && (
+            <View style={styles.labelRow}>
+              <Text style={styles.labelText}>Não informado</Text>
+              <Text style={styles.labelCount}>{unknownAges.count}</Text>
+            </View>
+          )}
+          <Text style={styles.baseNote}>
+            Percentuais sobre {totalAgeInformed} membro{totalAgeInformed !== 1 ? 's' : ''} que
+            informaram a data de nascimento.
+          </Text>
         </View>
 
         {/* ---- Geografia ---- */}
@@ -358,21 +400,22 @@ export default function DashboardScreen() {
           {data.profile_breakdown.by_life_state.length === 0 ? (
             <Text style={styles.emptyText}>Sem dados</Text>
           ) : (
-            data.profile_breakdown.by_life_state.map((item) => {
-              const total = data.profile_breakdown.by_life_state.reduce(
-                (s, r) => s + r.count,
-                0
-              ) || 1;
-              const pct = Math.round((item.count / total) * 100);
-              return (
-                <View key={item.label} style={styles.labelRow}>
-                  <Text style={styles.labelText}>{item.label}</Text>
-                  <Text style={styles.labelCount}>
-                    {item.count} ({pct}%)
-                  </Text>
-                </View>
-              );
-            })
+            <>
+              {data.profile_breakdown.by_life_state.map((item) => {
+                const pct = Math.round((item.count / (lifeStateTotal || 1)) * 100);
+                return (
+                  <View key={item.label} style={styles.labelRow}>
+                    <Text style={styles.labelText}>{item.label}</Text>
+                    <Text style={styles.labelCount}>
+                      {item.count} de {lifeStateTotal} ({pct}%)
+                    </Text>
+                  </View>
+                );
+              })}
+              <Text style={styles.baseNote}>
+                de {lifeStateTotal} membro{lifeStateTotal !== 1 ? 's' : ''} que informaram
+              </Text>
+            </>
           )}
         </View>
         <View style={[styles.card, { marginTop: 8 }]}>
@@ -380,21 +423,22 @@ export default function DashboardScreen() {
           {data.profile_breakdown.by_vocational_reality.length === 0 ? (
             <Text style={styles.emptyText}>Sem dados</Text>
           ) : (
-            data.profile_breakdown.by_vocational_reality.map((item) => {
-              const total = data.profile_breakdown.by_vocational_reality.reduce(
-                (s, r) => s + r.count,
-                0
-              ) || 1;
-              const pct = Math.round((item.count / total) * 100);
-              return (
-                <View key={item.label} style={styles.labelRow}>
-                  <Text style={styles.labelText}>{item.label}</Text>
-                  <Text style={styles.labelCount}>
-                    {item.count} ({pct}%)
-                  </Text>
-                </View>
-              );
-            })
+            <>
+              {data.profile_breakdown.by_vocational_reality.map((item) => {
+                const pct = Math.round((item.count / (vocRealityTotal || 1)) * 100);
+                return (
+                  <View key={item.label} style={styles.labelRow}>
+                    <Text style={styles.labelText}>{item.label}</Text>
+                    <Text style={styles.labelCount}>
+                      {item.count} de {vocRealityTotal} ({pct}%)
+                    </Text>
+                  </View>
+                );
+              })}
+              <Text style={styles.baseNote}>
+                de {vocRealityTotal} membro{vocRealityTotal !== 1 ? 's' : ''} que informaram
+              </Text>
+            </>
           )}
         </View>
         <View style={[styles.card, { marginTop: 8 }]}>
@@ -402,55 +446,68 @@ export default function DashboardScreen() {
           {data.profile_breakdown.by_marital_status.length === 0 ? (
             <Text style={styles.emptyText}>Sem dados</Text>
           ) : (
-            data.profile_breakdown.by_marital_status.map((item) => {
-              const total = data.profile_breakdown.by_marital_status.reduce(
-                (s, r) => s + r.count,
-                0
-              ) || 1;
-              const pct = Math.round((item.count / total) * 100);
-              return (
-                <View key={item.label} style={styles.labelRow}>
-                  <Text style={styles.labelText}>{item.label}</Text>
-                  <Text style={styles.labelCount}>
-                    {item.count} ({pct}%)
-                  </Text>
-                </View>
-              );
-            })
+            <>
+              {data.profile_breakdown.by_marital_status.map((item) => {
+                const pct = Math.round((item.count / (maritalTotal || 1)) * 100);
+                return (
+                  <View key={item.label} style={styles.labelRow}>
+                    <Text style={styles.labelText}>{item.label}</Text>
+                    <Text style={styles.labelCount}>
+                      {item.count} de {maritalTotal} ({pct}%)
+                    </Text>
+                  </View>
+                );
+              })}
+              <Text style={styles.baseNote}>
+                de {maritalTotal} membro{maritalTotal !== 1 ? 's' : ''} que informaram
+              </Text>
+            </>
           )}
         </View>
 
-        {/* ---- Engajamento ---- */}
-        <SectionHeader title="Engajamento" styles={styles} />
+        {/* ---- Acompanhamento e interesse ---- */}
+        <SectionHeader title="Acompanhamento e interesse" styles={styles} />
         <View style={styles.grid3}>
           <View style={styles.engCard}>
             <Ionicons name="person-outline" size={22} color={t.brand.primary} />
             <Text style={styles.engValue}>
-              {data.profile_breakdown.with_vocational_accompaniment}
+              {acompYes} de {acompTotal}
             </Text>
-            <Text style={styles.engLabel}>Com Acomp. Vocacional</Text>
+            <Text style={styles.engLabel}>
+              Com acompanhamento vocacional ({acompPct}%)
+            </Text>
           </View>
           <View style={styles.engCard}>
             <Ionicons name="star-outline" size={22} color={t.status.warning} />
             <Text style={styles.engValue}>
-              {data.profile_breakdown.interested_in_ministry}
+              {data.profile_breakdown.interested_in_ministry} de {data.users.total}
             </Text>
-            <Text style={styles.engLabel}>Interesse em Ministério</Text>
+            <Text style={styles.engLabel}>
+              Interesse em ministério (
+              {Math.round((data.profile_breakdown.interested_in_ministry / totalUsers) * 100)}%)
+            </Text>
           </View>
           <View style={styles.engCard}>
             <Ionicons name="globe-outline" size={22} color={t.status.success} />
             <Text style={styles.engValue}>
-              {data.profile_breakdown.from_mission}
+              {data.profile_breakdown.from_mission} de {data.users.total}
             </Text>
-            <Text style={styles.engLabel}>De Missão</Text>
+            <Text style={styles.engLabel}>
+              Vieram de missão (
+              {Math.round((data.profile_breakdown.from_mission / totalUsers) * 100)}%)
+            </Text>
           </View>
         </View>
 
-        {/* ---- Memberships ---- */}
-        <SectionHeader title="Memberships" styles={styles} />
+        {/* ---- Vínculos e participação ---- */}
+        <SectionHeader title="Vínculos e participação" styles={styles} />
         <View style={styles.card}>
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total Ativos</Text>
+            <Text style={styles.totalLabel}>Pessoas participando</Text>
+            <Text style={styles.totalValue}>{peopleActive}</Text>
+          </View>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Vínculos ativos</Text>
             <Text style={styles.totalValue}>{data.memberships.total_active}</Text>
           </View>
           {data.memberships.by_unit_type.map((item) => (
@@ -462,6 +519,10 @@ export default function DashboardScreen() {
               styles={styles}
             />
           ))}
+          <Text style={styles.baseNote}>
+            Uma pessoa pode servir em mais de uma comunidade — por isso os vínculos podem
+            superar as pessoas.
+          </Text>
         </View>
 
         {/* ---- Convites ---- */}
@@ -490,10 +551,18 @@ export default function DashboardScreen() {
               </Text>
               <Text style={styles.inviteLabel}>Recusados</Text>
             </View>
+            <View style={styles.inviteItem}>
+              <Text style={styles.inviteValue}>{invExpired}</Text>
+              <Text style={styles.inviteLabel}>Expirados</Text>
+            </View>
+            <View style={styles.inviteItem}>
+              <Text style={styles.inviteValue}>{invCancelled}</Text>
+              <Text style={styles.inviteLabel}>Cancelados</Text>
+            </View>
           </View>
           <View style={styles.acceptanceRow}>
             <Text style={styles.acceptanceLabel}>
-              Taxa de aceitação: {data.invites.acceptance_rate}%
+              Convites aceitos (entre os respondidos): {data.invites.acceptance_rate}%
             </Text>
             <View style={styles.barTrack}>
               <View
@@ -509,21 +578,24 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* ---- Top Ministérios ---- */}
-        <SectionHeader title="Top Ministérios" styles={styles} />
+        {/* ---- Ministérios com mais membros ---- */}
+        <SectionHeader title="Ministérios com mais membros" styles={styles} />
         <View style={styles.card}>
           {data.top_ministries.length === 0 ? (
             <Text style={styles.emptyText}>Sem dados</Text>
           ) : (
-            data.top_ministries.map((item, i) => (
-              <RankedRow
-                key={item.name}
-                rank={i + 1}
-                label={item.name}
-                count={item.member_count}
-                styles={styles}
-              />
-            ))
+            <>
+              {data.top_ministries.map((item, i) => (
+                <RankedRow
+                  key={item.id ?? `${item.name}-${i}`}
+                  rank={i + 1}
+                  label={item.sector_name ? `${item.name} · ${item.sector_name}` : item.name}
+                  count={item.member_count}
+                  styles={styles}
+                />
+              ))}
+              <Text style={styles.baseNote}>Contagem de pessoas (não de vínculos).</Text>
+            </>
           )}
         </View>
 
@@ -764,11 +836,13 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   // Invites
   inviteGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
     marginBottom: 16,
+    rowGap: 12,
   },
   inviteItem: {
     alignItems: 'center',
+    width: '33%',
   },
   inviteValue: {
     fontSize: 22,
@@ -795,6 +869,13 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 8,
+  },
+  // Nota de base/método sob os cards ("X de Y que informaram")
+  baseNote: {
+    fontSize: 11,
+    color: t.text.secondary,
+    fontStyle: 'italic',
+    marginTop: 8,
   },
   // Back button
   backButton: {
