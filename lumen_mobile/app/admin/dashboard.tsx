@@ -493,7 +493,7 @@ export default function DashboardScreen() {
               {data.profile_breakdown.from_mission} de {data.users.total}
             </Text>
             <Text style={styles.engLabel}>
-              Vieram de missão (
+              Membros vindos de missão (
               {Math.round((data.profile_breakdown.from_mission / totalUsers) * 100)}%)
             </Text>
           </View>
@@ -513,15 +513,15 @@ export default function DashboardScreen() {
           {data.memberships.by_unit_type.map((item) => (
             <BarRow
               key={item.type}
-              label={item.label}
+              label={item.type === 'MISSAO' ? 'Comunidades de Missão' : item.label}
               count={item.count}
               total={data.memberships.total_active || 1}
               styles={styles}
             />
           ))}
           <Text style={styles.baseNote}>
-            Uma pessoa pode servir em mais de uma comunidade — por isso os vínculos podem
-            superar as pessoas.
+            Vínculos por tipo de unidade da estrutura. Uma pessoa pode servir em mais de uma
+            comunidade — por isso os vínculos podem superar as pessoas.
           </Text>
         </View>
 
