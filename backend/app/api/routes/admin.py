@@ -13,7 +13,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import select, or_, func, exists, nullslast, delete, desc
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.api.deps import CurrentUser, DBSession
 from app.db.models import (
@@ -543,7 +543,9 @@ def _calc_age_ranges(birth_dates: list[Any]) -> list[dict[str, Any]]:
         if bd is None:
             buckets["Não informado"] += 1
             continue
-        age = (today - bd).days // 365
+        # Idade civil: ano a ano, descontando 1 se ainda não fez aniversário
+        # (evita o erro de borda do antigo //365 com anos bissextos).
+        age = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
         if age < 18:
             buckets["< 18"] += 1
         elif age <= 25:
@@ -565,7 +567,24 @@ _UNIT_TYPE_LABELS = {
     "SETOR": "Setor",
     "MINISTERIO": "Ministério",
     "GRUPO": "Grupo",
+    "MISSAO": "Missão",
 }
+
+# k-anonimato da geografia: cidades com contagem abaixo deste limiar são
+# agregadas numa linha "Outras (n cidades)" para não identificar indivíduos.
+DASHBOARD_CITY_K_MIN = 3
+
+_CITY_LOWER_WORDS = {"de", "da", "do", "das", "dos", "e"}
+
+
+def _format_city(raw: str) -> str:
+    """Capitaliza nome de cidade normalizado, mantendo conectivos em minúsculas."""
+    words = raw.strip().split()
+    out: list[str] = []
+    for i, w in enumerate(words):
+        lw = w.lower()
+        out.append(lw if i > 0 and lw in _CITY_LOWER_WORDS else lw.capitalize())
+    return " ".join(out)
 
 
 @router.get("/dashboard")
@@ -591,16 +610,16 @@ async def get_dashboard(
         or 0
     )
 
+    # Base alinhada com total_users: só perfis de usuários ativos,
+    # para que a UI possa exibir "X de {total} (Z%)" com denominador coerente.
     complete_profiles = (
         db.execute(
-            select(func.count(UserProfile.user_id)).where(UserProfile.status == "COMPLETE")
-        ).scalar()
-        or 0
-    )
-
-    incomplete_profiles = (
-        db.execute(
-            select(func.count(UserProfile.user_id)).where(UserProfile.status != "COMPLETE")
+            select(func.count(UserProfile.user_id))
+            .join(User, UserProfile.user_id == User.id)
+            .where(
+                UserProfile.status == "COMPLETE",
+                User.is_active == True,  # noqa: E712
+            )
         ).scalar()
         or 0
     )
@@ -630,19 +649,34 @@ async def get_dashboard(
     age_ranges = _calc_age_ranges(list(birth_dates))
 
     # --- Geografia ---
+    # Normalização: agrupa por lower(trim(city)) para fundir variantes de
+    # caixa/espaço; exclui NULL e string vazia. Supressão k-anonimato: cidades
+    # com contagem < DASHBOARD_CITY_K_MIN viram uma linha agregada "Outras".
+    city_norm = func.lower(func.trim(UserProfile.city))
     city_rows = db.execute(
-        select(UserProfile.city, func.count(UserProfile.user_id).label("cnt"))
-        .where(UserProfile.city.isnot(None))
-        .group_by(UserProfile.city)
+        select(city_norm.label("city_key"), func.count(UserProfile.user_id).label("cnt"))
+        .where(UserProfile.city.isnot(None), func.trim(UserProfile.city) != "")
+        .group_by(city_norm)
         .order_by(desc("cnt"))
-        .limit(10)
     ).all()
-    by_city = [{"city": r[0], "count": r[1]} for r in city_rows]
 
+    visible_cities = [r for r in city_rows if r[1] >= DASHBOARD_CITY_K_MIN][:10]
+    suppressed_cities = [r for r in city_rows if r[1] < DASHBOARD_CITY_K_MIN]
+    by_city = [{"city": _format_city(r[0]), "count": r[1]} for r in visible_cities]
+    if suppressed_cities:
+        n_suppressed = len(suppressed_cities)
+        by_city.append(
+            {
+                "city": f"Outras ({n_suppressed} cidade{'s' if n_suppressed != 1 else ''})",
+                "count": sum(r[1] for r in suppressed_cities),
+            }
+        )
+
+    state_norm = func.upper(func.trim(UserProfile.state))
     state_rows = db.execute(
-        select(UserProfile.state, func.count(UserProfile.user_id).label("cnt"))
-        .where(UserProfile.state.isnot(None))
-        .group_by(UserProfile.state)
+        select(state_norm.label("uf"), func.count(UserProfile.user_id).label("cnt"))
+        .where(UserProfile.state.isnot(None), func.trim(UserProfile.state) != "")
+        .group_by(state_norm)
         .order_by(desc("cnt"))
         .limit(10)
     ).all()
@@ -718,6 +752,17 @@ async def get_dashboard(
         or 0
     )
 
+    # Pessoas distintas com vínculo ativo (≠ vínculos: uma pessoa em 3
+    # unidades conta 1 aqui e 3 em total_active).
+    people_active = (
+        db.execute(
+            select(func.count(func.distinct(OrgMembership.user_id))).where(
+                OrgMembership.status == MembershipStatus.ACTIVE
+            )
+        ).scalar()
+        or 0
+    )
+
     unit_type_rows = db.execute(
         select(OrgUnit.type, func.count(OrgMembership.id).label("cnt"))
         .join(OrgUnit, OrgMembership.org_unit_id == OrgUnit.id)
@@ -735,46 +780,56 @@ async def get_dashboard(
     ]
 
     # --- Convites ---
-    total_invites = db.execute(select(func.count(OrgInvite.id))).scalar() or 0
-    accepted_invites = (
-        db.execute(
-            select(func.count(OrgInvite.id)).where(OrgInvite.status == InviteStatus.ACCEPTED)
-        ).scalar()
-        or 0
+    # Todos os status num único GROUP BY; a taxa de aceitação é calculada
+    # sobre RESOLVIDOS (aceitos + recusados) — pendentes/expirados/cancelados
+    # não diluem a conversão real.
+    invite_rows = db.execute(
+        select(OrgInvite.status, func.count(OrgInvite.id)).group_by(OrgInvite.status)
+    ).all()
+    invite_counts = {row[0]: row[1] for row in invite_rows}
+    accepted_invites = invite_counts.get(InviteStatus.ACCEPTED, 0)
+    pending_invites = invite_counts.get(InviteStatus.PENDING, 0)
+    declined_invites = invite_counts.get(InviteStatus.REJECTED, 0)
+    expired_invites = invite_counts.get(InviteStatus.EXPIRED, 0)
+    cancelled_invites = invite_counts.get(InviteStatus.CANCELLED, 0)
+    total_invites = sum(invite_counts.values())
+    resolved_invites = accepted_invites + declined_invites
+    acceptance_rate = (
+        round(accepted_invites / resolved_invites * 100, 1) if resolved_invites > 0 else 0.0
     )
-    pending_invites = (
-        db.execute(
-            select(func.count(OrgInvite.id)).where(OrgInvite.status == InviteStatus.PENDING)
-        ).scalar()
-        or 0
-    )
-    declined_invites = (
-        db.execute(
-            select(func.count(OrgInvite.id)).where(OrgInvite.status == InviteStatus.REJECTED)
-        ).scalar()
-        or 0
-    )
-    acceptance_rate = round(accepted_invites / total_invites * 100, 1) if total_invites > 0 else 0.0
 
     # --- Top ministérios ---
+    # GROUP BY id (não name): ministérios homônimos em setores diferentes não
+    # se fundem. sector_name (unidade pai) desambigua na UI. member_count
+    # conta PESSOAS distintas, não vínculos.
+    parent_unit = aliased(OrgUnit)
     top_ministry_rows = db.execute(
-        select(OrgUnit.name, func.count(OrgMembership.id).label("cnt"))
+        select(
+            OrgUnit.id,
+            OrgUnit.name,
+            parent_unit.name.label("sector_name"),
+            func.count(func.distinct(OrgMembership.user_id)).label("cnt"),
+        )
+        .select_from(OrgMembership)
         .join(OrgUnit, OrgMembership.org_unit_id == OrgUnit.id)
+        .join(parent_unit, OrgUnit.parent_id == parent_unit.id, isouter=True)
         .where(
             OrgUnit.type == OrgUnitType.MINISTERIO,
             OrgMembership.status == MembershipStatus.ACTIVE,
         )
-        .group_by(OrgUnit.name)
+        .group_by(OrgUnit.id, OrgUnit.name, parent_unit.name)
         .order_by(desc("cnt"))
         .limit(10)
     ).all()
-    top_ministries = [{"name": r[0], "member_count": r[1]} for r in top_ministry_rows]
+    top_ministries = [
+        {"id": str(r[0]), "name": r[1], "sector_name": r[2], "member_count": r[3]}
+        for r in top_ministry_rows
+    ]
 
     return {
         "users": {
             "total": total_users,
             "complete_profiles": complete_profiles,
-            "incomplete_profiles": incomplete_profiles,
             "new_last_7d": new_7d,
             "new_last_30d": new_30d,
         },
@@ -794,6 +849,7 @@ async def get_dashboard(
         },
         "memberships": {
             "total_active": total_active_memberships,
+            "people_active": people_active,
             "by_unit_type": by_unit_type,
         },
         "invites": {
@@ -801,6 +857,8 @@ async def get_dashboard(
             "accepted": accepted_invites,
             "pending": pending_invites,
             "declined": declined_invites,
+            "expired": expired_invites,
+            "cancelled": cancelled_invites,
             "acceptance_rate": acceptance_rate,
         },
         "top_ministries": top_ministries,
