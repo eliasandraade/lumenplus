@@ -39,6 +39,7 @@ from app.schemas.organization import (
 from app.services.organization import (
     OrgServiceError,
     create_org_unit,
+    get_dev_user_ids,
     get_org_unit_members,
     get_org_unit_pending_invites,
     get_user_global_roles,
@@ -213,6 +214,9 @@ async def get_organization_tree(
     )
     all_units = all_units_result.scalars().all()
 
+    # Fase 1.1 (B2): DEV é conta técnica — não conta como membro real.
+    dev_user_ids = get_dev_user_ids(db)
+
     if not all_units:
         return OrgTreeResponse(root=None)
 
@@ -245,7 +249,9 @@ async def get_organization_tree(
                         children.append(child_node)
 
         active_member_count = sum(
-            1 for m in unit.memberships if m.status == MembershipStatus.ACTIVE
+            1
+            for m in unit.memberships
+            if m.status == MembershipStatus.ACTIVE and m.user_id not in dev_user_ids
         )
         return OrgUnitWithChildren(
             id=unit.id,

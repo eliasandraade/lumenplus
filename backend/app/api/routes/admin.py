@@ -12,7 +12,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
-from sqlalchemy import select, or_, func, exists, nullslast, delete, desc
+from sqlalchemy import select, or_, func, exists, nullslast, delete, desc, true
 from sqlalchemy.orm import Session, aliased
 
 from app.api.deps import CurrentUser, DBSession
@@ -34,7 +34,11 @@ from app.db.models import (
     SensitiveAccessRequest,
     SensitiveAccessAudit,
 )
-from app.services.organization import get_user_global_roles, is_conselho_geral_coordinator  # noqa: F401
+from app.services.organization import (  # noqa: F401
+    get_dev_user_ids,
+    get_user_global_roles,
+    is_conselho_geral_coordinator,
+)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -602,10 +606,22 @@ async def get_dashboard(
     cutoff_7d = now - timedelta(days=7)
     cutoff_30d = now - timedelta(days=30)
 
+    # Fase 1.1 (B/C): DEV é conta técnica → excluída de TODO o dashboard
+    # (membros + métricas globais de usuário/perfil). Convites ficam de fora
+    # da exclusão (são fluxo, não população). `_not_dev(col)` devolve o filtro
+    # NOT IN (dev_ids); quando não há DEV, vira `true()` (no-op, sem warning).
+    dev_ids = get_dev_user_ids(db)
+
+    def _not_dev(col: Any) -> Any:
+        return col.notin_(dev_ids) if dev_ids else true()
+
     # --- Usuários ---
     total_users = (
         db.execute(
-            select(func.count(User.id)).where(User.is_active == True)  # noqa: E712
+            select(func.count(User.id)).where(
+                User.is_active == True,  # noqa: E712
+                _not_dev(User.id),
+            )
         ).scalar()
         or 0
     )
@@ -619,6 +635,7 @@ async def get_dashboard(
             .where(
                 UserProfile.status == "COMPLETE",
                 User.is_active == True,  # noqa: E712
+                _not_dev(UserProfile.user_id),
             )
         ).scalar()
         or 0
@@ -629,6 +646,7 @@ async def get_dashboard(
             select(func.count(User.id)).where(
                 User.is_active == True,  # noqa: E712
                 User.created_at >= cutoff_7d,
+                _not_dev(User.id),
             )
         ).scalar()
         or 0
@@ -639,13 +657,18 @@ async def get_dashboard(
             select(func.count(User.id)).where(
                 User.is_active == True,  # noqa: E712
                 User.created_at >= cutoff_30d,
+                _not_dev(User.id),
             )
         ).scalar()
         or 0
     )
 
     # --- Faixas etárias ---
-    birth_dates = db.execute(select(UserProfile.birth_date)).scalars().all()
+    birth_dates = (
+        db.execute(select(UserProfile.birth_date).where(_not_dev(UserProfile.user_id)))
+        .scalars()
+        .all()
+    )
     age_ranges = _calc_age_ranges(list(birth_dates))
 
     # --- Geografia ---
@@ -655,7 +678,11 @@ async def get_dashboard(
     city_norm = func.lower(func.trim(UserProfile.city))
     city_rows = db.execute(
         select(city_norm.label("city_key"), func.count(UserProfile.user_id).label("cnt"))
-        .where(UserProfile.city.isnot(None), func.trim(UserProfile.city) != "")
+        .where(
+            UserProfile.city.isnot(None),
+            func.trim(UserProfile.city) != "",
+            _not_dev(UserProfile.user_id),
+        )
         .group_by(city_norm)
         .order_by(desc("cnt"))
     ).all()
@@ -675,7 +702,11 @@ async def get_dashboard(
     state_norm = func.upper(func.trim(UserProfile.state))
     state_rows = db.execute(
         select(state_norm.label("uf"), func.count(UserProfile.user_id).label("cnt"))
-        .where(UserProfile.state.isnot(None), func.trim(UserProfile.state) != "")
+        .where(
+            UserProfile.state.isnot(None),
+            func.trim(UserProfile.state) != "",
+            _not_dev(UserProfile.user_id),
+        )
         .group_by(state_norm)
         .order_by(desc("cnt"))
         .limit(10)
@@ -694,7 +725,7 @@ async def get_dashboard(
                 UserProfile,
                 fk_col == ProfileCatalogItem.id,
             )
-            .where(ProfileCatalog.code == catalog_code)
+            .where(ProfileCatalog.code == catalog_code, _not_dev(UserProfile.user_id))
             .group_by(ProfileCatalogItem.label)
             .order_by(desc("cnt"))
         ).all()
@@ -709,7 +740,8 @@ async def get_dashboard(
     with_voc = (
         db.execute(
             select(func.count(UserProfile.user_id)).where(
-                UserProfile.has_vocational_accompaniment == True  # noqa: E712
+                UserProfile.has_vocational_accompaniment == True,  # noqa: E712
+                _not_dev(UserProfile.user_id),
             )
         ).scalar()
         or 0
@@ -718,7 +750,8 @@ async def get_dashboard(
     without_voc = (
         db.execute(
             select(func.count(UserProfile.user_id)).where(
-                UserProfile.has_vocational_accompaniment == False  # noqa: E712
+                UserProfile.has_vocational_accompaniment == False,  # noqa: E712
+                _not_dev(UserProfile.user_id),
             )
         ).scalar()
         or 0
@@ -727,7 +760,8 @@ async def get_dashboard(
     interested_ministry_count = (
         db.execute(
             select(func.count(UserProfile.user_id)).where(
-                UserProfile.interested_in_ministry == True  # noqa: E712
+                UserProfile.interested_in_ministry == True,  # noqa: E712
+                _not_dev(UserProfile.user_id),
             )
         ).scalar()
         or 0
@@ -736,17 +770,19 @@ async def get_dashboard(
     from_mission_count = (
         db.execute(
             select(func.count(UserProfile.user_id)).where(
-                UserProfile.is_from_mission == True  # noqa: E712
+                UserProfile.is_from_mission == True,  # noqa: E712
+                _not_dev(UserProfile.user_id),
             )
         ).scalar()
         or 0
     )
 
-    # --- Memberships ---
+    # --- Memberships --- (Fase 1.1 B3–B5: DEV não é membro real)
     total_active_memberships = (
         db.execute(
             select(func.count(OrgMembership.id)).where(
-                OrgMembership.status == MembershipStatus.ACTIVE
+                OrgMembership.status == MembershipStatus.ACTIVE,
+                _not_dev(OrgMembership.user_id),
             )
         ).scalar()
         or 0
@@ -757,7 +793,8 @@ async def get_dashboard(
     people_active = (
         db.execute(
             select(func.count(func.distinct(OrgMembership.user_id))).where(
-                OrgMembership.status == MembershipStatus.ACTIVE
+                OrgMembership.status == MembershipStatus.ACTIVE,
+                _not_dev(OrgMembership.user_id),
             )
         ).scalar()
         or 0
@@ -766,7 +803,10 @@ async def get_dashboard(
     unit_type_rows = db.execute(
         select(OrgUnit.type, func.count(OrgMembership.id).label("cnt"))
         .join(OrgUnit, OrgMembership.org_unit_id == OrgUnit.id)
-        .where(OrgMembership.status == MembershipStatus.ACTIVE)
+        .where(
+            OrgMembership.status == MembershipStatus.ACTIVE,
+            _not_dev(OrgMembership.user_id),
+        )
         .group_by(OrgUnit.type)
         .order_by(desc("cnt"))
     ).all()
@@ -816,6 +856,7 @@ async def get_dashboard(
         .where(
             OrgUnit.type == OrgUnitType.MINISTERIO,
             OrgMembership.status == MembershipStatus.ACTIVE,
+            _not_dev(OrgMembership.user_id),
         )
         .group_by(OrgUnit.id, OrgUnit.name, parent_unit.name)
         .order_by(desc("cnt"))

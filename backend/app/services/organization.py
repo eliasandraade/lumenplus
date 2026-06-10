@@ -41,6 +41,30 @@ class OrgServiceError(Exception):
         super().__init__(message)
 
 
+def get_dev_user_ids(db: Session) -> set[UUID]:
+    """
+    Conjunto de user_ids com papel global DEV.
+
+    DEV é conta técnica/infra — NÃO é membro real da comunidade. Fonte única de
+    verdade (Fase 1.1, Partes B/C) para excluir DEV de listas/contagens de
+    membros de unidade e de todas as métricas do dashboard. Reusado por
+    `get_org_unit_members`, pela árvore (`/org/tree`) e pelo dashboard, para que
+    as três superfícies nunca divirjam.
+
+    NÃO altera permissões: DEV mantém todo o acesso; muda só exibição/métrica.
+    """
+    rows = (
+        db.execute(
+            select(UserGlobalRole.user_id)
+            .join(GlobalRole, UserGlobalRole.global_role_id == GlobalRole.id)
+            .where(GlobalRole.code == "DEV")
+        )
+        .scalars()
+        .all()
+    )
+    return set(rows)
+
+
 def slugify(text: str) -> str:
     """Gera slug a partir de texto."""
     text = text.lower().strip()
@@ -586,6 +610,11 @@ def get_org_unit_members(db: Session, org_unit_id: UUID, user_id: UUID) -> list[
         .order_by(OrgMembership.role, OrgMembership.joined_at)
     )
     memberships = list(result.scalars().all())
+
+    # Fase 1.1 (B1): DEV é conta técnica, não membro real — não listar.
+    dev_ids = get_dev_user_ids(db)
+    if dev_ids:
+        memberships = [m for m in memberships if m.user_id not in dev_ids]
 
     # Marca visibilidade para a camada de rota ocultar email quando necessário
     for m in memberships:
