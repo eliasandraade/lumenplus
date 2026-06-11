@@ -5,12 +5,14 @@
 
 import { Stack } from 'expo-router';
 import { BreadcrumbHeader } from '@/components/ui/BreadcrumbHeader';
+import { useTheme } from '@/theme';
 
 const RETIROS: { label: string; href: '/retreats' } = { label: 'Retiros', href: '/retreats' };
 
 export default function RetreatsLayout() {
+  const { t } = useTheme();
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg.screen } }}>
       <Stack.Screen name="index" options={{
         header: () => <BreadcrumbHeader items={[{ label: 'Retiros' }]} />,
         headerShown: true,
