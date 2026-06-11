@@ -14,11 +14,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import api from '@/services/api';
 import { parseApiError } from '@/utils/error';
+import { showAlert } from '@/utils/alerts';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
 
@@ -69,7 +69,7 @@ export default function VerifyPhoneScreen() {
 
       // DEV mode: mostra código
       if (response.debug_code) {
-        Alert.alert('DEV Mode', `Código: ${response.debug_code}`);
+        showAlert('DEV Mode', `Código: ${response.debug_code}`);
       }
     } catch (err: any) {
       const message = parseApiError(err, 'Erro ao enviar código');
@@ -135,17 +135,14 @@ export default function VerifyPhoneScreen() {
         code: fullCode,
       });
 
-      // Sucesso! Navega para completar perfil
-      Alert.alert('Sucesso!', 'Telefone verificado com sucesso!', [
-        {
-          text: 'Continuar',
-          onPress: () =>
-            router.replace({
-              pathname: '/(onboarding)/profile',
-              params: { fullName: params.fullName || '', phone: params.phone || '' },
-            }),
-        },
-      ]);
+      // Sucesso! Navega para completar perfil.
+      // showAlert garante que a navegação ocorra também na web (onClose).
+      showAlert('Sucesso!', 'Telefone verificado com sucesso!', () =>
+        router.replace({
+          pathname: '/(onboarding)/profile',
+          params: { fullName: params.fullName || '', phone: params.phone || '' },
+        }),
+      );
     } catch (err: any) {
       const message = parseApiError(err, 'Código inválido');
       setError(message);
