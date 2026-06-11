@@ -224,7 +224,7 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   typeText: { fontSize: 11, fontWeight: '600', color: t.brand.primary },
   statusBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   statusText: { fontSize: 11, fontWeight: '600' },
-  title: { fontSize: 17, fontWeight: '700', color: '#111827' },
+  title: { fontSize: 17, fontWeight: '700', color: t.text.primary },
   description: { fontSize: 13, color: t.text.secondary, lineHeight: 18 },
   meta: { gap: 4 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
@@ -239,6 +239,6 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   errorText: { color: '#dc2626', textAlign: 'center' },
   retryBtn: { backgroundColor: t.brand.primary, borderRadius: 8, paddingHorizontal: 24, paddingVertical: 10 },
   retryText: { color: t.text.inverse, fontWeight: '600' },
-  emptyTitle: { fontSize: 17, fontWeight: '600', color: '#374151' },
+  emptyTitle: { fontSize: 17, fontWeight: '600', color: t.text.primary },
   emptySubtitle: { fontSize: 13, color: t.text.secondary, textAlign: 'center' },
 });

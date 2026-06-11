@@ -20,9 +20,10 @@ import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView,
-  ActivityIndicator, StatusBar, Modal, FlatList, Switch, Alert,
+  ActivityIndicator, StatusBar, Modal, FlatList, Switch,
 } from 'react-native';
 import { router } from 'expo-router';
+import { showAlert } from '@/utils/alerts';
 import { Ionicons } from '@expo/vector-icons';
 import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from 'firebase/auth';
 import { auth, IS_DEV_AUTH } from '@/config/firebase';
@@ -393,7 +394,7 @@ export default function RegisterScreen() {
         if (typeof detail === 'string') msg = detail;
         else if (detail?.message) msg = `Erro: ${detail.message}`;
         else if (Array.isArray(detail) && detail[0]?.msg) msg = `Dado inválido: ${detail[0].msg}`;
-        Alert.alert('Atenção', msg, [{ text: 'OK' }]);
+        showAlert('Atenção', msg);
       }
 
       router.replace({ pathname: '/(auth)/verify-email', params: { email: email.trim().toLowerCase(), fromRegister: '1' } });

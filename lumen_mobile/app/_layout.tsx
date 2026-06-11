@@ -23,6 +23,7 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { ThemeProvider, useTheme } from '@/theme';
 import { UnlockedCyclesProvider } from '@/contexts/UnlockedCyclesContext';
+import { MISCONFIGURED } from '@/config/firebase';
 
 // Sentry — inicializa antes de qualquer render
 Sentry.init({
@@ -73,6 +74,33 @@ const eb = StyleSheet.create({
   label: { fontSize: 12, fontWeight: '700', color: '#9ca3af', marginTop: 12, marginBottom: 4 },
   msg: { fontSize: 14, color: '#fca5a5' },
   stack: { fontSize: 11, color: '#6b7280', fontFamily: 'monospace', lineHeight: 18 },
+});
+
+// Tela de erro de configuração (M4): produção sem credenciais Firebase.
+// Evita que o app caia silenciosamente em modo DEV auth em produção.
+function ConfigError() {
+  return (
+    <View style={ce.container}>
+      <View style={ce.box}>
+        <Text style={ce.title}>Configuração de ambiente ausente</Text>
+        <Text style={ce.msg}>
+          As credenciais de autenticação (Firebase) não foram encontradas neste
+          build. O aplicativo não pode iniciar com segurança.
+        </Text>
+        <Text style={ce.hint}>
+          Verifique as variáveis EXPO_PUBLIC_FIREBASE_* no ambiente de produção.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const ce = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#0d1a2e', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  box: { maxWidth: 420, width: '100%' },
+  title: { fontSize: 20, fontWeight: '700', color: '#f87171', marginBottom: 12, textAlign: 'center' },
+  msg: { fontSize: 15, color: '#e8f0f8', lineHeight: 22, textAlign: 'center', marginBottom: 12 },
+  hint: { fontSize: 13, color: '#7fa3c0', lineHeight: 20, textAlign: 'center' },
 });
 
 // Mantém splash screen até fontes carregarem
@@ -131,6 +159,10 @@ export default function RootLayout() {
 
   // Aguarda fontes antes de renderizar para evitar flash de fonte incorreta
   if (!fontsLoaded && !fontError) return null;
+
+  // Trava de segurança (M4): produção sem credenciais Firebase → tela de erro
+  // de config, em vez de cair silenciosamente em modo DEV auth.
+  if (MISCONFIGURED) return <ConfigError />;
 
   return (
     <Sentry.ErrorBoundary fallback={({ error }) => <CrashFallback error={error as Error} />}>

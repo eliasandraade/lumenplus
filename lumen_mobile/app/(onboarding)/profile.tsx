@@ -40,6 +40,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '@/services/api';
 import { profileService } from '@/services';
 import { parseApiError } from '@/utils/error';
+import { showAlert } from '@/utils/alerts';
 import brasilApi, { type Estado, type Municipio } from '@/services/brasilApi';
 
 // ─── Encontros Despertar numerados (1–47) ─────────────────────────────────────
@@ -300,7 +301,7 @@ export default function ProfileScreen() {
         if (digits) setPhone(formatPhone(digits));
       }
     } catch {
-      Alert.alert('Erro', 'Não foi possível carregar os dados');
+      showAlert('Erro', 'Não foi possível carregar os dados');
     } finally {
       setIsLoading(false);
     }
@@ -309,7 +310,7 @@ export default function ProfileScreen() {
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permissão necessária', 'Precisamos de acesso às suas fotos');
+      showAlert('Permissão necessária', 'Precisamos de acesso às suas fotos');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -324,7 +325,7 @@ export default function ProfileScreen() {
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permissão necessária', 'Precisamos de acesso à câmera');
+      showAlert('Permissão necessária', 'Precisamos de acesso à câmera');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -336,6 +337,11 @@ export default function ProfileScreen() {
   };
 
   const showPhotoOptions = () => {
+    if (Platform.OS === 'web') {
+      // Web: a câmera nativa não se aplica; o seletor de arquivos cobre a galeria.
+      pickImage();
+      return;
+    }
     Alert.alert('Foto de Perfil', 'Escolha uma opção', [
       { text: 'Câmera', onPress: takePhoto },
       { text: 'Galeria', onPress: pickImage },
@@ -404,7 +410,7 @@ export default function ProfileScreen() {
   // ── Envio ─────────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!validate()) {
-      Alert.alert('Atenção', 'Preencha todos os campos obrigatórios');
+      showAlert('Atenção', 'Preencha todos os campos obrigatórios');
       return;
     }
 
@@ -463,12 +469,11 @@ export default function ProfileScreen() {
         }
       }
 
-      Alert.alert('Sucesso!', 'Perfil salvo com sucesso!', [
-        { text: 'Continuar', onPress: () => router.replace('/(tabs)/home') },
-      ]);
+      // onClose garante a navegação para a home também na web.
+      showAlert('Sucesso!', 'Perfil salvo com sucesso!', () => router.replace('/(tabs)/home'));
     } catch (err: any) {
       const message = parseApiError(err, 'Erro ao salvar perfil');
-      Alert.alert('Erro', message);
+      showAlert('Erro', message);
     } finally {
       setIsSaving(false);
     }

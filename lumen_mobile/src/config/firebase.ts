@@ -18,6 +18,14 @@ import { getAuth, initializeAuth, Auth } from 'firebase/auth';
 /** true quando não há credenciais Firebase configuradas (ambiente local/dev) */
 export const IS_DEV_AUTH = !process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
 
+/**
+ * Trava de segurança (M4): em build de PRODUÇÃO sem credenciais Firebase, o app
+ * NÃO deve cair silenciosamente em modo DEV (mock auth). `MISCONFIGURED` sinaliza
+ * esse cenário para o root layout exibir uma tela clara de erro de configuração.
+ * Em DEV/local (`__DEV__`), o modo DEV continua permitido normalmente.
+ */
+export const MISCONFIGURED = !__DEV__ && IS_DEV_AUTH;
+
 // Mock auth para modo DEV — evita crash por API key ausente
 const mockAuth = {
   authStateReady: () => Promise.resolve(),

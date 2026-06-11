@@ -14,7 +14,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Alert,
   Modal,
   TextInput,
   ScrollView,
@@ -25,6 +24,7 @@ import api from '@/services/api';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
 import { radius, typography } from '@/theme/tokens';
+import { showAlert, showConfirm } from '@/utils/alerts';
 
 // ── Helper: máscara de e-mail ─────────────────────────────────────────────────
 
@@ -347,7 +347,7 @@ export default function MembersScreen() {
       setPermissions(permissionsData);
     } catch (err) {
       console.error('Erro ao carregar membros:', err);
-      Alert.alert('Erro', 'Não foi possível carregar os membros');
+      showAlert('Erro', 'Não foi possível carregar os membros');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -408,10 +408,10 @@ export default function MembersScreen() {
       setSearchQuery('');
       setSearchResults([]);
       setInviteMessage('');
-      Alert.alert('Sucesso!', `Convite enviado para ${pendingUser.name}!`);
+      showAlert('Sucesso!', `Convite enviado para ${pendingUser.name}!`);
     } catch (err: any) {
       const message = err.response?.data?.detail?.message || 'Erro ao enviar convite';
-      Alert.alert('Erro', message);
+      showAlert('Erro', message);
     } finally {
       setIsSendingInvite(false);
     }
@@ -426,29 +426,23 @@ export default function MembersScreen() {
     const newRole = member.role === 'COORDINATOR' ? 'MEMBER' : 'COORDINATOR';
     const action = member.role === 'COORDINATOR' ? 'rebaixar' : 'promover';
 
-    Alert.alert(
-      `${action.charAt(0).toUpperCase() + action.slice(1)} Membro`,
-      `Deseja ${action} ${member.user_name} para ${ROLE_LABELS[newRole]}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          onPress: async () => {
-            try {
-              await api.put(
-                `/org/units/${params.org_unit_id}/members/${member.user_id}/role?role=${newRole}`
-              );
-              Alert.alert('Sucesso!', `${member.user_name} agora é ${ROLE_LABELS[newRole]}`);
-              setShowMemberActions(false);
-              loadData();
-            } catch (err: any) {
-              const message = err.response?.data?.detail?.message || 'Erro ao atualizar papel';
-              Alert.alert('Erro', message);
-            }
-          },
-        },
-      ]
-    );
+    showConfirm({
+      title: `${action.charAt(0).toUpperCase() + action.slice(1)} Membro`,
+      message: `Deseja ${action} ${member.user_name} para ${ROLE_LABELS[newRole]}?`,
+      onConfirm: async () => {
+        try {
+          await api.put(
+            `/org/units/${params.org_unit_id}/members/${member.user_id}/role?role=${newRole}`
+          );
+          showAlert('Sucesso!', `${member.user_name} agora é ${ROLE_LABELS[newRole]}`);
+          setShowMemberActions(false);
+          loadData();
+        } catch (err: any) {
+          const message = err.response?.data?.detail?.message || 'Erro ao atualizar papel';
+          showAlert('Erro', message);
+        }
+      },
+    });
   };
 
   const handleRemovePress = (member: Member) => {
@@ -467,7 +461,7 @@ export default function MembersScreen() {
       loadData();
     } catch (err: any) {
       const message = err.response?.data?.detail?.message || 'Erro ao remover membro';
-      Alert.alert('Erro', message);
+      showAlert('Erro', message);
     } finally {
       setIsRemoving(false);
     }

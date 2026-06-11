@@ -12,13 +12,13 @@ import {
   ScrollView,
   Switch,
   Pressable,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useOnboardingStore, useAuthStore } from '@/stores';
 import { Button, Loading, Card } from '@/components';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
+import { showConfirm } from '@/utils/alerts';
 
 function Checkbox({ checked, onPress, label }: { checked: boolean; onPress: () => void; label: string }) {
   const { t } = useTheme();
@@ -54,21 +54,16 @@ export default function TermsScreen() {
   const canAccept = termsAccepted && privacyAccepted;
 
   const handleDecline = () => {
-    Alert.alert(
-      'Recusar termos',
-      'Ao recusar, você será desconectado do app. Deseja continuar?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Sim, sair',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/(auth)/login');
-          },
-        },
-      ]
-    );
+    showConfirm({
+      title: 'Recusar termos',
+      message: 'Ao recusar, você será desconectado do app. Deseja continuar?',
+      confirmText: 'Sim, sair',
+      destructive: true,
+      onConfirm: async () => {
+        await logout();
+        router.replace('/(auth)/login');
+      },
+    });
   };
 
   const handleAccept = async () => {
