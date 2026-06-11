@@ -1,17 +1,20 @@
 /**
  * Admin — Create Retreat
  * ======================
- * Formulário para criar um novo retiro (salvo como DRAFT).
+ * Formulário (página única) para criar um novo retiro (salvo como DRAFT).
+ * Organizado em seções: Informações básicas · Datas e local · Vagas e acesso.
  */
 
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
-  ActivityIndicator, Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import type { IoniconsName } from '@/types/icons';
 import api from '@/services/api';
+import { CalendarPicker } from '@/components/ui/CalendarPicker';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
 
@@ -57,8 +60,8 @@ export default function CreateRetreatScreen() {
     if (!title.trim()) { setError('O título é obrigatório'); return; }
     const start = parseDate(startDate);
     const end   = parseDate(endDate);
-    if (!start) { setError('Data de início inválida (use dd/mm/aaaa)'); return; }
-    if (!end)   { setError('Data de término inválida (use dd/mm/aaaa)'); return; }
+    if (!start) { setError('Selecione a data de início'); return; }
+    if (!end)   { setError('Selecione a data de término'); return; }
 
     setLoading(true);
     setError(null);
@@ -93,84 +96,84 @@ export default function CreateRetreatScreen() {
         </View>
       )}
 
-      <Field label="Título *" styles={styles}>
-        <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Ex: Retiro de Formação 2026" placeholderTextColor={t.text.tertiary} />
-      </Field>
+      <Section title="Informações básicas" icon="information-circle-outline" first styles={styles}>
+        <Field label="Título *" styles={styles}>
+          <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Ex: Retiro de Formação 2026" placeholderTextColor={t.text.tertiary} />
+        </Field>
 
-      <Field label="Descrição" styles={styles}>
-        <TextInput
-          style={[styles.input, styles.textarea]} value={description}
-          onChangeText={setDesc} placeholder="Descreva o retiro..." placeholderTextColor={t.text.tertiary}
-          multiline numberOfLines={4} textAlignVertical="top"
-        />
-      </Field>
+        <Field label="Descrição" styles={styles}>
+          <TextInput
+            style={[styles.input, styles.textarea]} value={description}
+            onChangeText={setDesc} placeholder="Descreva o retiro..." placeholderTextColor={t.text.tertiary}
+            multiline numberOfLines={4} textAlignVertical="top"
+          />
+        </Field>
 
-      <Field label="Tipo" styles={styles}>
-        <View style={styles.pills}>
-          {TYPES.map(tp => (
-            <TouchableOpacity
-              key={tp.value}
-              style={[styles.pill, type === tp.value && styles.pillActive]}
-              onPress={() => setType(tp.value)}
-            >
-              <Text style={[styles.pillText, type === tp.value && styles.pillTextActive]}>
-                {tp.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </Field>
+        <Field label="Tipo" styles={styles}>
+          <View style={styles.pills}>
+            {TYPES.map(tp => (
+              <TouchableOpacity
+                key={tp.value}
+                style={[styles.pill, type === tp.value && styles.pillActive]}
+                onPress={() => setType(tp.value)}
+              >
+                <Text style={[styles.pillText, type === tp.value && styles.pillTextActive]}>
+                  {tp.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Field>
+      </Section>
 
-      <Field label="Data de início *" styles={styles}>
-        <TextInput
-          style={styles.input} value={startDate} onChangeText={setStartDate}
-          placeholder="dd/mm/aaaa" placeholderTextColor={t.text.tertiary} keyboardType="numeric"
-        />
-      </Field>
+      <Section title="Datas e local" icon="calendar-outline" styles={styles}>
+        <Field label="Data de início *" styles={styles}>
+          <CalendarPicker value={startDate} onChange={setStartDate} label="Selecionar data de início" />
+        </Field>
 
-      <Field label="Data de término *" styles={styles}>
-        <TextInput
-          style={styles.input} value={endDate} onChangeText={setEndDate}
-          placeholder="dd/mm/aaaa" placeholderTextColor={t.text.tertiary} keyboardType="numeric"
-        />
-      </Field>
+        <Field label="Data de término *" styles={styles}>
+          <CalendarPicker value={endDate} onChange={setEndDate} label="Selecionar data de término" />
+        </Field>
 
-      <Field label="Local" styles={styles}>
-        <TextInput style={styles.input} value={location} onChangeText={setLocation} placeholder="Ex: Casa de Retiros Nossa Senhora" placeholderTextColor={t.text.tertiary} />
-      </Field>
+        <Field label="Local" styles={styles}>
+          <TextInput style={styles.input} value={location} onChangeText={setLocation} placeholder="Ex: Casa de Retiros Nossa Senhora" placeholderTextColor={t.text.tertiary} />
+        </Field>
 
-      <Field label="Endereço completo" styles={styles}>
-        <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Rua, número, cidade..." placeholderTextColor={t.text.tertiary} />
-      </Field>
+        <Field label="Endereço completo" styles={styles}>
+          <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Rua, número, cidade..." placeholderTextColor={t.text.tertiary} />
+        </Field>
+      </Section>
 
-      <Field label="Máximo de vagas" styles={styles}>
-        <TextInput style={styles.input} value={maxPart} onChangeText={setMaxPart} placeholder="Deixe vazio para sem limite" placeholderTextColor={t.text.tertiary} keyboardType="numeric" />
-      </Field>
+      <Section title="Vagas e acesso" icon="people-outline" styles={styles}>
+        <Field label="Máximo de vagas" styles={styles}>
+          <TextInput style={styles.input} value={maxPart} onChangeText={setMaxPart} placeholder="Deixe vazio para sem limite" placeholderTextColor={t.text.tertiary} keyboardType="numeric" />
+        </Field>
 
-      <Field label="Valor (R$)" styles={styles}>
-        <TextInput style={styles.input} value={price} onChangeText={setPrice} placeholder="Ex: 120,00 · Vazio = gratuito" placeholderTextColor={t.text.tertiary} keyboardType="decimal-pad" />
-      </Field>
+        <Field label="Valor (R$)" styles={styles}>
+          <TextInput style={styles.input} value={price} onChangeText={setPrice} placeholder="Ex: 120,00 · Vazio = gratuito" placeholderTextColor={t.text.tertiary} keyboardType="decimal-pad" />
+        </Field>
 
-      <Field label="Visibilidade" styles={styles}>
-        <View style={styles.pills}>
-          {VISIBILITIES.map(v => (
-            <TouchableOpacity
-              key={v.value}
-              style={[styles.pill, visibility === v.value && styles.pillActive]}
-              onPress={() => setVis(v.value)}
-            >
-              <Text style={[styles.pillText, visibility === v.value && styles.pillTextActive]}>
-                {v.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        {visibility === 'SPECIFIC' && (
-          <Text style={styles.hint}>
-            As regras de elegibilidade podem ser configuradas após criar o retiro.
-          </Text>
-        )}
-      </Field>
+        <Field label="Visibilidade" styles={styles}>
+          <View style={styles.pills}>
+            {VISIBILITIES.map(v => (
+              <TouchableOpacity
+                key={v.value}
+                style={[styles.pill, visibility === v.value && styles.pillActive]}
+                onPress={() => setVis(v.value)}
+              >
+                <Text style={[styles.pillText, visibility === v.value && styles.pillTextActive]}>
+                  {v.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {visibility === 'SPECIFIC' && (
+            <Text style={styles.hint}>
+              As regras de elegibilidade podem ser configuradas após criar o retiro.
+            </Text>
+          )}
+        </Field>
+      </Section>
 
       <TouchableOpacity
         style={[styles.createBtn, loading && { opacity: 0.6 }]}
@@ -200,6 +203,21 @@ function Field({ label, children, styles }: { label: string; children: React.Rea
   );
 }
 
+function Section(
+  { title, icon, children, styles, first }:
+  { title: string; icon: IoniconsName; children: React.ReactNode; styles: Styles; first?: boolean }
+) {
+  return (
+    <View style={[styles.section, first && styles.sectionFirst]}>
+      <View style={styles.sectionHeader}>
+        <Ionicons name={icon} size={16} color={ADMIN_COLOR} />
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
 const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   container: { flex: 1, backgroundColor: t.bg.elevated },
   content: { padding: 16, paddingBottom: 40, gap: 14 },
@@ -208,6 +226,10 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
     borderRadius: 10, padding: 12, alignItems: 'center',
   },
   errorText: { color: t.status.error, fontSize: 13, flex: 1 },
+  section: { gap: 14, paddingTop: 18, borderTopWidth: 1, borderTopColor: t.border.subtle },
+  sectionFirst: { paddingTop: 0, borderTopWidth: 0 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionTitle: { fontSize: 12, fontWeight: '800', color: t.text.secondary, textTransform: 'uppercase', letterSpacing: 0.6 },
   field: { gap: 6 },
   label: { fontSize: 13, fontWeight: '600', color: t.text.primary },
   input: {
