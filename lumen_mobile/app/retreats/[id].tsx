@@ -565,7 +565,7 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start',
   },
   typeText: { fontSize: 12, fontWeight: '600', color: t.brand.primary },
-  title: { fontSize: 22, fontWeight: '800', color: '#111827' },
+  title: { fontSize: 22, fontWeight: '800', color: t.text.primary },
   description: { fontSize: 14, color: t.text.secondary, lineHeight: 20 },
   infoGrid: {
     backgroundColor: t.bg.elevated, borderRadius: 16, padding: 16, gap: 12,
@@ -574,7 +574,7 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   infoRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   feeRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   infoLabel: { fontSize: 11, color: t.text.secondary, textTransform: 'uppercase', letterSpacing: 0.5 },
-  infoValue: { fontSize: 14, color: '#111827', fontWeight: '500', marginTop: 1 },
+  infoValue: { fontSize: 14, color: t.text.primary, fontWeight: '500', marginTop: 1 },
   feeAmount: { fontSize: 16, fontWeight: '800', color: t.brand.primary, marginTop: 2 },
   modalityChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   modalityChip: {
@@ -618,7 +618,7 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
     backgroundColor: t.bg.elevated, borderRadius: 20, padding: 24,
     width: '100%', gap: 12,
   },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827', textAlign: 'center' },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: t.text.primary, textAlign: 'center' },
   modalSubtitle: { fontSize: 13, color: t.text.secondary, textAlign: 'center', lineHeight: 18 },
   feeSummary: {
     backgroundColor: t.brand.primaryDim, borderRadius: 12, padding: 12, alignItems: 'center',
@@ -627,7 +627,7 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   feeSummaryAmount: { fontSize: 22, fontWeight: '800', color: t.brand.primary },
   feeSummaryFree: { fontSize: 16, fontWeight: '700', color: '#059669' },
   feeSummaryHint: { fontSize: 11, color: t.text.secondary, marginTop: 4, textAlign: 'center' },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: t.text.secondary },
   modalitySelector: { flexDirection: 'row', gap: 8 },
   modalityOption: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -638,14 +638,14 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   modalityOptionText: { fontSize: 13, fontWeight: '600', color: t.brand.primary },
   textArea: {
     borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 10,
-    minHeight: 70, textAlignVertical: 'top', fontSize: 14, color: '#111827',
+    minHeight: 70, textAlignVertical: 'top', fontSize: 14, color: t.text.primary,
   },
   row: { flexDirection: 'row', gap: 10, marginTop: 4 },
   outlineBtn: {
     flex: 1, borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 12,
     padding: 12, alignItems: 'center',
   },
-  outlineBtnText: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  outlineBtnText: { fontSize: 14, fontWeight: '600', color: t.text.secondary },
   confirmBtn: {
     flex: 1, backgroundColor: t.brand.primary, borderRadius: 12,
     padding: 12, alignItems: 'center', justifyContent: 'center',
@@ -657,7 +657,7 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
     padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10,
   },
   teamOptionSelected: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
-  teamOptionName: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  teamOptionName: { fontSize: 14, fontWeight: '600', color: t.text.primary },
   teamOptionDesc: { fontSize: 12, color: t.text.secondary, marginTop: 2 },
   teamOrderBadge: {
     width: 28, height: 28, borderRadius: 14,

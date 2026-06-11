@@ -194,6 +194,22 @@ Arquivos por volume de hex/rgb (446 ocorrências / 47 arquivos): `register`(40),
 
 **Método:** abrir cada tela candidata em **dark mode** no boot web → marcar apenas casos ilegíveis → trocar pelo token semântico equivalente (`t.text.*`, `t.bg.*`). Sem reorganizar estilos. Correções de M5 entram **somente** se confirmadas como blocker/major na inspeção; caso contrário → POST-RC.
 
+### Resultado da triagem M5 (executada — análise estática verificando o `backgroundColor` real de cada texto)
+
+**Corrigido (blocker de legibilidade confirmado — texto escuro hardcoded sobre fundo TEMÁTICO `t.bg.elevated`/`t.bg.screen`, vizinho a textos já temáticos):**
+- `app/retreats/[id].tsx`: `title`, `infoValue`, `modalTitle`, `textArea` (texto digitado), `teamOptionName` (`#111827` → `t.text.primary`); `fieldLabel`, `outlineBtnText` (`#374151` → `t.text.secondary`). O modal de inscrição (`modalBox: t.bg.elevated`) ficava com labels e texto digitado **invisíveis** no dark.
+- `app/retreats/index.tsx`: `title` (`#111827`) e `emptyTitle` (`#374151`) → `t.text.primary`.
+- Em light mode os tokens equivalem ao valor anterior (`t.text.primary≈#171717`, `t.text.secondary≈#525252`), então o claro fica praticamente inalterado; o dark passa a ser legível.
+
+**NÃO corrigido — confirmado intencional/correto (não tocar):**
+- `app/(tabs)/service.tsx`: liturgia usa `#374151`/`#111827` **por design** — comentário no código: *"o fundo litúrgico é sempre pastel claro"*. Trocar por token **quebraria** o dark (texto claro sobre pastel claro). Mantido.
+- `app/retreats/[id].tsx`: `actionMsgText` (`#166534`) sobre card `#f0fdf4` (verde claro) — dark-on-light intencional. Mantido.
+- `app/admin/audit-logs.tsx`: ~36 hex são **cores de status/accent** (vermelho/verde/roxo/âmbar/ciano) para ícones e badges — legíveis nos dois temas. Mantido.
+- `app/(tabs)/profile.tsx`: hardcodes são branco sobre botão `PRIMARY` (teal) — legível. Mantido.
+- `app/(auth)/login.tsx` e `register.tsx`: 100% hardcoded (marca teal, não temáticas por design) — fora do escopo por decisão. POST-RC.
+
+**Limitação honesta:** a confirmação foi por **análise estática do par texto×fundo** (verificado que o fundo é token temático). Não houve boot autenticado em dark mode (as telas de retiro exigem login/Firebase). Os fixes são troca por token garantido nos dois temas; recomenda-se confirmação visual no smoke test manual em dark (já no §10).
+
 ---
 
 ## 8. POST-RC (documentar, não implementar)
