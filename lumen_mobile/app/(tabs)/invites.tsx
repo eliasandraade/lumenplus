@@ -17,7 +17,6 @@ import {
   Modal,
   ScrollView,
   ActivityIndicator,
-  Alert,
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +27,7 @@ import { inboxService } from '@/services';
 import type { InboxListResponse, PendingApproval, AuditEntry } from '@/types';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
+import { showAlert, showConfirm } from '@/utils/alerts';
 
 const colors = {
   primary: '#1A859B',
@@ -165,11 +165,11 @@ export default function InboxScreen() {
     setProcessingApproval(true);
     try {
       const result = await inboxService.approveMessage(selectedPendente.id, approvalNote || undefined);
-      Alert.alert('Aprovado!', `Aviso enviado para ${result.recipient_count} destinatário(s).`);
+      showAlert('Aprovado!', `Aviso enviado para ${result.recipient_count} destinatário(s).`);
       setPendenteModalVisible(false);
       await loadPendentes();
     } catch {
-      Alert.alert('Erro', 'Não foi possível aprovar o aviso.');
+      showAlert('Erro', 'Não foi possível aprovar o aviso.');
     } finally {
       setProcessingApproval(false);
     }
@@ -177,30 +177,25 @@ export default function InboxScreen() {
 
   const handleReject = () => {
     if (!selectedPendente) return;
-    Alert.alert(
-      'Reprovar aviso',
-      'Tem certeza? O aviso não será enviado.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Reprovar',
-          style: 'destructive',
-          onPress: async () => {
-            setProcessingApproval(true);
-            try {
-              await inboxService.rejectMessage(selectedPendente.id, approvalNote || undefined);
-              Alert.alert('Reprovado', 'O aviso foi reprovado.');
-              setPendenteModalVisible(false);
-              await loadPendentes();
-            } catch {
-              Alert.alert('Erro', 'Não foi possível reprovar o aviso.');
-            } finally {
-              setProcessingApproval(false);
-            }
-          },
-        },
-      ]
-    );
+    showConfirm({
+      title: 'Reprovar aviso',
+      message: 'Tem certeza? O aviso não será enviado.',
+      confirmText: 'Reprovar',
+      destructive: true,
+      onConfirm: async () => {
+        setProcessingApproval(true);
+        try {
+          await inboxService.rejectMessage(selectedPendente.id, approvalNote || undefined);
+          showAlert('Reprovado', 'O aviso foi reprovado.');
+          setPendenteModalVisible(false);
+          await loadPendentes();
+        } catch {
+          showAlert('Erro', 'Não foi possível reprovar o aviso.');
+        } finally {
+          setProcessingApproval(false);
+        }
+      },
+    });
   };
 
   const handleViewAudit = async (messageId: string) => {

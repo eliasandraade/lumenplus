@@ -17,7 +17,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +25,7 @@ import { Invite } from '@/types';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
 import { radius, typography } from '@/theme/tokens';
+import { showAlert, showConfirm } from '@/utils/alerts';
 
 // ── Mapa de cores por tipo de unidade organizacional ──────────────────────────
 
@@ -209,35 +209,30 @@ export default function InvitesScreen() {
       await inviteService.accept(invite.id);
       setInvites((prev) => prev.filter((i) => i.id !== invite.id));
     } catch {
-      Alert.alert('Erro', 'Não foi possível aceitar o convite. Tente novamente.');
+      showAlert('Erro', 'Não foi possível aceitar o convite. Tente novamente.');
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleReject = (invite: Invite) => {
-    Alert.alert(
-      'Recusar convite',
-      `Tem certeza que deseja recusar o convite para ${invite.org_unit_name}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Recusar',
-          style: 'destructive',
-          onPress: async () => {
-            setActionLoading(invite.id);
-            try {
-              await inviteService.reject(invite.id);
-              setInvites((prev) => prev.filter((i) => i.id !== invite.id));
-            } catch {
-              Alert.alert('Erro', 'Não foi possível recusar o convite. Tente novamente.');
-            } finally {
-              setActionLoading(null);
-            }
-          },
-        },
-      ]
-    );
+    showConfirm({
+      title: 'Recusar convite',
+      message: `Tem certeza que deseja recusar o convite para ${invite.org_unit_name}?`,
+      confirmText: 'Recusar',
+      destructive: true,
+      onConfirm: async () => {
+        setActionLoading(invite.id);
+        try {
+          await inviteService.reject(invite.id);
+          setInvites((prev) => prev.filter((i) => i.id !== invite.id));
+        } catch {
+          showAlert('Erro', 'Não foi possível recusar o convite. Tente novamente.');
+        } finally {
+          setActionLoading(null);
+        }
+      },
+    });
   };
 
   if (loading) {
