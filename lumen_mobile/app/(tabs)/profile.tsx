@@ -23,6 +23,7 @@ import brasilApi, { type Municipio } from '@/services/brasilApi';
 import type { CatalogItem, Profile } from '@/types';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
+import { showAlert } from '@/utils/alerts';
 
 // =============================================================================
 // CONSTANTES
@@ -374,8 +375,8 @@ export default function ProfileScreen() {
       else if (status === 409) msg = 'Conflito: telefone ou CPF já cadastrado.';
       else if (status === 503) msg = 'Serviço temporariamente indisponível.';
       setSaveError(msg);
-      // Alert popup para garantir visibilidade do erro
-      Alert.alert('Erro ao Salvar', msg, [{ text: 'OK' }]);
+      // Alert popup para garantir visibilidade do erro (showAlert funciona na web)
+      showAlert('Erro ao Salvar', msg);
     } finally {
       setSaving(false);
     }

@@ -9,13 +9,14 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, Linking, Platform,
+  ActivityIndicator, Linking, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { adminExportService } from '@/services';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
+import { showAlert, showConfirm } from '@/utils/alerts';
 
 const ADMIN_COLOR = '#7c3aed';
 
@@ -72,7 +73,7 @@ function downloadBlob(blob: Blob, filename: string) {
     a.click();
     URL.revokeObjectURL(url);
   } else {
-    Alert.alert('CSV gerado', 'Abra a URL no browser para baixar o arquivo.');
+    showAlert('CSV gerado', 'Abra a URL no browser para baixar o arquivo.');
   }
 }
 
@@ -112,17 +113,17 @@ export default function ExportScreen() {
       if (result.status === 'GENERATED' && result.blob) {
         // Download imediato
         downloadBlob(result.blob, result.filename ?? 'lumenplus_usuarios.csv');
-        Alert.alert(
+        showAlert(
           'Download iniciado',
           'O CSV foi gerado. Se não baixou automaticamente, verifique a aba de downloads do navegador.',
-          [{ text: 'OK', onPress: () => router.back() }],
+          () => router.back(),
         );
       } else {
         // Pendente de aprovação
-        Alert.alert(
+        showAlert(
           'Enviado para aprovação',
           result.message ?? 'Sua solicitação foi enviada ao Conselho Geral. Você será notificado quando aprovada.',
-          [{ text: 'OK', onPress: () => router.back() }],
+          () => router.back(),
         );
       }
     } catch (e: any) {
@@ -130,7 +131,7 @@ export default function ExportScreen() {
         e?.response?.data?.detail?.message ??
         e?.message ??
         'Erro ao solicitar exportação';
-      Alert.alert('Erro', msg);
+      showAlert('Erro', msg);
     } finally {
       setLoading(false);
     }
@@ -138,18 +139,16 @@ export default function ExportScreen() {
 
   const handleExport = () => {
     if (selected.size === 0) {
-      Alert.alert('Selecione ao menos um campo');
+      showAlert('Selecione ao menos um campo');
       return;
     }
     if (hasSensitive) {
-      Alert.alert(
-        'Dados sensíveis incluídos',
-        'Esta exportação contém CPF e/ou RG e será enviada para aprovação do Conselho Geral antes de ser gerada.',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Enviar para aprovação', onPress: doExport },
-        ],
-      );
+      showConfirm({
+        title: 'Dados sensíveis incluídos',
+        message: 'Esta exportação contém CPF e/ou RG e será enviada para aprovação do Conselho Geral antes de ser gerada.',
+        confirmText: 'Enviar para aprovação',
+        onConfirm: doExport,
+      });
     } else {
       doExport();
     }
