@@ -12,6 +12,7 @@ import {
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '@/services/api';
+import { adminUserService, type AdminUserItem } from '@/services';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
 
@@ -228,6 +229,11 @@ export default function AdminRetreatDetailScreen() {
   const [coordModal, setCoordModal]   = useState(false);
   const [coordUserId, setCoordUserId] = useState('');
   const [coordSearch, setCoordSearch] = useState('');
+  // Busca de membros gerais (coordenador que não é inscrito do retiro)
+  const [memberQuery, setMemberQuery]     = useState('');
+  const [memberResults, setMemberResults] = useState<AdminUserItem[]>([]);
+  const [memberLoading, setMemberLoading] = useState(false);
+  const [coordName, setCoordName]         = useState('');
 
   const fetchData = async () => {
     try {
@@ -527,16 +533,34 @@ export default function AdminRetreatDetailScreen() {
   };
 
   // ---- Coordinators ----
+  const resetCoordModal = () => {
+    setCoordUserId(''); setCoordSearch(''); setCoordName('');
+    setMemberQuery(''); setMemberResults([]);
+  };
+
+  const searchMembers = async () => {
+    const q = memberQuery.trim();
+    if (q.length < 2) { setMemberResults([]); return; }
+    setMemberLoading(true);
+    try {
+      const res = await adminUserService.listUsers({ search: q, limit: 10 });
+      setMemberResults(res.users);
+    } catch {
+      setMemberResults([]);
+    } finally {
+      setMemberLoading(false);
+    }
+  };
+
   const handleAddCoordinator = async () => {
     const uid = coordUserId.trim();
-    if (!uid) { setActionMsg('Informe o ID do usuário'); return; }
+    if (!uid) { setActionMsg('Selecione um coordenador'); return; }
     setProcessing(true);
     try {
       await api.post(`/admin/retreats/${id}/coordinators`, { user_id: uid });
       setActionMsg('Coordenador adicionado');
       setCoordModal(false);
-      setCoordUserId('');
-      setCoordSearch('');
+      resetCoordModal();
       await fetchData();
     } catch (err: any) {
       setActionMsg(err?.response?.data?.detail?.message || 'Erro ao adicionar coordenador');
@@ -819,7 +843,7 @@ export default function AdminRetreatDetailScreen() {
         </Text>
         <TouchableOpacity
           style={styles.addBtn}
-          onPress={() => { setCoordUserId(''); setCoordSearch(''); setCoordModal(true); }}
+          onPress={() => { resetCoordModal(); setCoordModal(true); }}
         >
           <Ionicons name="person-add-outline" size={16} color={ADMIN_COLOR} />
           <Text style={styles.addBtnText}>Adicionar</Text>
@@ -1362,15 +1386,53 @@ export default function AdminRetreatDetailScreen() {
               )}
             </ScrollView>
 
-            <Text style={[styles.fieldLabel, { marginTop: 8 }]}>Ou informe o ID do usuário</Text>
-            <TextInput
-              style={styles.input}
-              value={coordUserId}
-              onChangeText={v => { setCoordUserId(v); setCoordSearch(''); }}
-              placeholder="UUID do usuário"
-              placeholderTextColor={t.text.tertiary}
-              autoCapitalize="none"
-            />
+            <Text style={[styles.fieldLabel, { marginTop: 8 }]}>Ou buscar em todos os membros</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={memberQuery}
+                onChangeText={setMemberQuery}
+                onSubmitEditing={searchMembers}
+                placeholder="Nome do membro..."
+                placeholderTextColor={t.text.tertiary}
+                autoCapitalize="words"
+                returnKeyType="search"
+              />
+              <TouchableOpacity style={styles.searchBtn} onPress={searchMembers} disabled={memberLoading}>
+                {memberLoading
+                  ? <ActivityIndicator color={t.text.inverse} size="small" />
+                  : <Ionicons name="search" size={18} color={t.text.inverse} />}
+              </TouchableOpacity>
+            </View>
+            {memberResults.length > 0 && (
+              <ScrollView style={{ maxHeight: 160 }} nestedScrollEnabled>
+                {memberResults.map(u => (
+                  <TouchableOpacity
+                    key={u.id}
+                    style={[styles.houseOption, coordUserId === u.id && styles.houseOptionActive]}
+                    onPress={() => { setCoordUserId(u.id); setCoordName(u.name || u.email || ''); setCoordSearch(''); }}
+                  >
+                    <Ionicons
+                      name="person-circle-outline"
+                      size={16}
+                      color={coordUserId === u.id ? ADMIN_COLOR : t.text.secondary}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.houseOptionText}>{u.name || 'Sem nome'}</Text>
+                      {u.email ? <Text style={styles.houseOptionSub}>{u.email}</Text> : null}
+                    </View>
+                    {coordUserId === u.id && (
+                      <Ionicons name="checkmark-circle" size={18} color={ADMIN_COLOR} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+            {coordName ? (
+              <Text style={[styles.fieldLabel, { color: t.brand.primary, marginTop: 6 }]}>
+                Selecionado: {coordName}
+              </Text>
+            ) : null}
 
             <View style={styles.modalRow}>
               <TouchableOpacity style={styles.outlineBtn} onPress={() => setCoordModal(false)}>
@@ -1710,6 +1772,10 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
     padding: 12, alignItems: 'center', justifyContent: 'center',
   },
   confirmBtnText: { fontSize: 14, fontWeight: '700', color: t.text.inverse },
+  searchBtn: {
+    backgroundColor: ADMIN_COLOR, borderRadius: 10, paddingHorizontal: 14,
+    alignItems: 'center', justifyContent: 'center', minWidth: 48,
+  },
   houseOption: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     borderWidth: 1.5, borderColor: t.border.subtle, borderRadius: 12, padding: 12,
