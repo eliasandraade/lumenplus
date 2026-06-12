@@ -447,6 +447,81 @@ async def update_user(
 
 
 # =============================================================================
+# USERS — exclusão (anonimização) de conta pelo admin
+# =============================================================================
+
+
+@router.delete("/users/{user_id}", status_code=204)
+async def delete_user_account(
+    user_id: UUID,
+    current_user: CurrentUser,
+    db: DBSession,
+    reason: str | None = Query(None, max_length=500),
+) -> None:
+    """
+    Exclui (anonimiza) a conta de outro usuário. LGPD art. 18, VI.
+
+    Autorização:
+    - DEV pode excluir qualquer conta, exceto a si mesmo e outras contas DEV.
+    - ADMIN pode excluir apenas contas que não sejam DEV nem ADMIN.
+    - Ninguém exclui a própria conta por aqui (usar ``DELETE /auth/me``).
+
+    Estratégia: anonimização compartilhada com o self-delete
+    (``app.services.account_deletion.anonymize_user``).
+    """
+    caller_roles = get_user_global_roles(db, current_user.id)
+    is_dev = "DEV" in caller_roles
+    is_admin = "ADMIN" in caller_roles
+    if not (is_dev or is_admin):
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "forbidden", "message": "Sem permissão para excluir usuários"},
+        )
+
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "self_delete_forbidden",
+                "message": "Para excluir sua própria conta, use a opção no Perfil",
+            },
+        )
+
+    target = db.get(User, user_id)
+    if not target or not target.is_active:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "not_found", "message": "Usuário não encontrado"},
+        )
+
+    target_roles = get_user_global_roles(db, user_id)
+    # Contas DEV (técnicas/infra) nunca podem ser excluídas pelo painel.
+    if "DEV" in target_roles:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "forbidden", "message": "Contas DEV não podem ser excluídas"},
+        )
+    # ADMIN não exclui outro ADMIN — só DEV pode (evita escalonamento lateral).
+    if "ADMIN" in target_roles and not is_dev:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "forbidden", "message": "Apenas DEV pode excluir contas ADMIN"},
+        )
+
+    from app.services.account_deletion import anonymize_user
+
+    reason_text = reason.strip() if reason else None
+    anonymize_user(
+        db,
+        target,
+        actor_user_id=current_user.id,
+        reason="admin_action",
+        extra_metadata={"admin_reason": reason_text},
+    )
+    db.commit()
+
+
+# =============================================================================
 # USERS — concessão/revogação do cargo AVISOS
 # =============================================================================
 

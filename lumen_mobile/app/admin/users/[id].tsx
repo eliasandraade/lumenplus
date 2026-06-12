@@ -14,10 +14,15 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
+  TextInput,
+  Modal,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { adminUserProfileService, UserFullProfile } from '@/services';
+import { adminUserProfileService, UserFullProfile, adminUserService } from '@/services';
+import { useAuthStore } from '@/stores';
+import { showAlert } from '@/utils/alerts';
+import { parseApiError } from '@/utils/error';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
 
@@ -53,6 +58,26 @@ export default function UserFullProfileScreen() {
   const [cpfVisible, setCpfVisible] = useState(false);
   const [rgVisible, setRgVisible] = useState(false);
 
+  const currentUser = useAuthStore((s) => s.user);
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [confirmName, setConfirmName] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!id) return;
+    setDeleting(true);
+    try {
+      await adminUserService.deleteUser(id, deleteReason.trim() || undefined);
+      setDeleteModal(false);
+      showAlert('Conta excluída', 'A conta foi anonimizada com sucesso.', () => router.back());
+    } catch (e) {
+      showAlert('Erro', parseApiError(e, 'Não foi possível excluir a conta'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   useEffect(() => {
     if (!id) return;
     adminUserProfileService
@@ -84,7 +109,21 @@ export default function UserFullProfileScreen() {
 
   const initial = (profile.name ?? profile.email ?? '?')[0].toUpperCase();
 
+  // Quem pode excluir (espelha o backend): DEV exclui qualquer um exceto si e DEV;
+  // ADMIN exclui apenas não-DEV/não-ADMIN; ninguém exclui a si mesmo por aqui.
+  const myRoles = currentUser?.global_roles ?? [];
+  const iAmDev = myRoles.includes('DEV');
+  const iAmAdmin = myRoles.includes('ADMIN');
+  const targetIsDev = profile.global_roles.includes('DEV');
+  const targetIsAdmin = profile.global_roles.includes('ADMIN');
+  const isSelf = currentUser?.user_id === profile.id;
+  const canDelete =
+    (iAmDev || iAmAdmin) && !isSelf && !targetIsDev && (iAmDev || !targetIsAdmin);
+
+  const confirmTarget = profile.name || profile.email || 'EXCLUIR';
+
   return (
+    <>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Cabeçalho */}
       <View style={styles.header}>
@@ -158,7 +197,80 @@ export default function UserFullProfileScreen() {
           ))
         )}
       </Section>
+
+      {/* Zona de perigo — exclusão de conta */}
+      {canDelete && (
+        <View style={styles.dangerZone}>
+          <Text style={styles.dangerTitle}>Zona de perigo</Text>
+          <Text style={styles.dangerDesc}>
+            Excluir anonimiza permanentemente os dados pessoais desta conta (LGPD).
+            Logs de auditoria e consentimentos são retidos por obrigação legal.
+          </Text>
+          <TouchableOpacity
+            style={styles.dangerBtn}
+            onPress={() => { setConfirmName(''); setDeleteReason(''); setDeleteModal(true); }}
+          >
+            <Ionicons name="trash-outline" size={18} color="#ffffff" />
+            <Text style={styles.dangerBtnText}>Excluir conta</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </ScrollView>
+
+    <Modal
+      visible={deleteModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => { if (!deleting) setDeleteModal(false); }}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalBox}>
+          <Ionicons name="warning-outline" size={28} color={t.status.error} style={{ alignSelf: 'center' }} />
+          <Text style={styles.modalTitle}>Excluir conta</Text>
+          <Text style={styles.modalText}>
+            Esta ação é irreversível. Para confirmar, digite o nome do usuário:
+          </Text>
+          <Text style={styles.modalTargetName}>{confirmTarget}</Text>
+          <TextInput
+            style={styles.modalInput}
+            value={confirmName}
+            onChangeText={setConfirmName}
+            placeholder="Digite para confirmar"
+            placeholderTextColor={t.text.tertiary}
+            autoCapitalize="none"
+          />
+          <TextInput
+            style={[styles.modalInput, { marginTop: 8 }]}
+            value={deleteReason}
+            onChangeText={setDeleteReason}
+            placeholder="Motivo (opcional)"
+            placeholderTextColor={t.text.tertiary}
+          />
+          <View style={styles.modalRow}>
+            <TouchableOpacity
+              style={styles.modalCancel}
+              onPress={() => setDeleteModal(false)}
+              disabled={deleting}
+            >
+              <Text style={styles.modalCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.modalDelete,
+                (confirmName.trim() !== confirmTarget || deleting) && { opacity: 0.5 },
+              ]}
+              onPress={handleDelete}
+              disabled={confirmName.trim() !== confirmTarget || deleting}
+            >
+              {deleting
+                ? <ActivityIndicator color="#ffffff" size="small" />
+                : <Text style={styles.modalDeleteText}>Excluir</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+    </>
   );
 }
 
@@ -266,4 +378,44 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   auditAction: { fontSize: 13, color: t.text.primary, fontWeight: '500' },
   auditDate: { fontSize: 11, color: t.text.secondary, marginTop: 2 },
   emptyText: { fontSize: 13, color: t.text.secondary, padding: 16, textAlign: 'center' },
+  dangerZone: {
+    marginTop: 16, marginHorizontal: 12, padding: 16, borderRadius: 12,
+    borderWidth: 1, borderColor: t.status.error, backgroundColor: t.status.errorBg,
+  },
+  dangerTitle: {
+    fontSize: 13, fontWeight: '800', color: t.status.error, marginBottom: 6,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  dangerDesc: { fontSize: 12, color: t.text.secondary, lineHeight: 17, marginBottom: 12 },
+  dangerBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: t.status.error, borderRadius: 10, paddingVertical: 12,
+  },
+  dangerBtnText: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
+  modalOverlay: {
+    flex: 1, backgroundColor: t.bg.overlay,
+    alignItems: 'center', justifyContent: 'center', padding: 24,
+  },
+  modalBox: {
+    backgroundColor: t.bg.elevated, borderRadius: 16, padding: 20,
+    width: '100%', maxWidth: 360, gap: 6,
+  },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: t.text.primary, textAlign: 'center', marginTop: 4 },
+  modalText: { fontSize: 13, color: t.text.secondary, textAlign: 'center', lineHeight: 18 },
+  modalTargetName: { fontSize: 14, fontWeight: '700', color: t.text.primary, textAlign: 'center', marginBottom: 6 },
+  modalInput: {
+    backgroundColor: t.bg.surface, borderRadius: 10, borderWidth: 1,
+    borderColor: t.border.subtle, padding: 12, fontSize: 14, color: t.text.primary,
+  },
+  modalRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  modalCancel: {
+    flex: 1, borderWidth: 1.5, borderColor: t.border.subtle, borderRadius: 12,
+    padding: 12, alignItems: 'center',
+  },
+  modalCancelText: { fontSize: 14, fontWeight: '600', color: t.text.primary },
+  modalDelete: {
+    flex: 1, backgroundColor: t.status.error, borderRadius: 12,
+    padding: 12, alignItems: 'center', justifyContent: 'center',
+  },
+  modalDeleteText: { fontSize: 14, fontWeight: '700', color: '#ffffff' },
 });
