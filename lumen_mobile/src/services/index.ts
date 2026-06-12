@@ -337,6 +337,12 @@ export const adminUserService = {
    */
   toggleAvisos: (userId: string, grant: boolean) =>
     api.post<AdminUserItem>(`/admin/users/${userId}/toggle-avisos`, { grant }),
+
+  /** Exclui (anonimiza) a conta de um usuário. Requer DEV ou ADMIN. */
+  deleteUser: (userId: string, reason?: string) =>
+    api.delete<void>(
+      `/admin/users/${userId}${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`,
+    ),
 };
 
 export interface AdminUserItem {
