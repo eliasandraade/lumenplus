@@ -328,45 +328,11 @@ async def delete_me(
     - UserConsent — evidência legal de aceite dos termos (5 anos)
     - AuditLog — rastreabilidade de segurança (5 anos)
     """
-    from app.audit.service import create_audit_log
+    from app.services.account_deletion import anonymize_user
 
-    user_id = user.id
-
-    # 1. Deleta perfil (CPF/RG criptografados e dados biográficos)
-    if user.profile:
-        db.delete(user.profile)
-
-    # 2. Anonimiza identidades (user_id.hex garante unicidade da constraint)
-    for identity in user.identities:
-        anon = f"deleted+{user_id.hex}@deleted.invalid"
-        identity.email = anon
-        identity.provider_uid = anon
-        identity.email_verified = False
-
-    # 3. Remove memberships e global roles
-    for m in list(user.memberships):
-        db.delete(m)
-    for ugr in list(user.global_roles):
-        db.delete(ugr)
-
-    # 4. Remove preferências
-    prefs = db.execute(
-        select(UserPreferences).where(UserPreferences.user_id == user_id)
-    ).scalar_one_or_none()
-    if prefs:
-        db.delete(prefs)
-
-    # 5. Desativa conta
-    user.is_active = False
-
-    # 6. Registra a exclusão no audit log (sem dados pessoais)
-    create_audit_log(
-        db=db,
-        actor_user_id=user_id,
-        action="account_deleted",
-        entity_type="user",
-        entity_id=str(user_id),
-        metadata={"reason": "user_request", "lgpd_art": "18_VI"},
-    )
-
-    db.commit()
+    # Carrega o usuário na sessão local (`db`) — `user` vem de get_current_user
+    # numa sessão distinta, e anonymize_user precisa operar tudo na mesma sessão.
+    target = db.get(User, user.id)
+    if target is not None:
+        anonymize_user(db, target, actor_user_id=target.id, reason="user_request")
+        db.commit()
