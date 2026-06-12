@@ -4,11 +4,12 @@
  * Menu de administração para usuários com permissões.
  */
 
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { router, Stack, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { IoniconsName } from '@/types/icons';
-import { useAuthStore } from '@/stores';
+import { authService } from '@/services';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
 
@@ -119,19 +120,46 @@ const adminOnlySections: AdminSection[] = [
 ];
 
 export default function AdminMenuScreen() {
-  const { user } = useAuthStore();
   const { t } = useTheme();
   const styles = makeStyles(t);
-  const globalRoles = user?.global_roles ?? [];
+
+  const [globalRoles, setGlobalRoles] = useState<string[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(true);
+
+  useEffect(() => {
+    authService.getMe()
+      .then((me) => setGlobalRoles(me.global_roles))
+      .catch(() => setGlobalRoles([]))
+      .finally(() => setRolesLoading(false));
+  }, []);
+
   const isAnalista =
     globalRoles.includes('ANALISTA') &&
     !globalRoles.includes('ADMIN') &&
     !globalRoles.includes('DEV');
 
-  // ANALISTAs see only the Dashboard section; full admins see everything
+  // ANALISTAs see only the Dashboard section; full admins see everything.
+  // While loading, render nothing to avoid flicker of wrong sections.
   const sectionsToShow: AdminSection[] = isAnalista
     ? [dashboardSection]
     : [dashboardSection, ...adminOnlySections];
+
+  if (rolesLoading) {
+    return (
+      <>
+        <Stack.Screen
+          options={{
+            title: 'Administração',
+            headerStyle: { backgroundColor: ADMIN_COLOR },
+            headerTintColor: '#ffffff',
+          }}
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={ADMIN_COLOR} />
+        </View>
+      </>
+    );
+  }
 
   return (
     <>
@@ -191,6 +219,12 @@ export default function AdminMenuScreen() {
 const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: t.bg.elevated,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: t.bg.elevated,
   },
   content: {

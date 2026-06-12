@@ -18,7 +18,7 @@ import {
   ChannelSettings,
   channelService,
 } from '@/services/channel';
-import { useAuthStore } from '@/stores/authStore';
+import { authService } from '@/services';
 import { useTheme } from '@/theme';
 import { radius } from '@/theme/tokens';
 import {
@@ -41,9 +41,8 @@ type FeedItem =
 
 export default function ChannelScreen() {
   const { unitId } = useLocalSearchParams<{ unitId: string }>();
-  const { user } = useAuthStore();
   const { t } = useTheme();
-  const currentUserId = user?.user_id ?? '';
+  const [currentUserId, setCurrentUserId] = useState('');
 
   const [screen, setScreen] = useState<Screen>('list');
   const [posts, setPosts] = useState<ChannelPost[]>([]);
@@ -87,6 +86,12 @@ export default function ChannelScreen() {
   }, [unitId]);
 
   useEffect(() => { loadList(); }, [loadList]);
+
+  useEffect(() => {
+    authService.getMe()
+      .then((me) => setCurrentUserId(me.user_id))
+      .catch(() => setCurrentUserId(''));
+  }, []);
 
   const loadPost = async (postId: string) => {
     try {

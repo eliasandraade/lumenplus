@@ -18,7 +18,6 @@ import {
 import { router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '@/services/api';
-import { useAuthStore } from '@/stores';
 import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
 
