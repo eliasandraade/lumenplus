@@ -20,7 +20,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { adminUserService, adminFilterService, AdminUserItem, FilterOptions } from '@/services';
 import api from '@/services/api';
 import { useTheme } from '@/theme';
@@ -123,6 +123,19 @@ export default function UsersAdminScreen() {
         .catch(() => {}),
     ]).finally(() => setLoading(false));
   }, [fetchUsers]);
+
+  // Recarrega ao voltar para a tela (ex.: após excluir um usuário no perfil),
+  // pulando o primeiro foco — a carga inicial acima já cobre o mount.
+  const didFocusOnce = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!didFocusOnce.current) {
+        didFocusOnce.current = true;
+        return;
+      }
+      fetchUsers(search, 0);
+    }, [fetchUsers, search])
+  );
 
   // Busca com debounce
   const handleSearch = (text: string) => {
