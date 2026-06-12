@@ -112,7 +112,12 @@ class ApiClient {
       throw { response: { status: response.status, data: error } };
     }
 
-    return response.json();
+    // 204 No Content ou corpo vazio (ex.: DELETE) — não há JSON para parsear.
+    if (response.status === 204) {
+      return undefined as T;
+    }
+    const text = await response.text();
+    return (text ? JSON.parse(text) : (undefined as T)) as T;
   }
 
   async get<T>(url: string): Promise<T> {
