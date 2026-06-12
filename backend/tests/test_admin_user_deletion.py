@@ -175,6 +175,16 @@ def test_delete_nonexistent_target_404(client: TestClient, db_session: Session):
     assert resp.status_code == 404
 
 
+def test_delete_already_inactive_is_idempotent(client: TestClient, db_session: Session):
+    _mk_user(db_session, "adm", "adm@x.com", roles=("ADMIN",))
+    target = _mk_user(db_session, "mem", "mem@x.com")
+    db_session.commit()
+    # Primeira exclusão anonimiza (is_active=False)
+    assert _delete(client, ("adm", "adm@x.com"), target.id).status_code == 204
+    # Re-exclusão de conta já inativa -> sucesso idempotente, nao 404
+    assert _delete(client, ("adm", "adm@x.com"), target.id).status_code == 204
+
+
 # ── Regressão do self-delete ─────────────────────────────────────────────────
 
 

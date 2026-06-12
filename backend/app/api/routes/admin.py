@@ -488,11 +488,15 @@ async def delete_user_account(
         )
 
     target = db.get(User, user_id)
-    if not target or not target.is_active:
+    if target is None:
         raise HTTPException(
             status_code=404,
             detail={"error": "not_found", "message": "Usuário não encontrado"},
         )
+    # Idempotência: conta já anonimizada (is_active=False) -> sucesso (no-op).
+    # Cobre re-exclusão / lista em cache mostrando uma conta já excluída.
+    if not target.is_active:
+        return None
 
     target_roles = get_user_global_roles(db, user_id)
     # Contas DEV (técnicas/infra) nunca podem ser excluídas pelo painel.
