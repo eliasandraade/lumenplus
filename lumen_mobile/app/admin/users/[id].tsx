@@ -19,8 +19,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { adminUserProfileService, UserFullProfile, adminUserService } from '@/services';
-import { useAuthStore } from '@/stores';
+import { adminUserProfileService, UserFullProfile, adminUserService, authService } from '@/services';
 import { showAlert } from '@/utils/alerts';
 import { parseApiError } from '@/utils/error';
 import { useTheme } from '@/theme';
@@ -58,11 +57,20 @@ export default function UserFullProfileScreen() {
   const [cpfVisible, setCpfVisible] = useState(false);
   const [rgVisible, setRgVisible] = useState(false);
 
-  const currentUser = useAuthStore((s) => s.user);
+  // Papéis do admin logado — busca direta via /auth/me (o authStore pode não
+  // estar populado fora do fluxo de onboarding).
+  const [me, setMe] = useState<{ user_id: string; global_roles: string[] } | null>(null);
   const [deleteModal, setDeleteModal] = useState(false);
   const [confirmName, setConfirmName] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    authService
+      .getMe()
+      .then((u) => setMe({ user_id: u.user_id, global_roles: u.global_roles }))
+      .catch(() => {});
+  }, []);
 
   const handleDelete = async () => {
     if (!id) return;
@@ -111,12 +119,12 @@ export default function UserFullProfileScreen() {
 
   // Quem pode excluir (espelha o backend): DEV exclui qualquer um exceto si e DEV;
   // ADMIN exclui apenas não-DEV/não-ADMIN; ninguém exclui a si mesmo por aqui.
-  const myRoles = currentUser?.global_roles ?? [];
+  const myRoles = me?.global_roles ?? [];
   const iAmDev = myRoles.includes('DEV');
   const iAmAdmin = myRoles.includes('ADMIN');
   const targetIsDev = profile.global_roles.includes('DEV');
   const targetIsAdmin = profile.global_roles.includes('ADMIN');
-  const isSelf = currentUser?.user_id === profile.id;
+  const isSelf = me?.user_id === profile.id;
   const canDelete =
     (iAmDev || iAmAdmin) && !isSelf && !targetIsDev && (iAmDev || !targetIsAdmin);
 
