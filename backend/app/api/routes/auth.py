@@ -24,7 +24,6 @@ from app.db.models import (
     OrgInvite,
     InviteStatus,
     LegalDocument,
-    UserPreferences,
 )
 from app.schemas.auth import (
     RegisterRequest,

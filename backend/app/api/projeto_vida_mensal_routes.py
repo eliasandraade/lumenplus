@@ -40,7 +40,6 @@ from app.db.models import (
     UserProfile,
 )
 from app.schemas.projeto_vida_mensal import (
-    AreaMensalIn,
     AreaMensalOut,
     ComunidadeData,
     CompromissoOut,

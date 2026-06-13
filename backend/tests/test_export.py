@@ -452,7 +452,7 @@ def test_regular_user_cannot_approve(export_session):
 def test_invalid_fields_rejected(export_session):
     """Campos inválidos devem ser rejeitados (422 simulado)."""
     db = export_session
-    admin = _make_user(db, "admin7@exp.com", ["ADMIN"])
+    _admin = _make_user(db, "admin7@exp.com", ["ADMIN"])
 
     fields = ["name", "email", "secret_field"]
     invalid = set(fields) - ALLOWED_FIELDS

@@ -24,12 +24,6 @@ def test_models_importable():
 def test_schemas_importable():
     from app.schemas.projeto_vida_mensal import (
         ProjetoVidaMensalCreate,
-        ProjetoVidaMensalUpdate,
-        ProjetoVidaMensalFull,
-        ProjetoVidaMensalSummary,
-        PinVerifyRequest,
-        PinVerifyResponse,
-        RevisaoUpsert,
     )
     create = ProjetoVidaMensalCreate(mes=4, ano=2026)
     assert create.mes == 4
@@ -38,7 +32,6 @@ def test_schemas_importable():
 
 
 def test_schema_pin_validation():
-    import pytest
     from app.schemas.projeto_vida_mensal import ProjetoVidaMensalCreate
     from pydantic import ValidationError
     with pytest.raises(ValidationError):
