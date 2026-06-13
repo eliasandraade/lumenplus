@@ -107,8 +107,7 @@ export default function HomeScreen() {
       } catch {
         setAvisosNaoLidos([]);
       }
-    } catch (error) {
-      console.log('Error loading data:', error);
+    } catch {
     } finally {
       setLoading(false);
     }

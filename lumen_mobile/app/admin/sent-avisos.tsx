@@ -58,8 +58,7 @@ export default function SentAvisosScreen() {
     try {
       const response = await api.get<SentAvisosResponse>('/inbox/sent');
       setAvisos(response.messages || []);
-    } catch (error) {
-      console.log('Erro ao carregar avisos:', error);
+    } catch {
     } finally {
       setLoading(false);
     }

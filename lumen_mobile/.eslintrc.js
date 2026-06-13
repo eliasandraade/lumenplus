@@ -17,6 +17,9 @@ module.exports = {
     // Console: warn (MAINT-FE-02 removerá os logs; CI não bloqueia ainda)
     'no-console': 'warn',
 
+    // Catch vazio intencional: permitido quando o erro é silenciado por design
+    'no-empty': ['error', { allowEmptyCatch: true }],
+
     // Variáveis não usadas: warn (padrão: ignorar args prefixados com _)
     '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
 

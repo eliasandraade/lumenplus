@@ -388,7 +388,6 @@ export default function RegisterScreen() {
           });
         }
       } catch (profileErr: any) {
-        console.error('[register] perfil:', JSON.stringify(profileErr?.response?.data ?? profileErr?.message ?? profileErr));
         const detail = profileErr?.response?.data?.detail;
         let msg = 'Dados básicos salvos, mas houve um erro em algumas informações. Complete seu perfil depois.';
         if (typeof detail === 'string') msg = detail;

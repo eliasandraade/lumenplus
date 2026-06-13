@@ -346,7 +346,6 @@ export default function MembersScreen() {
       setMembers(membersData.members);
       setPermissions(permissionsData);
     } catch (err) {
-      console.error('Erro ao carregar membros:', err);
       showAlert('Erro', 'Não foi possível carregar os membros');
     } finally {
       setIsLoading(false);
@@ -377,8 +376,7 @@ export default function MembersScreen() {
           `/org/units/${params.org_unit_id}/search-users?q=${encodeURIComponent(searchQuery)}`
         );
         setSearchResults(results);
-      } catch (err) {
-        console.error('Erro na busca:', err);
+      } catch {
       } finally {
         setIsSearching(false);
       }
