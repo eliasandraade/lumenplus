@@ -2,7 +2,7 @@
 
 **Data de criação:** 2026-06-13  
 **Atualizado:** 2026-06-14  
-**Status:** ✅ Backend staging UP com Firebase — `/health` 200. Aguardando smoke test manual do frontend.
+**Status:** ✅ Staging operacional — backend UP, CORS correto, login aprovado, roteamento validado (2026-06-14)
 
 ---
 
@@ -66,7 +66,7 @@ IS_DEV_AUTH=false
 ENABLE_DEV_ENDPOINTS=false
 DATABASE_URL=${{Postgres-mFan.DATABASE_URL}}   ← referência Railway
 SECRET_KEY=<gerado com openssl rand -hex 32>   ← novo, exclusivo do staging
-ALLOWED_ORIGINS=https://lumenplus-git-staging-applumenplus-1605s-projects.vercel.app,https://lumenplus.vercel.app
+CORS_ORIGINS=https://lumenplus-git-staging-applumenplus-1605s-projects.vercel.app,https://lumenplus.vercel.app
 ENCRYPTION_KEY=<gerado com python secrets — novo, exclusivo do staging>
 HMAC_PEPPER=<gerado com python secrets — novo, exclusivo do staging>
 APP_NAME=Lumen+ API
@@ -155,16 +155,17 @@ Railway Dashboard → backend-staging → Variables → DATABASE_URL → deve mo
 - [x] `GET https://backend-staging-staging-3d47.up.railway.app/health` → 200 ✅ (2026-06-14)
 - [x] `GET https://backend-staging-staging-3d47.up.railway.app/openapi.json` → 200 ✅ (2026-06-14)
 
-### Frontend (manual — pendente)
+### Frontend (manual — concluído 2026-06-14)
 
-Abrir no browser: `https://lumenplus-git-staging-applumenplus-1605s-projects.vercel.app`
+URL: `https://lumenplus-git-staging-applumenplus-1605s-projects.vercel.app`
 
-- [ ] App carrega sem erros no console
-- [ ] Login com usuário de teste → sucesso
-- [ ] DevTools → Network: requests vão para `https://backend-staging-staging-3d47.up.railway.app` (não para `backend-production-6efc`)
-- [ ] `/auth/me` retorna usuário logado
-- [ ] Tela comum (ex: Projeto de Vida) abre normalmente
-- [ ] Admin abre com usuário DEV (se houver conta de teste com role admin)
+- [x] App carrega ✅
+- [x] Login com usuário de teste → sucesso ✅
+- [x] DevTools → Network: requests vão para `backend-staging-staging-3d47.up.railway.app` ✅
+- [x] CORS preflight OK (`access-control-allow-origin` correto) ✅
+- [ ] `/auth/me` retorna usuário logado (pendente validação pós-fix CORS)
+- [ ] Tela comum (ex: Projeto de Vida) abre normalmente (pendente)
+- [ ] Admin abre com usuário DEV (pendente)
 
 **Itens opcionais (não bloqueiam staging mínimo):**
 - [ ] Upload de foto → requer `CLOUDINARY_*` no Railway
@@ -186,7 +187,7 @@ Variáveis obrigatórias para o backend funcionar em staging:
 | `ENABLE_DEV_ENDPOINTS` | ✅ CLI | `false` |
 | `ENVIRONMENT` | ✅ CLI | `staging` |
 | `SENTRY_ENVIRONMENT` | ✅ CLI | `staging` |
-| `ALLOWED_ORIGINS` | ✅ CLI | Vercel staging + Vercel prod |
+| `CORS_ORIGINS` | ✅ CLI | Vercel staging + Vercel prod (var correta — não `ALLOWED_ORIGINS`) |
 | `ENCRYPTION_KEY` | ✅ CLI | novo, gerado com python secrets |
 | `HMAC_PEPPER` | ✅ CLI | novo, gerado com python secrets |
 | `FIREBASE_PROJECT_ID` | ✅ CLI | `lumenplus-3fec7` (mesmo de produção — valor público) |
