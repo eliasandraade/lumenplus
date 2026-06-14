@@ -14,7 +14,7 @@
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         {
           "key": "Content-Security-Policy-Report-Only",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://backend-production-6efc.up.railway.app https://api.lumenplus.app https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://*.google.com https://*.gstatic.com https://*.sentry.io https://*.ingest.sentry.io https://*.cloudinary.com; media-src 'self' blob: data: https:; frame-src 'self' https://*.firebaseapp.com https://*.google.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://backend-production-6efc.up.railway.app https://backend-staging-staging-3d47.up.railway.app https://api.lumenplus.app https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://*.google.com https://*.gstatic.com https://*.sentry.io https://*.ingest.sentry.io https://*.cloudinary.com; media-src 'self' blob: data: https:; frame-src 'self' https://*.firebaseapp.com https://*.google.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
         }
       ]
     }
