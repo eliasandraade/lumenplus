@@ -2,7 +2,7 @@
 
 **Data de criação:** 2026-06-13  
 **Atualizado:** 2026-06-14  
-**Status:** Infraestrutura provisionada via CLI — aguardando configuração de GitHub branch e secrets no Railway Dashboard
+**Status:** ✅ Backend staging UP — `/health` 200. Frontend staging aguardando smoke test manual.
 
 ---
 
@@ -12,7 +12,7 @@
 |---|---|---|---|
 | Railway environment | `production` | `staging` | ✅ criado |
 | Railway Postgres | serviço `Postgres` | serviço `Postgres-mFan` | ✅ criado |
-| Railway backend | serviço `backend` | serviço `backend-staging` | ⚠️ criado, deploy falhando |
+| Railway backend | serviço `backend` | serviço `backend-staging` | ✅ UP — /health 200 |
 | Vercel frontend | branch `main` → lumenplus.vercel.app | branch `staging` → lumenplus-git-staging-applumenplus-1605s-projects.vercel.app | ✅ env var configurada |
 | Firebase Auth | projeto `lumenplus` | mesmo projeto (usuários de teste separados) | — |
 
@@ -57,7 +57,7 @@ railway add --service backend-staging --repo eliasandraade/lumenplus  # ✅ serv
 railway domain --service backend-staging   # ✅ domínio: backend-staging-staging-3d47.up.railway.app
 ```
 
-Variáveis configuradas via CLI (sem secrets):
+Variáveis configuradas via CLI (sem secrets no output):
 ```
 ENVIRONMENT=staging
 SENTRY_ENVIRONMENT=staging
@@ -67,6 +67,8 @@ ENABLE_DEV_ENDPOINTS=false
 DATABASE_URL=${{Postgres-mFan.DATABASE_URL}}   ← referência Railway
 SECRET_KEY=<gerado com openssl rand -hex 32>   ← novo, exclusivo do staging
 ALLOWED_ORIGINS=https://lumenplus-git-staging-applumenplus-1605s-projects.vercel.app,https://lumenplus.vercel.app
+ENCRYPTION_KEY=<gerado com python secrets — novo, exclusivo do staging>
+HMAC_PEPPER=<gerado com python secrets — novo, exclusivo do staging>
 APP_NAME=Lumen+ API
 APP_VERSION=0.3.0
 LOG_LEVEL=INFO
@@ -146,10 +148,10 @@ Railway Dashboard → backend-staging → Variables → DATABASE_URL → deve mo
 
 ---
 
-## Smoke Tests (após completar pendências Railway)
+## Smoke Tests
 
-- [ ] `GET https://backend-staging-staging-3d47.up.railway.app/health` → 200
-- [ ] `GET https://backend-staging-staging-3d47.up.railway.app/openapi.json` → 200
+- [x] `GET https://backend-staging-staging-3d47.up.railway.app/health` → 200 ✅ (2026-06-14)
+- [x] `GET https://backend-staging-staging-3d47.up.railway.app/openapi.json` → 200 ✅ (2026-06-14)
 - [ ] Login no frontend staging (`lumenplus-git-staging-applumenplus-1605s-projects.vercel.app`) → sucesso
 - [ ] Network tab: requests da frontend staging vão para `backend-staging-staging-3d47.up.railway.app`
 - [ ] Módulo admin abre normalmente para usuário DEV
@@ -171,7 +173,9 @@ Variáveis obrigatórias para o backend funcionar em staging:
 | `ENVIRONMENT` | ✅ CLI | `staging` |
 | `SENTRY_ENVIRONMENT` | ✅ CLI | `staging` |
 | `ALLOWED_ORIGINS` | ✅ CLI | Vercel staging + Vercel prod |
-| `FIREBASE_PROJECT_ID` | ⚠️ **pendente painel** | mesmo de produção |
+| `ENCRYPTION_KEY` | ✅ CLI | novo, gerado com python secrets |
+| `HMAC_PEPPER` | ✅ CLI | novo, gerado com python secrets |
+| `FIREBASE_PROJECT_ID` | ⚠️ pendente painel | mesmo de produção |
 | `SENTRY_DSN` | ⚠️ pendente painel | mesmo de produção (ou separado) |
 | `CLOUDINARY_CLOUD_NAME` | ⚠️ pendente painel | mesmo de produção |
 | `CLOUDINARY_API_KEY` | ⚠️ pendente painel | mesmo de produção |
