@@ -2,7 +2,7 @@
 
 **Data de criação:** 2026-06-13  
 **Atualizado:** 2026-06-14  
-**Status:** ✅ Backend staging UP — `/health` 200. Frontend staging aguardando smoke test manual.
+**Status:** ✅ Backend staging UP com Firebase — `/health` 200. Aguardando smoke test manual do frontend.
 
 ---
 
@@ -150,12 +150,26 @@ Railway Dashboard → backend-staging → Variables → DATABASE_URL → deve mo
 
 ## Smoke Tests
 
+### Backend (via CLI — concluído)
+
 - [x] `GET https://backend-staging-staging-3d47.up.railway.app/health` → 200 ✅ (2026-06-14)
 - [x] `GET https://backend-staging-staging-3d47.up.railway.app/openapi.json` → 200 ✅ (2026-06-14)
-- [ ] Login no frontend staging (`lumenplus-git-staging-applumenplus-1605s-projects.vercel.app`) → sucesso
-- [ ] Network tab: requests da frontend staging vão para `backend-staging-staging-3d47.up.railway.app`
-- [ ] Módulo admin abre normalmente para usuário DEV
-- [ ] Módulo vida abre normalmente para usuário comum
+
+### Frontend (manual — pendente)
+
+Abrir no browser: `https://lumenplus-git-staging-applumenplus-1605s-projects.vercel.app`
+
+- [ ] App carrega sem erros no console
+- [ ] Login com usuário de teste → sucesso
+- [ ] DevTools → Network: requests vão para `https://backend-staging-staging-3d47.up.railway.app` (não para `backend-production-6efc`)
+- [ ] `/auth/me` retorna usuário logado
+- [ ] Tela comum (ex: Projeto de Vida) abre normalmente
+- [ ] Admin abre com usuário DEV (se houver conta de teste com role admin)
+
+**Itens opcionais (não bloqueiam staging mínimo):**
+- [ ] Upload de foto → requer `CLOUDINARY_*` no Railway
+- [ ] Envio de e-mail → requer `SENDGRID_API_KEY`
+- [ ] Erros no Sentry → requer `SENTRY_DSN`
 
 ---
 
@@ -175,7 +189,7 @@ Variáveis obrigatórias para o backend funcionar em staging:
 | `ALLOWED_ORIGINS` | ✅ CLI | Vercel staging + Vercel prod |
 | `ENCRYPTION_KEY` | ✅ CLI | novo, gerado com python secrets |
 | `HMAC_PEPPER` | ✅ CLI | novo, gerado com python secrets |
-| `FIREBASE_PROJECT_ID` | ⚠️ pendente painel | mesmo de produção |
+| `FIREBASE_PROJECT_ID` | ✅ CLI | `lumenplus-3fec7` (mesmo de produção — valor público) |
 | `SENTRY_DSN` | ⚠️ pendente painel | mesmo de produção (ou separado) |
 | `CLOUDINARY_CLOUD_NAME` | ⚠️ pendente painel | mesmo de produção |
 | `CLOUDINARY_API_KEY` | ⚠️ pendente painel | mesmo de produção |
