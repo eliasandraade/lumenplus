@@ -6,7 +6,6 @@ Testes de acesso a dados sensíveis (CPF/RG).
 CRÍTICO: Valida que acesso não autorizado é bloqueado.
 """
 
-import pytest
 from fastapi.testclient import TestClient
 
 

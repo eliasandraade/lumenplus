@@ -181,8 +181,7 @@ export default function ProfileScreen() {
       setEmail(auth.currentUser?.email ?? '');
       const data = await profileService.getProfile();
       setProfile(data as Profile);
-    } catch (e: any) {
-      if (e?.response?.status !== 404) console.log('Erro ao carregar perfil:', e);
+    } catch {
     } finally {
       setLoading(false);
     }
@@ -364,8 +363,6 @@ export default function ProfileScreen() {
       await loadProfile();
       setEditVisible(false);
     } catch (err: any) {
-      // Loga o erro completo para diagnóstico
-      console.error('[handleSaveProfile] Erro ao salvar perfil:', JSON.stringify(err?.response?.data ?? err?.message ?? err));
       const status = err?.response?.status;
       const detail = err?.response?.data?.detail;
       let msg = 'Não foi possível salvar. Tente novamente.';

@@ -465,7 +465,6 @@ export default function ProfileScreen() {
         try {
           await api.postForm('/profile/photo', formData);
         } catch {
-          console.warn('Erro ao enviar foto');
         }
       }
 

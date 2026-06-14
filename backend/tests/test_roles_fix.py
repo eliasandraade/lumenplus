@@ -11,7 +11,6 @@ import datetime
 
 import pytest
 from sqlalchemy import (
-    Boolean,
     Column,
     DateTime,
     ForeignKey,
@@ -21,7 +20,7 @@ from sqlalchemy import (
     create_engine,
     select,
 )
-from sqlalchemy.orm import DeclarativeBase, Session, relationship, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 
 # ── Minimal SQLite-compatible schema ──────────────────────────────────────────

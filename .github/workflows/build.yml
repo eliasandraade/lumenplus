@@ -2,18 +2,14 @@ name: Build and Deploy
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, staging]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, staging]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        node-version: [18.x]
-    
+
     defaults:
       run:
         working-directory: lumen_mobile
@@ -25,24 +21,23 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: lumen_mobile/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run TypeScript check
+      - name: TypeScript check
         run: npx tsc --noEmit
-        continue-on-error: true
 
-      - name: Run linter
+      - name: Lint
         run: npm run lint
-        continue-on-error: true
 
-      - name: Build project
+      - name: Build web
         run: npx expo export --platform web
-        continue-on-error: true
+        env:
+          EXPO_PUBLIC_API_URL: https://backend-staging.up.railway.app
 
       - name: Send success notification to Discord
         if: success()

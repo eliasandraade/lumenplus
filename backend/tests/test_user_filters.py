@@ -20,8 +20,6 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     create_engine,
-    func,
-    or_,
     select,
 )
 from sqlalchemy.orm import DeclarativeBase, Session, relationship, sessionmaker

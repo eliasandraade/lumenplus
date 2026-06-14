@@ -16,7 +16,6 @@ from app.db.models import (
     OrgUnit,
     OrgUnitType,
     GroupType,
-    MissionType,
     Visibility,
     OrgMembership,
     MembershipStatus,
