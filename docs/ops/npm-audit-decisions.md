@@ -78,11 +78,14 @@ Para explorar qualquer dessas vulnerabilidades, um atacante precisaria:
 
 ## Decisões Formais
 
+> **Nota sobre esta classificação:** Esta é uma triagem técnica preliminar formalmente aceita, baseada na árvore de dependências atual, no contexto Expo SDK 52 e no fato de que os pacotes afetados foram identificados como build-time/tooling. **Não é uma garantia absoluta de ausência de risco.** A decisão deve ser revista no próximo upgrade do Expo SDK ou se surgir evidência de vetor runtime real — o que vier primeiro.
+
 ### Decisão 1 — Vulnerabilidades build-time (Categoria A)
-**Decisão: ACEITAR TEMPORARIAMENTE**  
-**Justificativa:** Todas em ferramentas de build. Nenhum vetor de exploração no device. Correção requer atualização do Expo SDK (mudança breaking com plano de testes dedicado).  
-**Prazo de revisão:** Quando Expo SDK for atualizado (planejado fora do Ciclo 2).  
-**Responsável:** Elias
+**Decisão: ACEITAR TEMPORARIAMENTE — triagem técnica formal**  
+**Justificativa:** Todas em ferramentas de build. Nenhum vetor de exploração no device identificado com base na análise da árvore de dependências atual. Correção requer atualização do Expo SDK (mudança breaking com plano de testes dedicado).  
+**Prazo de revisão:** 2026-12-14 ou quando Expo SDK for atualizado, o que vier primeiro.  
+**Responsável:** Elias  
+**Revisão:** esta decisão não dispensa nova triagem se o contexto mudar (nova vuln de supply chain ativa, mudança de arquitetura, upgrade de deps críticas).
 
 ### Decisão 2 — `npm audit fix --force` (upgrade para Expo SDK 56)
 **Decisão: NEGAR — fora do escopo do Ciclo 2**  
@@ -93,12 +96,13 @@ Para explorar qualquer dessas vulnerabilidades, um atacante precisaria:
 - Revisar `npm audit` a cada atualização de dependência significativa
 - Revisar quando Expo SDK for atualizado
 - Se nova vulnerabilidade **com vetor runtime real** for identificada: tratar como blocker imediato
+- Se supply chain attack em pacote do Expo/Firebase for reportado publicamente: reavaliar esta decisão
 
 ---
 
 ## Itens Sem Ação Necessária
 
-Todos os 44 itens são **sem ação imediata necessária** pela justificativa acima.
+Todos os 44 itens são **sem ação imediata necessária** com base na triagem acima. A classificação permanece válida enquanto não houver mudança no contexto descrito na "Nota sobre esta classificação".
 
 ---
 

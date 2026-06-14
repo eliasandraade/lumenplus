@@ -61,10 +61,15 @@ O DPO não precisa de certificação formal (a LGPD não exige). Deve ter:
 
 ## Canal de Contato Recomendado
 
-**E-mail:** `privacidade@lumenplus.app`  
-(criar redirecionamento para e-mail pessoal do DPO até ter domínio próprio)
+**E-mail:** `privacidade@lumenplus.app` — canal institucional público obrigatório para o DPO.
 
-Ou usar e-mail já disponível: `oeliasandraade@gmail.com` com assunto padronizado.
+Este canal deve ser criado e controlado pela instituição, não por e-mail pessoal de nenhum membro. Opções para implementação:
+
+- Domínio próprio operacional: criar caixa `privacidade@lumenplus.app` e conceder acesso ao DPO designado
+- Domínio ainda não operacional: **canal temporário institucional a definir pelo Conselho** — ex. formulário público hospedado no Vercel ou caixa criada especificamente para este fim
+
+**O canal de contato do DPO deve ser publicável na Política de Privacidade e adequado para titular de dados.**  
+E-mails pessoais não devem ser usados como canal oficial.
 
 ---
 
