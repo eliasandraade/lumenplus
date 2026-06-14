@@ -99,7 +99,19 @@ git push origin staging                             # ✅ branch staging publica
 
 > Acesso: https://railway.app → Workspace `obralumendeevangelizacao` → Projeto `lumen+` → Environment `staging` → Service `backend-staging`
 
-### 1. Configurar branch GitHub (BLOCKER para deploy)
+### 1. Configurar Root Directory (BLOCKER — causa do erro Railpack)
+
+O Railpack falha porque está analisando a raiz do monorepo (`./`) em vez de `backend/`.  
+O serviço de produção funciona porque tem `Root Directory: backend` configurado no painel.
+
+```
+Railway Dashboard → backend-staging → Settings → Build → Root Directory: backend
+```
+
+Sem isso, o Railpack não encontra `Dockerfile` nem detecta Python, e o deploy falha com:
+`Railpack could not determine how to build the app.`
+
+### 2. Configurar branch GitHub
 
 O serviço `backend-staging` precisa apontar para a branch `staging` do repositório:
 
@@ -107,7 +119,7 @@ O serviço `backend-staging` precisa apontar para a branch `staging` do reposit�
 Railway Dashboard → backend-staging → Settings → Source → Branch: staging
 ```
 
-Sem isso, Railway tenta a branch padrão e o deploy falha.
+Fazer na mesma tela do passo 1 (Settings → Source).
 
 ### 2. Configurar secrets que não podem ser copiados via CLI
 
