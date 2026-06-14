@@ -73,6 +73,7 @@ jobs:
       AUTH_MODE: DEV
       SECRET_KEY: ci-test-secret-key-not-used-in-prod
       ENVIRONMENT: test
+      RATE_LIMIT_ENABLED: 'false'
     steps:
       - uses: actions/checkout@v4
 
