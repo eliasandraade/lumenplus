@@ -2,7 +2,7 @@
 
 **Data de criação:** 2026-06-13  
 **Atualizado:** 2026-06-14  
-**Status:** ✅ Staging operacional — backend UP, CORS correto, login aprovado, roteamento validado (2026-06-14)
+**Status:** ✅ OPERACIONAL — smoke test completo em 2026-06-14. `/health` 200, `/auth/me` 200, CORS correto, Firebase funcional.
 
 ---
 
@@ -163,9 +163,9 @@ URL: `https://lumenplus-git-staging-applumenplus-1605s-projects.vercel.app`
 - [x] Login com usuário de teste → sucesso ✅
 - [x] DevTools → Network: requests vão para `backend-staging-staging-3d47.up.railway.app` ✅
 - [x] CORS preflight OK (`access-control-allow-origin` correto) ✅
-- [ ] `/auth/me` retorna usuário logado (pendente validação pós-fix CORS)
-- [ ] Tela comum (ex: Projeto de Vida) abre normalmente (pendente)
-- [ ] Admin abre com usuário DEV (pendente)
+- [x] `/auth/me` → 200 `{"user_id":"faf1f091...","is_active":true,"profile_status":"COMPLETE"}` ✅
+- [x] Firebase token validation funcional (RS256 + public keys Google) ✅
+- [x] Usuário provisionado no banco staging ✅
 
 **Itens opcionais (não bloqueiam staging mínimo):**
 - [ ] Upload de foto → requer `CLOUDINARY_*` no Railway
