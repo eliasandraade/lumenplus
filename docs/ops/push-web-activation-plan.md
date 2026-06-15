@@ -1,7 +1,8 @@
 # PROD-01 — Plano de Ativação de Push Web
 
 **Data:** 2026-06-14  
-**Status:** Pronto para ativação — apenas VAPID keys faltando  
+**Atualizado:** 2026-06-15  
+**Status:** ✅ VAPID configurado em staging — smoke tests pendentes (manual)  
 **Depende de:** Staging isolado (Railway backend-staging + Vercel env var)
 
 ---
@@ -43,34 +44,31 @@
 
 ### Passo 1 — Gerar VAPID keys
 
-```bash
-cd backend
-# Usar Python com pywebpush instalado
-python -c "
-from pywebpush import Vapid
-vapid = Vapid()
-vapid.generate_keys()
-print('VAPID_PRIVATE_KEY =', vapid.private_key)
-print('VAPID_PUBLIC_KEY  =', vapid.public_key)
-"
-```
+**✅ Concluído em 2026-06-15.**
 
-Salvar as chaves geradas com segurança antes de configurar.
+Chaves geradas via pywebpush com `Vapid().generate_keys()` e serializadas em base64url (formato DER sem PEM headers, compatível com `Vapid.from_string()` do pywebpush 2.x).
+
+Chave pública (segura para mostrar): `BIqJBGSa49OdnD8OUG-ikCh1YXUjeebDAvwkzp_oDt4OONTVTM1eAK__3l_xe1ZZfS5GAD-IWHHomQFtzNZ1ypQ`
+
+Chave privada: configurada no Railway staging sem expor em logs ou terminal.
 
 ### Passo 2 — Configurar no backend-staging
 
+**✅ Concluído em 2026-06-15.** Variáveis configuradas via CLI:
+
 ```
-Railway Dashboard → lumen+ → backend-staging → Variables
-VAPID_PRIVATE_KEY = <chave privada>
-VAPID_PUBLIC_KEY  = <chave pública>
-VAPID_EMAIL       = mailto:privacidade@lumenplus.app
+VAPID_PRIVATE_KEY  → Railway backend-staging (staging env)
+VAPID_PUBLIC_KEY   → BIqJBGSa49OdnD8OUG-...
+VAPID_EMAIL        → mailto:privacidade@lumenplus.app
 ```
 
 ### Passo 3 — Validar chave pública acessível
 
+**✅ Validado em 2026-06-15.**
+
 ```bash
-curl https://backend-staging.up.railway.app/push/vapid-public-key
-# Esperado: {"public_key": "..."}
+curl https://backend-staging-staging-3d47.up.railway.app/push/vapid-public-key
+# Resultado: {"public_key":"BIqJBGSa49OdnD8OUG-..."}  ← 200 OK
 ```
 
 ### Passo 4 — Testar subscribe no staging
@@ -92,12 +90,20 @@ curl https://backend-staging.up.railway.app/push/vapid-public-key
 
 ### Passo 6 — Smoke tests staging
 
-- [ ] Permissão de notificação solicitada ao acessar app
-- [ ] Service Worker registrado sem erros de CSP
-- [ ] Subscription salva no banco (`SELECT * FROM push_subscriptions`)
+- [ ] Permissão de notificação solicitada ao acessar app (manual — staging frontend)
+- [ ] Service Worker registrado sem erros de CSP (DevTools → Application → Service Workers)
+- [ ] Subscription salva no banco (`SELECT * FROM push_subscriptions WHERE user_id = '<id>'`)
 - [ ] Push recebido no browser
 - [ ] Clicar na notificação abre o app
 - [ ] Cancelar permissão: app continua funcionando normalmente (fail gracioso)
+
+> **Como enviar push de teste (via Railway shell):**
+> ```bash
+> railway run --service backend-staging python -c "
+> from app.notifications.notification_service import notify_new_inbox
+> notify_new_inbox(['<user_id_aqui>'], 'Teste PROD-01', 'Push funcionando no staging!')
+> "
+> ```
 
 ### Passo 7 — Configurar produção (após staging validado)
 
@@ -128,11 +134,12 @@ Mesmo processo do Passo 2, mas no serviço `backend` (produção).
 
 ---
 
-## Estado: Pronto para ativar quando staging estiver disponível
+## Estado: VAPID staging ativo — smoke tests manuais pendentes
 
-Nenhum código adicional necessário. Apenas:
-1. Gerar VAPID keys
-2. Configurar no Railway (staging → produção)
-3. Smoke tests
+Passos 1, 2 e 3 concluídos em 2026-06-15. Próximo: Passos 4, 5 e 6 (smoke tests manuais no staging frontend).
 
-**Blocker atual:** Railway backend-staging não existe ainda.
+Após smoke tests validados:
+1. Configurar VAPID no Railway **produção** (mesmo par de chaves)
+2. Não gerar novas chaves — subscriptions são vinculadas à chave pública
+
+**Blocker atual:** Smoke tests manuais (Passos 4–6) não executados ainda.
