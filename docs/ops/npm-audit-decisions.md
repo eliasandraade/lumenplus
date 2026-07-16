@@ -111,3 +111,11 @@ Todos os 44 itens são **sem ação imediata necessária** com base na triagem a
 - Relatório JSON completo: `docs/ops/npm-audit-2026-06-14.json`
 - Expo SDK 52 advisory tracker: https://github.com/expo/expo/security
 - Próxima revisão: após upgrade de Expo SDK ou 2026-12-14, o que vier primeiro
+
+---
+
+## Re-check 2026-07-16 (Ciclo 2)
+
+- `npm audit`: **48 vulnerabilidades** (3 critical, 26 high, 18 moderate, 1 low) — variação vs 2026-06-14 (44) por atualização dos advisories; a natureza permanece **transitiva sob Expo SDK 52** (ex.: `ws` via `metro`/`react-native`).
+- `npm audit fix --dry-run` (sem `--force`): tenta sobrepor peers de `expo@52`/`react-native` (ERESOLVE) → **nenhuma correção segura aplicável** sem quebrar a matriz do SDK.
+- **Decisão mantida:** aceitar temporariamente (build-time/tooling, sem vetor runtime no device); `--force`/upgrade de SDK segue fora do escopo (item próprio). **Nenhuma dependência alterada neste ciclo.**
