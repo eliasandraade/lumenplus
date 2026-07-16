@@ -133,3 +133,18 @@
 5. **Designer:** Criar assets em resolução correta (icon 1024×1024, splash, adaptive-icon)
 6. **Após LGPD-06:** Publicar Política de Privacidade em URL pública
 7. **Após PROD-05:** Adicionar `expo-notifications` ao `app.json`
+
+---
+
+## Atualização 2026-07-16 (Ciclo 2)
+
+- **Checker de dimensões adicionado:** `node scripts/check-assets.mjs` (em `lumen_mobile/`, sem dependências) valida `icon.png`/`adaptive-icon.png`/`splash.png`/`favicon.png` vs os requisitos e sai com código ≠ 0 se algum estiver fora. Hoje reporta os placeholders 192×192 como **FALHA** (esperado).
+- **Confirmado neste ambiente:** EAS CLI **não instalado** (`eas init`/`build`/`submit` bloqueados até `npm i -g eas-cli` + `eas login`); **nenhum rasterizador de SVG** disponível (sem ImageMagick+librsvg / `sharp` / `rsvg-convert` / `inkscape`).
+- **Master de marca disponível:** `assets/icon.svg` (quadrado) — regeneração pronta para rodar quando houver rasterizador:
+  ```bash
+  npm i -D sharp && node -e "const s=require('sharp'); \
+    s('assets/icon.svg').resize(1024,1024).flatten({background:'#1a365d'}).png().toFile('assets/icon.png'); \
+    s('assets/icon.svg').resize(1024,1024).png().toFile('assets/adaptive-icon.png'); \
+    s('assets/icon.svg').resize(48,48).png().toFile('assets/favicon.png');"
+  ```
+- **Não aplicado de propósito:** `extra.eas.projectId`/`owner` (não inventar id falso — requer `eas init`); `submit.production` (requer contas externas); substituição dos PNGs (sem rasterizador — não commitar ícone quebrado).
