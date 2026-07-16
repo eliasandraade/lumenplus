@@ -223,3 +223,13 @@ Para remover o ambiente staging:
 3. Deletar branch `staging` do repositório: `git push origin --delete staging`
 
 Não afeta produção.
+
+---
+
+## Atualização 2026-07-16 (Ciclo 2 — fechamento)
+
+- **Saúde:** backend prod e staging respondendo `200` em `/health` e `/openapi.json` (verificado 2026-07-16).
+- **`.env.example` completado:** adicionadas as variáveis que faltavam (`VAPID_*`, `SENDGRID_*`, `RATE_LIMIT_*`, `INVITE_EXPIRATION_DAYS`) para provisionar um ambiente sem lacunas.
+- **VAPID:** ativo em staging **e** produção (pares distintos) — ver `docs/ops/push-web-activation-plan.md`.
+- **CSP:** enforced preparado apenas para o host de staging (SEC-01) — ver `docs/ops/csp-plan.md`.
+- **Drift staging × produção:** `ENCRYPTION_KEY`/`HMAC_PEPPER` são obrigatórios no boot também em staging (CryptoService); validações "production-only" (`AUTH_MODE`, `FIREBASE_PROJECT_ID`, `ENABLE_DEV_ENDPOINTS`, `DEBUG_VERIFICATION_CODE`) só disparam em `ENVIRONMENT=production`. Ver `docs/ops/secrets-rotation.md`.
