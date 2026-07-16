@@ -62,7 +62,7 @@ jobs:
 
               title="🧾 PUSH"
               url="$compare"
-              body="**Repo:** $REPO\n**Branch:** $branch\n**Por:** $pusher\n**Head:** `${head:0:7}`\n\n**Commits:**\n$commits"
+              body="**Repo:** $REPO\n**Branch:** $branch\n**Por:** $pusher\n**Head:** \`${head:0:7}\`\n\n**Commits:**\n$commits"
               ;;
 
             pull_request)
@@ -154,7 +154,7 @@ jobs:
               ref=$(j '.ref')
               title="➕ CREATE $ref_type"
               url="$SERVER_URL/$REPO"
-              body="**Repo:** $REPO\n**Criou:** $ref_type `$ref`\n**Por:** $ACTOR"
+              body="**Repo:** $REPO\n**Criou:** $ref_type \`$ref\`\n**Por:** $ACTOR"
               ;;
 
             delete)
@@ -162,7 +162,7 @@ jobs:
               ref=$(j '.ref')
               title="➖ DELETE $ref_type"
               url="$SERVER_URL/$REPO"
-              body="**Repo:** $REPO\n**Removeu:** $ref_type `$ref`\n**Por:** $ACTOR"
+              body="**Repo:** $REPO\n**Removeu:** $ref_type \`$ref\`\n**Por:** $ACTOR"
               ;;
 
             workflow_run)
@@ -175,7 +175,7 @@ jobs:
 
               title="🤖 WORKFLOW $status/$concl"
               url="$wrurl"
-              body="**Repo:** $REPO\n**Workflow:** $wname\n**Branch:** $branch\n**SHA:** `${sha:0:7}`\n**Conclusão:** $concl"
+              body="**Repo:** $REPO\n**Workflow:** $wname\n**Branch:** $branch\n**SHA:** \`${sha:0:7}\`\n**Conclusão:** $concl"
               ;;
 
             deployment)
@@ -183,7 +183,7 @@ jobs:
               dsha=$(j '.deployment.sha')
               title="🚀 DEPLOYMENT criado"
               url="$SERVER_URL/$REPO"
-              body="**Repo:** $REPO\n**Ambiente:** $envname\n**SHA:** `${dsha:0:7}`\n**Por:** $ACTOR"
+              body="**Repo:** $REPO\n**Ambiente:** $envname\n**SHA:** \`${dsha:0:7}\`\n**Por:** $ACTOR"
               ;;
 
             deployment_status)
