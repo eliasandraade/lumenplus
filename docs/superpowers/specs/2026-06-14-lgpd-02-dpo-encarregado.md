@@ -66,7 +66,7 @@ Designar formalmente o DPO/Encarregado do Lumen+ e publicar seus dados de contat
 ### Passo 1 — Decisão interna (sem código)
 - [ ] Conselho decide quem é o DPO
 - [ ] DPO aceita formalmente a designação
-- [ ] DPO cria e-mail dedicado para titulares (ex: `privacidade@lumenplus.app`)
+- [x] Canal oficial para titulares definido: `lgpd@lumenserfeliz.org` (Encarregado: Felipe Rocha Pinheiro Bastos)
 
 ### Passo 2 — Publicar informações do DPO
 - [ ] Adicionar nome e contato do DPO na Política de Privacidade (LGPD-06)

@@ -1,11 +1,11 @@
 # LGPD-06 — Política de Privacidade
 
-> ⚠️ **STATUS: DRAFT** — Aguardando aprovação do DPO (LGPD-02) e revisão do ROPA (LGPD-03)  
-> Este rascunho não pode ser publicado nem apresentado a titulares sem aprovação do DPO.
+> ⚠️ **STATUS: DRAFT** — Aguardando revisão/aprovação do Encarregado (LGPD-02) e revisão do ROPA (LGPD-03)\
+> Este rascunho não pode ser publicado nem apresentado a titulares sem revisão/aprovação do Encarregado (Felipe Rocha Pinheiro Bastos).
 
 **Data do rascunho:** 2026-06-14  
 **URL pública futura:** `https://lumenplus.app/privacidade`  
-**Aprovação pendente:** DPO a ser designado
+**Aprovação pendente:** revisão/aprovação do Encarregado — Felipe Rocha Pinheiro Bastos
 
 ---
 
@@ -27,8 +27,8 @@ Somos o **controlador** dos seus dados pessoais conforme a Lei Geral de Proteç�
 
 Em cumprimento ao Art. 41 da LGPD, designamos um Encarregado pelo Tratamento de Dados Pessoais:
 
-**Nome:** [A preencher após designação — LGPD-02]  
-**E-mail:** privacidade@lumenplus.app  
+**Nome:** Felipe Rocha Pinheiro Bastos\
+**E-mail:** lgpd@lumenserfeliz.org\
 **Disponibilidade:** [horários de atendimento a definir]
 
 Para exercer qualquer direito previsto nesta política, entre em contato pelo e-mail acima.
@@ -126,7 +126,7 @@ Nos termos do Art. 18 da LGPD, você tem direito a:
 6. **Informação sobre compartilhamento** — saber com quem compartilhamos seus dados
 7. **Revogação do consentimento** — para dados tratados com base em consentimento
 
-Para exercer qualquer direito, entre em contato com nosso DPO em: **privacidade@lumenplus.app**  
+Para exercer qualquer direito, entre em contato com nosso DPO em: **lgpd@lumenserfeliz.org**\
 Prazo de resposta: até 15 dias corridos.
 
 ---
@@ -158,8 +158,8 @@ Histórico de versões disponível ao final deste documento.
 
 ## 11. Como nos contatar
 
-**DPO / Encarregado:** [Nome a preencher após LGPD-02]  
-**E-mail:** privacidade@lumenplus.app  
+**DPO / Encarregado:** Felipe Rocha Pinheiro Bastos\
+**E-mail:** lgpd@lumenserfeliz.org\
 **Responsável institucional:** Obra Lumen de Evangelização  
 **Endereço:** Rua Coronel Jucá, 2040, Meireles, Fortaleza/CE, 60170-320
 
@@ -172,12 +172,13 @@ Histórico de versões disponível ao final deste documento.
 | Versão | Data | Mudanças | Status |
 |--------|------|----------|--------|
 | 0.1 draft | 2026-06-14 | Rascunho inicial | DRAFT — não publicada |
+| 0.2 draft | 2026-07-16 | Encarregado preenchido (Felipe Rocha Pinheiro Bastos); canal lgpd@lumenserfeliz.org | DRAFT — não publicada |
 
 ---
 
 ## Pendências para Finalização (checklist DPO)
 
-- [ ] Preencher nome do DPO (item 2)
+- [x] Preencher nome do DPO (item 2) — Felipe Rocha Pinheiro Bastos (2026-07-16)
 - [ ] Confirmar prazos de retenção (item 6) — depende de LGPD-01
 - [ ] Revisar bases legais (item 4) — depende de ROPA — LGPD-03
 - [ ] Revisar linguagem jurídica

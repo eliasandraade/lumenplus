@@ -1,7 +1,22 @@
 # LGPD-02 — DPO / Encarregado de Dados: Processo de Designação
 
 **Data:** 2026-06-14  
-**Status:** Aguardando decisão do Conselho
+**Status:** ✅ DPO definido — Felipe Rocha Pinheiro Bastos (pendente: ato/termo formal de designação assinado e arquivado institucionalmente)
+
+---
+
+## ✅ Encarregado Designado (2026-07-16)
+
+| Campo | Valor |
+|-------|-------|
+| **Encarregado pelo Tratamento de Dados Pessoais** | Felipe Rocha Pinheiro Bastos |
+| **Canal oficial** | `lgpd@lumenserfeliz.org` |
+| **Status** | DPO definido |
+| **Pendência** | Ato/termo formal de designação assinado e arquivado institucionalmente (fora do GitHub) |
+
+> Apenas **nome, e-mail institucional e função** são versionados no repositório. Dados pessoais do Encarregado (como CPF) ficam somente na via assinada, arquivada fora do GitHub.
+>
+> Com a designação, os itens LGPD dependentes deixam de estar "bloqueados por ausência de DPO" e passam a "aguardando revisão/aprovação do Encarregado".
 
 ---
 
@@ -59,17 +74,13 @@ O DPO não precisa de certificação formal (a LGPD não exige). Deve ter:
 
 ---
 
-## Canal de Contato Recomendado
+## Canal de Contato Oficial
 
-**E-mail:** `privacidade@lumenplus.app` — canal institucional público obrigatório para o DPO.
+**E-mail:** `lgpd@lumenserfeliz.org` — canal institucional público oficial do Encarregado.
 
-Este canal deve ser criado e controlado pela instituição, não por e-mail pessoal de nenhum membro. Opções para implementação:
+Este canal é institucional (não vinculado ao e-mail pessoal de nenhum membro) e deve ser publicado na Política de Privacidade, conforme o Art. 41, §1º da LGPD.
 
-- Domínio próprio operacional: criar caixa `privacidade@lumenplus.app` e conceder acesso ao DPO designado
-- Domínio ainda não operacional: **canal temporário institucional a definir pelo Conselho** — ex. formulário público hospedado no Vercel ou caixa criada especificamente para este fim
-
-**O canal de contato do DPO deve ser publicável na Política de Privacidade e adequado para titular de dados.**  
-E-mails pessoais não devem ser usados como canal oficial.
+**O canal de contato do Encarregado deve constar na Política de Privacidade e ser adequado ao atendimento de titulares de dados.** E-mails pessoais não devem ser usados como canal oficial.
 
 ---
 
@@ -83,9 +94,9 @@ com sede na Rua Coronel Jucá, 2040, Meireles, Fortaleza/CE,
 
 DESIGNA formalmente:
 
-Nome: ___________________________________
-Cargo/Função: ___________________________
-E-mail de contato: privacidade@lumenplus.app
+Nome: Felipe Rocha Pinheiro Bastos
+Cargo/Função: Encarregado pelo Tratamento de Dados Pessoais (DPO)
+E-mail de contato: lgpd@lumenserfeliz.org
 
 Como Encarregado pelo Tratamento de Dados Pessoais (DPO),
 nos termos do Art. 41 da Lei nº 13.709/2018 (LGPD),
@@ -99,6 +110,8 @@ _______________________________
 Representante Legal da Obra Lumen de Evangelização
 ```
 
+> **Privacidade:** a via assinada deste ato — que pode conter CPF e outros dados pessoais do Encarregado — é arquivada institucionalmente **fora do GitHub**. No repositório mantêm-se apenas nome, e-mail institucional e função.
+
 ---
 
 ## Checklist para Publicação (após designação)
@@ -107,7 +120,7 @@ Representante Legal da Obra Lumen de Evangelização
 - [ ] Adicionar link de contato do DPO na tela de configurações do app
 - [ ] Confirmar que o canal de contato (e-mail) está operacional
 - [ ] Comunicar designação à ANPD quando sistema ANPD estiver disponível
-- [ ] Atualizar `docs/ops/lgpd/titular-requests.md` com nome do DPO
+- [x] Atualizar `docs/ops/lgpd/titular-requests.md` com nome do DPO — feito em 2026-07-16 (LGPD-02)
 
 ---
 
@@ -120,16 +133,14 @@ Representante Legal da Obra Lumen de Evangelização
 | LGPD-06 — Política de Privacidade | DPO revisa e aprova o texto final |
 | LGPD-07 — Avaliação Analytics | DPO conduz a DPIA dos analytics missionais |
 
-**Todos esses itens ficam bloqueados até a designação formal do DPO.**
+**Com o Encarregado designado (2026-07-16), esses itens deixam de estar bloqueados e passam a aguardar a revisão/aprovação do Encarregado.** A aprovação formal de cada item depende também do ato/termo de designação assinado e arquivado.
 
 ---
 
-## Decisão Pendente
+## Decisão Tomada
 
-**Para o Conselho / Elias:**
+- **Encarregado pelo Tratamento de Dados Pessoais:** Felipe Rocha Pinheiro Bastos
+- **Canal de contato público:** `lgpd@lumenserfeliz.org`
+- **Registrada em:** 2026-07-16
 
-> Quem será o DPO do Lumen+?
-> Qual o canal de contato público (e-mail)?
-> Quando será feita a designação formal?
-
-Registrar decisão neste documento após tomada.
+**Pendência restante:** formalizar o ato/termo de designação (assinatura do representante legal) e arquivá-lo institucionalmente fora do GitHub.
