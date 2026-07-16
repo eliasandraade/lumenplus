@@ -1,11 +1,11 @@
 # LGPD-01 — Política de Retenção de Dados
 
-> ⚠️ **STATUS: DRAFT** — Aguardando revisão/aprovação do Encarregado (LGPD-02)\
-> Este documento não representa decisão final. Não pode ser publicado nem implementado sem revisão/aprovação do Encarregado (Felipe Rocha Pinheiro Bastos).
+> ✅ **STATUS: APROVADO pelo Encarregado** (Felipe Rocha Pinheiro Bastos) em 2026-07-16 — LGPD-02.\
+> Prazos e processo de retenção aprovados. A implementação técnica (ex.: endpoint `DELETE /me`, jobs de purga) é passo de engenharia subsequente.
 
 **Data do rascunho:** 2026-06-14  
 **Preparado por:** Equipe técnica  
-**Aprovação pendente:** revisão/aprovação do Encarregado — Felipe Rocha Pinheiro Bastos (lgpd@lumenserfeliz.org)
+**Aprovado por:** Felipe Rocha Pinheiro Bastos — Encarregado (lgpd@lumenserfeliz.org), 2026-07-16
 
 ---
 

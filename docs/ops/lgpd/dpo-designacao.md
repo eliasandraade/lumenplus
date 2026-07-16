@@ -1,7 +1,7 @@
 # LGPD-02 — DPO / Encarregado de Dados: Processo de Designação
 
 **Data:** 2026-06-14  
-**Status:** ✅ DPO definido — Felipe Rocha Pinheiro Bastos (pendente: ato/termo formal de designação assinado e arquivado institucionalmente)
+**Status:** ✅ DPO designado e **aprovado pelo Encarregado** em 2026-07-16 — Felipe Rocha Pinheiro Bastos
 
 ---
 
@@ -11,12 +11,12 @@
 |-------|-------|
 | **Encarregado pelo Tratamento de Dados Pessoais** | Felipe Rocha Pinheiro Bastos |
 | **Canal oficial** | `lgpd@lumenserfeliz.org` |
-| **Status** | DPO definido |
-| **Pendência** | Ato/termo formal de designação assinado e arquivado institucionalmente (fora do GitHub) |
+| **Status** | DPO designado e **aprovado pelo Encarregado** (2026-07-16) |
+| **Registro** | Via assinada do ato (com CPF) arquivada institucionalmente **fora do GitHub** — não versionada |
 
 > Apenas **nome, e-mail institucional e função** são versionados no repositório. Dados pessoais do Encarregado (como CPF) ficam somente na via assinada, arquivada fora do GitHub.
 >
-> Com a designação, os itens LGPD dependentes deixam de estar "bloqueados por ausência de DPO" e passam a "aguardando revisão/aprovação do Encarregado".
+> Com a **aprovação do Encarregado** (2026-07-16), os itens LGPD dependentes deixam de estar bloqueados e passam a **aprovados**. A implementação técnica e a publicação user-facing seguem como passos de engenharia subsequentes.
 
 ---
 

@@ -1,17 +1,17 @@
 # LGPD-06 — Política de Privacidade
 
-> ⚠️ **STATUS: DRAFT** — Aguardando revisão/aprovação do Encarregado (LGPD-02) e revisão do ROPA (LGPD-03)\
-> Este rascunho não pode ser publicado nem apresentado a titulares sem revisão/aprovação do Encarregado (Felipe Rocha Pinheiro Bastos).
+> ✅ **STATUS: APROVADA pelo Encarregado** em 2026-07-16 (LGPD-02). **Ainda não publicada aos usuários** — a publicação user-facing (LegalDocument v2) exige bump de versão + migration + re-aceite.\
+> Texto aprovado pelo Encarregado. A publicação a titulares é passo técnico separado (não executado neste PR).
 
 **Data do rascunho:** 2026-06-14  
 **URL pública futura:** `https://lumenplus.app/privacidade`  
-**Aprovação pendente:** revisão/aprovação do Encarregado — Felipe Rocha Pinheiro Bastos
+**Aprovada por:** Felipe Rocha Pinheiro Bastos — Encarregado, 2026-07-16 (publicação user-facing pendente — passo técnico)
 
 ---
 
 # Política de Privacidade — Lumen+
 
-*Versão draft 0.1 — não publicada*
+*Versão 1.0 — aprovada pelo Encarregado (2026-07-16); publicação user-facing pendente*
 
 ---
 

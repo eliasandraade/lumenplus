@@ -1,6 +1,6 @@
 # LGPD-07 — Analytics Missionais: Avaliação de Impacto (DPIA) — DRAFT
 
-> ⚠️ **STATUS: DRAFT** — Aguardando revisão/aprovação do Encarregado (LGPD-02) e do Conselho.
+> ✅ **STATUS: DPIA aprovada pelo Encarregado** em 2026-07-16 (LGPD-02). Implementação de analytics **permanece NÃO iniciada** — depende também do Conselho e de DPIA por evento.
 > **Nenhuma métrica sensível é coletada ou ativada.** Este documento é apenas avaliação preparatória; não há implementação de código runtime.
 
 - **Preparado por:** Equipe técnica

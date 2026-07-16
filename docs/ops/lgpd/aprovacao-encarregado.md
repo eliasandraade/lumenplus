@@ -3,10 +3,10 @@
 - **Encarregado pelo Tratamento de Dados Pessoais:** Felipe Rocha Pinheiro Bastos
 - **Canal oficial:** `lgpd@lumenserfeliz.org`
 - **Data de preparação:** 2026-07-16
-- **Status:** Aguardando revisão/aprovação do Encarregado
+- **Status:** ✅ Aprovado pelo Encarregado em 2026-07-16
 
 > Este pacote reúne, em um único lugar, todos os documentos LGPD que dependem da sua revisão/aprovação.
-> **Nenhum documento aqui é juridicamente válido ou aprovado até a sua aprovação formal.** Os rascunhos permanecem marcados como DRAFT.
+> ✅ **Aprovação recebida do Encarregado em 2026-07-16.** Os documentos passam de DRAFT a **aprovados**. A via assinada do ato (com CPF) fica arquivada institucionalmente fora do GitHub; a **publicação user-facing** da política é passo técnico separado (bump de versão + migration + re-aceite).
 
 ---
 

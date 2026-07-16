@@ -1,11 +1,11 @@
 # LGPD-03 — ROPA: Registro das Atividades de Tratamento
 
-> ⚠️ **STATUS: DRAFT** — Aguardando revisão/aprovação do Encarregado (LGPD-02)\
-> Este documento não representa o ROPA formal da organização. Precisa ser revisado e assinado pelo Encarregado (Felipe Rocha Pinheiro Bastos).
+> ✅ **STATUS: APROVADO pelo Encarregado** (Felipe Rocha Pinheiro Bastos) em 2026-07-16 — LGPD-02.\
+> ROPA revisado e aprovado pelo Encarregado. A via assinada (com dados pessoais) é arquivada **fora do GitHub**.
 
 **Data do rascunho:** 2026-06-14  
 **Controlador:** Obra Lumen de Evangelização — CNPJ 19.614.384/0001-60  
-**Encarregado:** Felipe Rocha Pinheiro Bastos — lgpd@lumenserfeliz.org (aguardando revisão/aprovação — LGPD-02)\
+**Encarregado:** Felipe Rocha Pinheiro Bastos — lgpd@lumenserfeliz.org (aprovado em 2026-07-16 — LGPD-02)\
 **Base legal:** LGPD Art. 37
 
 ---
