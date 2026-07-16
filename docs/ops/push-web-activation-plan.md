@@ -2,7 +2,7 @@
 
 **Data:** 2026-06-14  
 **Atualizado:** 2026-06-15  
-**Status:** ✅ VAPID configurado em staging — smoke tests pendentes (manual)  
+**Status:** ✅ VAPID ativo em staging **e produção** — smoke test staging em execução colaborativa (manual)\
 **Depende de:** Staging isolado (Railway backend-staging + Vercel env var)
 
 ---
@@ -105,11 +105,26 @@ curl https://backend-staging-staging-3d47.up.railway.app/push/vapid-public-key
 > "
 > ```
 
-### Passo 7 — Configurar produção (após staging validado)
+### Passo 7 — Produção (JÁ CONFIGURADA)
 
-Mesmo processo do Passo 2, mas no serviço `backend` (produção).
+> **Estado real (verificado 2026-07-16):** produção **já tem VAPID ativo**. `GET https://backend-production-6efc.up.railway.app/push/vapid-public-key` retorna **200** com um par de chaves **próprio** (distinto do de staging). Origem conhecida pela equipe.
+>
+> ⚠️ **NÃO** reconfigurar prod com as chaves de staging. Trocar a `VAPID_PUBLIC_KEY` de produção **invalidaria todas as subscriptions push já existentes** em prod. Rotação apenas via `docs/ops/secrets-rotation.md`, com intenção explícita e aviso aos usuários.
 
-**Usar as mesmas VAPID keys do staging** (não gerar novas — subscriptions são vinculadas à chave pública).
+---
+
+## Investigação — VAPID em produção (2026-07-16)
+
+Conduzida **sem tocar/rotacionar produção** e sem expor a chave privada.
+
+- **Fato:** `GET /push/vapid-public-key` retorna **200** em staging **e** em produção.
+- **Chaves públicas diferentes** — fingerprint SHA-256 (primeiros 16 hex) da chave pública:
+  - staging: `40593c538714c201`
+  - produção: `fca687c27e957675`
+- **Git history:** o recurso de push/VAPID (código + settings) existe desde `00e332b` (settings VAPID), `91dd324` (push_service), `e504890` (push_routes). **Nenhum commit configura VAPID em produção** — a configuração vive em variáveis de ambiente do Railway, não versionada.
+- **Conclusão (origem provável):** configuração **pré-existente e legítima**, aplicada diretamente no ambiente Railway de produção (provavelmente no rollout original do recurso de notificações), com **par de chaves próprio**. **Não** é alteração introduzida por este ciclo (PROD-01) — confirmado pela equipe como conhecida.
+- **Risco:** baixo, desde que produção **não** seja reconfigurada com as chaves de staging (isso invalidaria as subscriptions de prod). Sem indício de alteração acidental.
+- **Recomendação:** manter como está; documentar como pré-existente; não rotacionar sem plano. O passo antigo que mandava sobrescrever prod com as chaves de staging já foi corrigido (ver Passo 7).
 
 ---
 
@@ -138,8 +153,6 @@ Mesmo processo do Passo 2, mas no serviço `backend` (produção).
 
 Passos 1, 2 e 3 concluídos em 2026-06-15. Próximo: Passos 4, 5 e 6 (smoke tests manuais no staging frontend).
 
-Após smoke tests validados:
-1. Configurar VAPID no Railway **produção** (mesmo par de chaves)
-2. Não gerar novas chaves — subscriptions são vinculadas à chave pública
+Produção **já está com VAPID ativo** (par próprio, verificado 2026-07-16) — ver Passo 7. Não há ação de configuração pendente em prod.
 
-**Blocker atual:** Smoke tests manuais (Passos 4–6) não executados ainda.
+**Blocker atual:** Smoke tests manuais (Passos 4–6) em execução colaborativa (2026-07-16) — login/permissão/notificação no Chrome do operador; envio via Railway `backend-staging`. PR #9 permanece em **draft** até validação completa.
