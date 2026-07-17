@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from fastapi.routing import APIRouter
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import CurrentUser, DBSession
 from app.db.models import PushSubscription
@@ -74,7 +75,14 @@ def subscribe(body: SubscribeRequest, db: DBSession, current_user: CurrentUser) 
         )
         db.add(sub)
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Corrida: mesmo endpoint (novo) inserido concorrentemente por outra
+        # requisição (ex.: double-fire do cliente). O primeiro escritor venceu;
+        # tratamos como idempotente em vez de estourar 500.
+        db.rollback()
+
     return {"status": "subscribed"}
 
 

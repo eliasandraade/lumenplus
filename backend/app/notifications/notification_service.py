@@ -191,6 +191,8 @@ def notify_new_inbox(
 
                 logger.info("notify_inbox_sent", user_id=str(user_id), priority=priority, pushed=pushed)
             except Exception:
+                # Limpa transação abortada para não derrubar os próximos usuários do lote.
+                db.rollback()
                 logger.exception("notify_inbox_user_error", user_id=str(user_id))
 
 
@@ -247,4 +249,6 @@ def notify_revision_reminder() -> None:
 
                 logger.info("notify_revision_sent", user_id=str(user_id), pushed=pushed)
             except Exception:
+                # Limpa transação abortada para não derrubar os próximos usuários do lote.
+                db.rollback()
                 logger.exception("notify_revision_user_error", user_id=str(user_id))

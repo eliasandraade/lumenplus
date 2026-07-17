@@ -37,5 +37,12 @@ def send_web_push(endpoint: str, p256dh: str, auth: str, payload: dict) -> tuple
 
 
 def is_subscription_expired(error_detail: str | None) -> bool:
-    """True se o erro indica subscription expirada (410 Gone)."""
-    return error_detail is not None and "410" in error_detail
+    """True se o erro indica subscription removida/expirada (410 Gone ou 404 Not Found).
+
+    Push services (FCM/Chrome, Mozilla autopush, APNs bridge) retornam tanto 410
+    quanto 404 para endpoints cancelados/reinstalados (RFC 8030). Ambos significam
+    que a subscription deve ser removida do banco.
+    """
+    if error_detail is None:
+        return False
+    return "410" in error_detail or "404" in error_detail
