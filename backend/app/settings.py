@@ -138,6 +138,11 @@ class Settings(BaseSettings):
                 errors.append("HMAC_PEPPER é obrigatório em produção")
             if not self.firebase_project_id:
                 errors.append("FIREBASE_PROJECT_ID é obrigatório em produção")
+            if "*" in self.cors_origins_list:
+                errors.append("CORS_ORIGINS não pode conter '*' em produção")
+            for origin in self.cors_origins_list:
+                if not origin.startswith("https://"):
+                    errors.append(f"CORS origin deve usar HTTPS em produção: {origin}")
         return errors
 
 
