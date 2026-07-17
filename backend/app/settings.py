@@ -98,6 +98,10 @@ class Settings(BaseSettings):
     # =========================================================================
     rate_limit_enabled: bool = Field(default=True)
     rate_limit_requests_per_minute: int = Field(default=60)
+    # Nº de proxies reversos confiáveis à frente da app (Railway = 1). Usado para
+    # extrair o IP real do X-Forwarded-For a partir da DIREITA (o valor à esquerda
+    # é controlado pelo cliente). Ajustar se houver CDN/edge adicional na frente.
+    trusted_proxy_hops: int = Field(default=1)
     rate_limit_verification_per_hour: int = Field(default=5)
 
     # =========================================================================

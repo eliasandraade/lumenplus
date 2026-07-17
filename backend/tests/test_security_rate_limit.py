@@ -59,11 +59,14 @@ def test_sem_token_usa_ip():
     assert cid == "ip:9.9.9.9"
 
 
-def test_x_forwarded_for_tem_prioridade_sobre_client():
+def test_x_forwarded_for_usa_hop_confiavel_nao_o_valor_esquerdo():
+    # O valor mais à ESQUERDA do XFF é controlado pelo cliente (spoofável).
+    # Com 1 proxy confiável (Railway, trusted_proxy_hops=1), o IP real é o
+    # apendado à DIREITA. Antes, o código pegava o esquerdo -> bypass de rate-limit.
     cid = _mw._get_client_id(
         _make_request({"x-forwarded-for": "198.51.100.5, 10.0.0.1"}, client=("9.9.9.9", 0))
     )
-    assert cid == "ip:198.51.100.5"
+    assert cid == "ip:10.0.0.1"
 
 
 def test_token_bruto_nunca_aparece_no_client_id():
