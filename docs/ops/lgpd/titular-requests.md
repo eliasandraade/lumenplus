@@ -1,14 +1,18 @@
 # LGPD — Fluxo de Atendimento a Titulares de Dados
 
 **Data:** 2026-06-14  
-**Responsável:** DPO (a ser designado — LGPD-02)  
+**Responsável:** Felipe Rocha Pinheiro Bastos — Encarregado pelo Tratamento de Dados Pessoais (LGPD-02)\
 **Base legal:** LGPD Art. 18 e Art. 19
 
 ---
 
 ## Canal de Contato
 
-**E-mail:** `privacidade@lumenplus.app` _(aguardando designação do DPO para ativar)_
+**E-mail oficial:** `lgpd@lumenserfeliz.org`
+
+**Encarregado responsável:** Felipe Rocha Pinheiro Bastos
+
+> Todo pedido de titular deve ser encaminhado ao Encarregado pelo Tratamento de Dados Pessoais.
 
 ---
 
@@ -32,7 +36,7 @@
 
 ### 1. Acesso aos Dados
 
-**Recebimento:** DPO recebe e-mail em `privacidade@lumenplus.app`  
+**Recebimento:** Encarregado recebe e-mail em `lgpd@lumenserfeliz.org`\
 **Verificação de identidade:** confirmar que o solicitante é o titular (comparar e-mail com cadastro)  
 **Resposta:**
 ```
