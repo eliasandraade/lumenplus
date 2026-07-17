@@ -5,10 +5,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import desc
-
 from app.api.deps import CurrentUser, DBSession
 from app.audit.service import create_audit_log
+from app.services.legal_cache import get_latest_legal_document
 from app.db.models import LegalDocument, UserConsent, UserPreferences
 
 router = APIRouter(prefix="/legal", tags=["Legal"])
@@ -43,19 +42,8 @@ class AcceptLegalResponse(BaseModel):
 @router.get("/latest", response_model=LatestLegalResponse)
 async def get_latest_legal(db: DBSession) -> LatestLegalResponse:
     """Get latest published terms and privacy policy."""
-    terms = (
-        db.query(LegalDocument)
-        .filter(LegalDocument.type == "TERMS")
-        .order_by(desc(LegalDocument.published_at))
-        .first()
-    )
-
-    privacy = (
-        db.query(LegalDocument)
-        .filter(LegalDocument.type == "PRIVACY")
-        .order_by(desc(LegalDocument.published_at))
-        .first()
-    )
+    terms = get_latest_legal_document(db, "TERMS")
+    privacy = get_latest_legal_document(db, "PRIVACY")
 
     return LatestLegalResponse(
         terms=LegalDocumentResponse(

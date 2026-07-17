@@ -23,8 +23,8 @@ from app.db.models import (
     MembershipStatus,
     OrgInvite,
     InviteStatus,
-    LegalDocument,
 )
+from app.services.legal_cache import get_latest_legal_document
 from app.schemas.auth import (
     RegisterRequest,
     LoginRequest,
@@ -189,19 +189,10 @@ async def get_me(
     email_verified = any(i.email_verified for i in user.identities)
 
     # Consents
-    latest_terms = db.execute(
-        select(LegalDocument)
-        .where(LegalDocument.type == "TERMS")
-        .order_by(LegalDocument.published_at.desc())
-        .limit(1)
-    ).scalar_one_or_none()
-
-    latest_privacy = db.execute(
-        select(LegalDocument)
-        .where(LegalDocument.type == "PRIVACY")
-        .order_by(LegalDocument.published_at.desc())
-        .limit(1)
-    ).scalar_one_or_none()
+    # Documento legal "mais recente" via cache em processo (invalidado no
+    # restart/deploy). Remove 2 queries de cada GET /auth/me (endpoint quente).
+    latest_terms = get_latest_legal_document(db, "TERMS")
+    latest_privacy = get_latest_legal_document(db, "PRIVACY")
 
     user_consent_doc_ids = set()
     consents = db.execute(select(UserConsent).where(UserConsent.user_id == user.id)).scalars().all()

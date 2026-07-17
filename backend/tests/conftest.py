@@ -110,6 +110,21 @@ def _reset_rate_limit_cache():
     _rl._fallback_cache.clear()
 
 
+@pytest.fixture(autouse=True)
+def _reset_legal_cache():
+    """Isola o cache em processo de documentos legais entre testes.
+
+    Cada teste usa um banco novo; sem reset, o snapshot cacheado de um teste
+    vazaria para o próximo (que tem outro banco). Não altera comportamento de
+    produção — apenas garante isolamento nos testes.
+    """
+    from app.services.legal_cache import clear_legal_cache
+
+    clear_legal_cache()
+    yield
+    clear_legal_cache()
+
+
 # =============================================================================
 # AUTH FIXTURES
 # =============================================================================
