@@ -43,6 +43,52 @@ def _measure(client, engine, method, path, headers=None, warm=True):
     return resp, qc
 
 
+def _seed_memberships(db_session, user_id, count: int) -> None:
+    import uuid
+
+    from app.db.models import OrgMembership, OrgUnit, OrgUnitType, MembershipStatus
+
+    ou_type = list(OrgUnitType)[0]
+    for _ in range(count):
+        ou = OrgUnit(type=ou_type, name="Unit", slug=f"u-{uuid.uuid4().hex[:10]}")
+        db_session.add(ou)
+        db_session.flush()
+        db_session.add(
+            OrgMembership(user_id=user_id, org_unit_id=ou.id, status=MembershipStatus.ACTIVE)
+        )
+    db_session.commit()
+
+
+def test_auth_me_membership_query_count_is_constant(client, db_session, db_engine, auth_headers):
+    """N+1 corrigido: o nº de queries de /auth/me NÃO cresce com o nº de memberships.
+
+    Antes (m.org_unit lazy por item): ~base + N queries.
+    Depois (joinedload): constante, independente de N.
+    """
+    from sqlalchemy import select
+
+    from app.db.models import User
+
+    assert client.get("/auth/me", headers=auth_headers).status_code == 200
+    user = db_session.scalars(select(User)).first()
+    assert user is not None
+
+    counts: dict[int, int] = {}
+    seeded = 0
+    for target in (0, 1, 10, 50):
+        _seed_memberships(db_session, user.id, target - seeded)
+        seeded = target
+        with QueryCounter(db_engine) as qc:
+            resp = client.get("/auth/me", headers=auth_headers)
+        assert resp.status_code == 200
+        assert len(resp.json()["memberships"]) == target  # dados corretos preservados
+        counts[target] = qc.count
+
+    print(f"\n/auth/me query count por nº de memberships: {counts}")
+    assert max(counts.values()) - min(counts.values()) <= 1, f"cresce com memberships (N+1): {counts}"
+    assert counts[50] <= 12, f"50 memberships deveria ser ~constante, foi {counts[50]}"
+
+
 def test_measure_key_endpoints(client, db_engine, auth_headers):
     print("\n===== QUERY COUNT — endpoints-chave =====")
     results = []

@@ -12,7 +12,7 @@ from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.db.session import get_db
 from app.db.models import (
@@ -21,6 +21,7 @@ from app.db.models import (
     UserProfile,
     UserConsent,
     MembershipStatus,
+    OrgMembership,
     OrgInvite,
     InviteStatus,
 )
@@ -208,21 +209,34 @@ async def get_me(
         pending_privacy=pending_privacy,
     )
 
-    # Memberships
+    # Memberships — eager-load de org_unit para evitar N+1.
+    # Antes: `user.memberships` (1 query) + `m.org_unit` lazy POR item (N queries).
+    # Agora: 1 query com JOIN to-one (joinedload) + filtro ACTIVE no SQL.
     memberships = []
-    for m in user.memberships:
-        if m.status == MembershipStatus.ACTIVE:
-            memberships.append(
-                MembershipOut(
-                    id=m.id,
-                    org_unit_id=m.org_unit_id,
-                    org_unit_name=m.org_unit.name,
-                    org_unit_type=m.org_unit.type.value,
-                    role=m.role.value,
-                    status=m.status.value,
-                    joined_at=m.joined_at,
-                )
+    active_memberships = (
+        db.execute(
+            select(OrgMembership)
+            .where(
+                OrgMembership.user_id == user.id,
+                OrgMembership.status == MembershipStatus.ACTIVE,
             )
+            .options(joinedload(OrgMembership.org_unit))
+        )
+        .scalars()
+        .all()
+    )
+    for m in active_memberships:
+        memberships.append(
+            MembershipOut(
+                id=m.id,
+                org_unit_id=m.org_unit_id,
+                org_unit_name=m.org_unit.name,
+                org_unit_type=m.org_unit.type.value,
+                role=m.role.value,
+                status=m.status.value,
+                joined_at=m.joined_at,
+            )
+        )
 
     # Pending invites (exclui expirados)
     pending_invites = []
