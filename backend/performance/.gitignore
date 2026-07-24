@@ -1,1 +1,3 @@
 _inventory.json
+*.json
+!package.json
