@@ -181,3 +181,48 @@ cresce proporcionalmente à concorrência, **com zero erros**. O colapso
 - **Ainda NÃO MEDIDO:** o ganho da conversão sob carga real em PostgreSQL. Com
   o gargalo de pool removido, o A/B de runtime precisa ser **refeito** — os
   números anteriores mediam o bug, não o runtime.
+
+---
+
+# A/B DE RUNTIME REFEITO (2026-07-24) — agora sem o bug de pool
+
+Os A/B anteriores mediam o esgotamento de pool, não o runtime. Refeitos com a
+correção de conexão única aplicada em **ambos** os lados, isolando a variável.
+
+## Passo 1 — SQLite puro: sem diferença mensurável
+
+| Estado | c=1 | c=10 |
+|---|---|---|
+| `async def` | 160,1 rps · p50 6,17 ms | 162,4 rps · p50 55,86 ms |
+| `def` (threadpool) | 149,5 rps · p50 6,51 ms | 170,1 rps · p50 52,42 ms |
+
+**Empate, dentro do ruído.** Motivo: em SQLite local uma query custa
+microssegundos — quase não há bloqueio para retirar do event loop. Portanto,
+**neste ambiente a conversão não demonstra ganho**, e seria desonesto usar estes
+números para justificá-la.
+
+## Passo 2 — com RTT de Postgres modelado (5 ms por query)
+
+Latência injetada por query via evento SQLAlchemy, para representar o
+round-trip de rede até um Postgres remoto. `/auth/me` executa ~8 queries, então
+isto adiciona ~40 ms de I/O bloqueante por request — a ordem de grandeza real
+no Railway.
+
+| Estado (c=10) | rps | p50 | p95 | erros |
+|---|---:|---:|---:|---:|
+| `async def` + I/O bloqueante | **15,8** | **633,35 ms** | 637,76 ms | 0 |
+| `def` (threadpool) | **111,0** | **81,31 ms** | 94,88 ms | 0 |
+| **Ganho** | **7,0×** | **7,8× menor** | — | — |
+
+## Conclusão corrigida sobre o "20,1×"
+
+O `runtime_bench.py` sintético mediu **20,1×** com rotas de brinquedo e 30 ms de
+bloqueio. Esse número é um **limite superior de laboratório**, não o ganho da
+aplicação.
+
+Na rota real, com o gargalo de pool removido e RTT de Postgres modelado, o ganho
+é **~7×** — e **zero** quando a latência de banco é desprezível.
+
+**Classificação:** SIMULAÇÃO DE LATÊNCIA sobre MEDIDA LOCALMENTE. Continua
+**NÃO MEDIDO** em PostgreSQL real no Railway; o valor de 5 ms/query é uma
+suposição de RTT, e o ganho real escala com a latência verdadeira.
