@@ -58,6 +58,18 @@ class Settings(BaseSettings):
 
     database_pool_size: int = Field(default=5)
     database_max_overflow: int = Field(default=10)
+    # Backpressure de banco. Medido em 2026-07-24 no Postgres de staging:
+    # statement_timeout=0 e idle_in_transaction_session_timeout=0 (ambos
+    # DESABILITADOS no servidor). Sem limite, uma query patológica ou uma
+    # transação ociosa segura a conexão indefinidamente e esgota o pool.
+    # Aplicamos por aplicação (não no servidor) para que jobs e migrations
+    # possam ter limites diferentes do tráfego web.
+    database_statement_timeout_ms: int = Field(default=15000)
+    database_idle_tx_timeout_ms: int = Field(default=30000)
+    # Espera máxima por uma conexão do pool. O default do SQLAlchemy é 30s:
+    # sob saturação isso enfileira requests por 30s em vez de falhar rápido.
+    database_pool_timeout: int = Field(default=10)
+    database_pool_recycle: int = Field(default=1800)
     redis_url: str = Field(default="redis://localhost:6379/0")
 
     # =========================================================================
