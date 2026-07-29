@@ -73,6 +73,30 @@ def test_nenhuma_dependency_de_api_instancia_SessionLocal_diretamente():
     )
 
 
+def test_apenas_session_py_instancia_SessionLocal_ou_sessionmaker():
+    """
+    A criação de sessão é CENTRALIZADA em app/db/session.py. Nenhum outro módulo
+    de app/ pode chamar SessionLocal() ou sessionmaker() — senão abre uma sessão
+    fora do lifecycle canônico (risco de vazamento e de ORM órfão).
+    """
+    offenders = []
+    for path, tree in _iter_py(APP):
+        rel = path.relative_to(APP.parent).as_posix()
+        if rel == "app/db/session.py":
+            continue  # a fonte única, legítima
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                name = node.func.id if isinstance(node.func, ast.Name) else getattr(
+                    node.func, "attr", ""
+                )
+                if name in ("SessionLocal", "sessionmaker"):
+                    offenders.append(f"{rel}:{node.lineno} ({name})")
+    assert not offenders, (
+        f"Criação de sessão fora de app/db/session.py: {offenders}. "
+        f"Use get_db (request) ou get_db_session (jobs/scheduler)."
+    )
+
+
 def test_get_current_user_usa_a_sessao_da_dependency_nao_uma_nova():
     """
     get_current_user recebe a sessão via DBSession (dependency), e não cria uma
