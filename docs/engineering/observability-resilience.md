@@ -92,3 +92,51 @@ Combina com os timeouts de banco versionados (PR #22): `statement_timeout=15s`,
 - ✅ Matriz de resiliência auditada.
 - ⚠️ Métricas/dashboards: documentado o contrato, **não implementado** (infra).
 - ⚠️ SendGrid timeout, retry/backoff, circuit breaker: registrados como pendências.
+
+
+---
+
+# Backpressure validado END-TO-END (2026-07-24, item 6)
+
+## 6.1 Esgotamento de pool → 503 → recuperação (TESTE DE INTEGRAÇÃO)
+
+`tests/test_backpressure_and_health.py::test_pool_exhaustion_end_to_end_503_e_recuperacao`:
+engine com `pool_size=1, max_overflow=0, pool_timeout=1`; segura a única conexão;
+faz uma request que precisa do banco; confirma:
+
+- **503** (não 500);
+- `Retry-After: 3`;
+- código `DATABASE_BUSY`;
+- **sem vazamento** de SQL/driver/host no corpo;
+- **recuperação**: ao liberar a conexão, a próxima request volta a **200**;
+- `/health/live` responde 200 o tempo todo (liveness independe do banco).
+
+## 6.2 Banco indisponível
+`test_health_ready_503_quando_banco_cai`: `/health/ready` → 503 sem vazar host;
+`/health/live` continua 200. `OperationalError` → 503 `DATABASE_UNAVAILABLE`
+(`test_operational_error_vira_503`).
+
+## 6.3 Statement timeout
+O `statement_timeout=15s` foi **provado aplicado no PostgreSQL real** (staging)
+antes do logout do Railway (`verify_backpressure.py`: query longa ABORTADA →
+`OperationalError`), e o handler converte `OperationalError` → 503. O teste de
+integração ponta-a-ponta do abort exige PostgreSQL (SQLite não tem
+`statement_timeout`) — **NÃO MEDIDA localmente; blocker: PostgreSQL + railway**.
+Cobertura atual: config provada no PG real + handler testado em unidade.
+
+## 6.4 Configuração separada por contexto (migrations vs web vs jobs)
+
+| Contexto | Engine | `statement_timeout` aplicado? |
+|----------|--------|-------------------------------|
+| Web (requests) | `app.db.session.engine` | **sim** (15s) — via `connect_args` |
+| Migrations (Alembic) | `engine_from_config` em `alembic/env.py` — **engine separado** | **não** — migrations podem rodar longas sem serem abortadas |
+| Jobs/scheduler | `get_db_session()` → **mesmo `SessionLocal`/engine do web** | **sim** (15s) |
+
+- **Migrations: OK** — usam engine próprio, não herdam o timeout do web. É o caso
+  crítico (uma migration não pode ser abortada aos 15s) e já está correto.
+- **Jobs: consideração registrada** — o scheduler compartilha o engine web, então
+  uma operação de job > 15s seria abortada. Para os jobs atuais (notificações
+  curtas) isso é aceitável. **Se um job passar a fazer operação longa** (import,
+  agregação pesada), deve usar um engine dedicado com timeout próprio. Documentado
+  como follow-up; não implementado agora para não introduzir um segundo engine
+  sem necessidade comprovada.
