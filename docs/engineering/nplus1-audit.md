@@ -76,3 +76,48 @@ um N+1 clássico. Reavaliar caso vire hot path de escrita sob carga.
   nº de usuários/unidades numa próxima passada. Baixa frequência (poucos admins),
   mas custo por chamada alto.
 - Batch de registration/fee em `/retreats`: melhoria futura, não crítico.
+
+
+---
+
+# FASE 2 (2026-07-24) — /retreats: de mitigação parcial a CONSTANTE
+
+A Fase 1 baixou de ~6 para ~3 queries/retiro (mitigação parcial, como corrigido
+no feedback). A Fase 2 elimina o crescimento: **query count CONSTANTE**.
+
+## Origem das queries por retiro (instrumentado)
+
+| Origem | Antes (por retiro) | Invariante? | Batch? | Estratégia aplicada |
+|--------|:------------------:|-------------|--------|---------------------|
+| `retreat.houses` (lazy) | 1 | não | sim | `selectinload(houses)` |
+| `retreat.eligibility_rules` (lazy) | 1 | não | sim | `selectinload(eligibility_rules)` |
+| `retreat.fee_types` (lazy, em `_retreat_to_dict`) | 1 | não | sim | `selectinload(fee_types)` |
+| `retreat.registrations` (lazy, contagem de inscritos) | 1 | não | sim | `selectinload(registrations)` |
+| `RetreatRegistration` do usuário | 1 | por (retiro,user) | sim | 1 query `retreat_id.in_(ids)` → mapa |
+| `RetreatFeeType` (via `_get_user_fee_info`) | 1 | **fee_cat é invariante** (voc_code) | sim | 1 query `retreat_id.in_(ids)` + `fee_category==fee_cat` → mapa |
+| `_get_user_voc_code` | 1 | **invariante** | — | hoist p/ fora do laço (Fase 1) |
+
+## Resultado medido (query count por nº de retiros PUBLICADOS)
+
+| retiros | 0 | 1 | 10 | 50 |
+|---|---|---|---|---|
+| original | 3 | 11 | 65 | **305** |
+| Fase 1 (selectinload+hoist) | 4 | 11 | 38 | 158 |
+| **Fase 2 (batch completo)** | 4 | 12 | **12** | **12** |
+
+**Slope 10→50 = 0.0.** `/retreats` agora custa **12 queries independente do nº de
+retiros** — N+1 **eliminado**, não apenas mitigado.
+
+## Semântica preservada (testes)
+- `test_retreats_por_retiro_abaixo_do_limite`: slope 10→50 ≤ 0.2 e `q50 ≤ q10+2`.
+- `test_retreats_batch_preserva_taxa_e_inscricao`: retiro com `RetreatFeeType`
+  (PARTICIPANTE=150) + inscrição PENDING_PAYMENT → o batch devolve a **taxa
+  correta** (`my_fee.amount_brl==150`) e a **inscrição** (`my_registration.status`).
+
+## Sem multiplicação de linhas
+`selectinload(registrations)` carrega as mesmas linhas que o acesso lazy anterior
+já carregava (usadas só para CONTAR inscritos ativos) — não há aumento de payload
+no retorno (a resposta expõe contagem/capacidade, não a lista de inscrições).
+
+**Reclassificação:** PR #25 deixa de ser "mitigação parcial" e passa a
+**"N+1 de /retreats eliminado (constante)"**.

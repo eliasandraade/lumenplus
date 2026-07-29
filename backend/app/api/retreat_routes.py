@@ -380,6 +380,13 @@ async def list_retreats(current_user: CurrentUser, db: DBSession) -> Any:
             .options(
                 selectinload(Retreat.houses),
                 selectinload(Retreat.eligibility_rules),
+                # fee_types e registrations são acessados por _retreat_to_dict
+                # (contagem de inscritos e taxas) — sem eager-load, cada retiro
+                # dispara 2 lazy-loads. selectinload batcheia em 1 query/relação.
+                # Mesmo volume de linhas que o acesso lazy anterior (usado só para
+                # CONTAR inscritos ativos), sem aumento de payload no retorno.
+                selectinload(Retreat.fee_types),
+                selectinload(Retreat.registrations),
             )
         )
         .scalars()
@@ -387,9 +394,45 @@ async def list_retreats(current_user: CurrentUser, db: DBSession) -> Any:
     )
 
     # PERF (N+1): a realidade vocacional do usuário é INVARIANTE entre retiros —
-    # calculada uma única vez aqui e reusada, em vez de re-consultada por retiro
-    # dentro de _get_user_fee_info.
+    # calculada uma única vez aqui e reusada, em vez de re-consultada por retiro.
     voc_code = _get_user_voc_code(db, current_user.id)
+
+    retreat_ids = [r.id for r in retreats]
+
+    # PERF (N+1): BATCH das inscrições do usuário — uma query para TODOS os
+    # retiros, em vez de uma por retiro. Mapeadas por retreat_id.
+    regs_by_retreat: dict[Any, RetreatRegistration] = {}
+    if retreat_ids:
+        for reg in (
+            db.execute(
+                select(RetreatRegistration).where(
+                    RetreatRegistration.user_id == current_user.id,
+                    RetreatRegistration.retreat_id.in_(retreat_ids),
+                )
+            )
+            .scalars()
+            .all()
+        ):
+            regs_by_retreat[reg.retreat_id] = reg
+
+    # PERF (N+1): BATCH das taxas. A categoria de taxa (fee_cat) depende só da
+    # realidade vocacional do usuário (invariante entre retiros na listagem, onde
+    # modality=None), então é a MESMA para todos. Uma query carrega a taxa dessa
+    # categoria para todos os retiros de uma vez, mapeada por retreat_id.
+    fee_cat = _compute_fee_category("PARTICIPANTE", voc_code, None)
+    fees_by_retreat: dict[Any, RetreatFeeType] = {}
+    if retreat_ids:
+        for ft in (
+            db.execute(
+                select(RetreatFeeType).where(
+                    RetreatFeeType.retreat_id.in_(retreat_ids),
+                    RetreatFeeType.fee_category == fee_cat,
+                )
+            )
+            .scalars()
+            .all()
+        ):
+            fees_by_retreat[ft.retreat_id] = ft
 
     result = []
     for retreat in retreats:
@@ -397,15 +440,15 @@ async def list_retreats(current_user: CurrentUser, db: DBSession) -> Any:
         as_service = _user_eligible_as_service(db, current_user.id, retreat)
         if not as_participant and not as_service:
             continue
-        reg = db.execute(
-            select(RetreatRegistration).where(
-                RetreatRegistration.retreat_id == retreat.id,
-                RetreatRegistration.user_id == current_user.id,
-            )
-        ).scalar_one_or_none()
-        user_fee = _get_user_fee_info(
-            db, current_user.id, retreat, voc_code=voc_code, _voc_provided=True
-        )
+        reg = regs_by_retreat.get(retreat.id)
+        # Monta o mesmo dict que _get_user_fee_info produziria (modality=None),
+        # sem a query por retiro — a taxa já veio no batch acima.
+        fee_type = fees_by_retreat.get(retreat.id)
+        user_fee = {
+            "fee_category": fee_cat,
+            "fee_label": FEE_CATEGORY_LABELS.get(fee_cat, fee_cat),
+            "amount_brl": fee_type.amount_brl if fee_type else None,
+        }
         result.append(_retreat_to_dict(retreat, reg, user_fee, as_participant, as_service))
 
     return {"retreats": result}

@@ -90,8 +90,75 @@ def test_retreats_por_retiro_abaixo_do_limite():
 
     q1 = measure(1)
     q10 = measure(10)
-    slope = (q10 - q1) / 9
-    assert slope <= 4, (
-        f"queries/retiro = {slope:.1f} (q1={q1}, q10={q10}); esperado <= 4. "
-        f"Pre-fix era ~6 — provavel reintroducao de lazy-load no laco."
+    q50 = measure(50)
+    slope = (q50 - q10) / 40
+    # Pós-batch completo, /retreats é CONSTANTE: query count independe do nº de
+    # retiros (medido: 12 em 1, 10 e 50). Exigimos slope ~0 entre 10 e 50 — a
+    # faixa onde qualquer lazy-load remanescente apareceria. Pré-fix era ~6/retiro
+    # (305 queries em 50); um slope > 0.2 sinaliza reintrodução de N+1.
+    assert slope <= 0.2, (
+        f"queries/retiro (10->50) = {slope:.2f} (q1={q1}, q10={q10}, q50={q50}); "
+        f"esperado ~0 (constante). Pre-fix era ~6 — N+1 reintroduzido."
     )
+    # E o count absoluto não pode explodir (guarda contra multiplicação de linhas
+    # que vire muitas queries): 50 retiros devem custar o mesmo que 10.
+    assert q50 <= q10 + 2, f"q50={q50} vs q10={q10}: /retreats deixou de ser constante."
+
+
+def test_retreats_batch_preserva_taxa_e_inscricao():
+    """
+    O batch de fee_types/registrations deve devolver EXATAMENTE os mesmos dados
+    que o acesso por-retiro devolvia: categoria/valor de taxa e status de inscrição.
+    """
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False},
+                           poolclass=StaticPool)
+    Base.metadata.create_all(bind=engine)
+    SL = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    def override():
+        db = SL()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[deps_get_db] = override
+    app.dependency_overrides[session_get_db] = override
+    try:
+        with SL() as db:
+            u = M.User(is_active=True)
+            db.add(u)
+            db.flush()
+            db.add(M.UserIdentity(user_id=u.id, provider="firebase", provider_uid="retreat-perf",
+                                  email="retreat-perf@synthetic.invalid"))
+            db.add(M.UserProfile(user_id=u.id, status="COMPLETE"))  # sem voc → PARTICIPANTE
+            r = M.Retreat(
+                title="Com taxa", retreat_type=M.RetreatType.WEEKEND,
+                status=M.RetreatStatus.PUBLISHED, visibility_type=M.RetreatVisibilityType.ALL,
+                start_date=datetime(2026, 12, 1, tzinfo=timezone.utc),
+                end_date=datetime(2026, 12, 3, tzinfo=timezone.utc),
+            )
+            db.add(r)
+            db.flush()
+            # taxa PARTICIPANTE = 150; inscrição existente do usuário
+            db.add(M.RetreatFeeType(retreat_id=r.id, fee_category="PARTICIPANTE", amount_brl="150"))
+            db.add(M.RetreatRegistration(retreat_id=r.id, user_id=u.id,
+                                         status=M.RegistrationStatus.PENDING_PAYMENT))
+            db.commit()
+
+        with TestClient(app) as client:
+            client.get("/auth/me", headers=HDR)
+            resp = client.get("/retreats", headers=HDR)
+            assert resp.status_code == 200, resp.text
+            retreats = resp.json()["retreats"]
+            assert len(retreats) == 1, retreats
+            item = retreats[0]
+            # Taxa correta (categoria + valor do batch)
+            assert item["my_fee"]["fee_category"] == "PARTICIPANTE"
+            assert item["my_fee"]["amount_brl"] == "150"
+            # Inscrição refletida (o batch de registrations achou a do usuário)
+            assert item.get("my_registration") is not None, f"inscrição não refletida: {item}"
+            assert item["my_registration"]["status"] == "PENDING_PAYMENT"
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
