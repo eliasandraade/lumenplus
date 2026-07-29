@@ -274,3 +274,48 @@ Convertidas no PR #21 (primeiro lote, deliberadamente pequeno):
 | GET | `/health` | `routes.py` | async def | não | — | não det. | 0 | — | — | — | D | def opcional (sem trabalho bloqueante) |
 | GET | `/push/vapid-public-key` | `push_routes.py` | def | não | — | não det. | 0 | — | — | — | D | ja e def |
 
+
+
+---
+
+# Atualização (2026-07-24) — após o fix de pool, a auditoria de N+1 e o benchmark corrigido
+
+Esta seção corrige e enriquece o ranking acima com o que foi **medido depois** de
+ele ter sido escrito.
+
+## Correção do "teto de ~7 requests concorrentes"
+
+O documento de baseline dizia que o pool de 15 limitava a ~15 (e o benchmark
+sugeria colapso ainda antes). **A causa real era um bug**: `deps.py` tinha um
+`get_db` duplicado e cada request autenticado segurava **2 conexões** — teto
+efetivo ~7. Corrigido no **PR #24** (uma conexão por request, provado). Portanto:
+
+- **Sessões por request:** agora **1** (era 2 nas 11 rotas afetadas). Regressão
+  em `test_arch_db_session.py` / `test_db_session_lifecycle.py`.
+- O "teto de ~7" **não é inerente** — era o bug. O teto real de concorrência
+  passa a ser governado pelo pool (15 no default) e pelos workers.
+
+## Coluna nova: risco de N+1 e estado da correção (medido)
+
+| Rota | Sessões/req | N+1 medido | Estado |
+|------|:-----------:|------------|--------|
+| `GET /auth/me` | 1 (pós #24) | memberships: 60 queries @ 50 mbrs | **corrigido no #20** (`joinedload`) → constante |
+| `GET /retreats` | 1 (pós #24) | ~6 queries/retiro (305 @ 50) | **corrigido no #25** (`selectinload` + hoist voc_code) → ~3/retiro |
+| `GET /inbox` | 1 (pós #24) | inconclusivo (seed a corrigir) | **a medir** |
+| `GET /admin/dashboard` | 1 (pós #24) | 20 ops estáticos; slope não medido | **a medir** (baixa freq.) |
+| demais (writes) | 1 | cardinalidade fixa | baixo risco de N+1-sob-carga |
+
+Detalhes em `nplus1-audit.md`.
+
+## Benchmark de runtime — número corrigido
+
+O ganho da migração `async def`→`def` foi **refeito sem o bug de pool** e com RTT
+de Postgres modelado: **~7×** (não os 20,1× do benchmark sintético), e **~0** em
+SQLite puro. Ver `backend-route-benchmark.md`.
+
+## Classificação de frequência (reafirmando o rótulo)
+
+Toda a coluna "Freq" do ranking é **DERIVADA DE JORNADA / ESTIMADA** — **não há
+tráfego OBSERVADO** de produção (sem logs acessíveis). Nenhuma linha deve ser lida
+como medição de volume real. Marcadores: OBSERVADA (nenhuma), DERIVADA DE JORNADA
+(as de jornada), ESTIMADA (baseline), DESCONHECIDA (o resto).
