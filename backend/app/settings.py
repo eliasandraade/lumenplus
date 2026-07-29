@@ -96,6 +96,12 @@ class Settings(BaseSettings):
     # =========================================================================
     # RATE LIMITING
     # =========================================================================
+    # Observabilidade / métricas
+    metrics_enabled: bool = Field(default=True)
+    # Em produção, /metrics exige este token no header X-Metrics-Token. Se vazio
+    # em produção, /metrics responde 404 (não expõe métricas publicamente).
+    metrics_token: str = Field(default="")
+
     rate_limit_enabled: bool = Field(default=True)
     rate_limit_requests_per_minute: int = Field(default=60)
     rate_limit_verification_per_hour: int = Field(default=5)

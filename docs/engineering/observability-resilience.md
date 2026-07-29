@@ -140,3 +140,46 @@ Cobertura atual: config provada no PG real + handler testado em unidade.
   agregação pesada), deve usar um engine dedicado com timeout próprio. Documentado
   como follow-up; não implementado agora para não introduzir um segundo engine
   sem necessidade comprovada.
+
+
+---
+
+# Métricas IMPLEMENTADAS (2026-07-24, item 7) — atualiza a seção 4
+
+A seção 4 dizia "métricas não implementadas". **Agora estão** — camada
+in-process, formato Prometheus, **sem dependência externa** (o texto de exposição
+é simples e emitido à mão; a menor mudança compatível com o stack).
+
+## O que expõe (`/metrics`)
+- `lumen_requests_total{method,route,status}` — contagem por classe de status.
+- `lumen_request_duration_seconds` — histograma (buckets 5ms…10s) por rota.
+- `lumen_requests_in_flight` — gauge de requests em voo.
+- `lumen_queries_per_request_sum{method,route}` — queries por rota (listener no engine).
+- `lumen_db_pool_{size,checkedout,overflow}` — estado do pool no scrape.
+
+## Cardinalidade e PII (garantido por teste)
+- Label `route` é a **template** (`/retreats/{retreat_id}`), nunca o path com id;
+  404 vira `unmatched`, nunca o path bruto.
+- **PROIBIDO** em label e verificado em `tests/test_metrics.py`: user_id, e-mail,
+  token, querystring, mensagem de exceção. Teste `test_sem_pii_nos_labels` e
+  `test_rota_normalizada_nao_vaza_id_nem_querystring`.
+
+## Gate do `/metrics`
+- Fora de produção: aberto.
+- Em produção: exige header `X-Metrics-Token == settings.metrics_token`; se o
+  token não estiver configurado, responde **404** (não expõe publicamente nem
+  revela a existência do endpoint).
+
+## Testes (`tests/test_metrics.py`, 6)
+formato Prometheus; rota normalizada sem id/querystring; classes 2xx/4xx;
+mecanismo de contagem de queries (holder no ContextVar, propaga ao threadpool);
+sem PII; render dos gauges de pool.
+
+## O que ainda depende de infra (honesto)
+- **Event-loop lag** e **threadpool borrowed tokens**: exigem instrumentação do
+  loop/AnyIO por amostragem — não incluídos nesta primeira camada (mensuráveis
+  sob demanda via `anyio` nos harness de diagnóstico). Registrado como próximo passo.
+- **Redis latency / erros de integração**: as integrações logam falha; expor como
+  métrica exige envolver cada cliente — follow-up.
+- Scrape/retention: um Prometheus/agent externo precisa raspar `/metrics`
+  (config em `ops/observability/`).
