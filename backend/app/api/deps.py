@@ -3,24 +3,33 @@ Dependências compartilhadas do FastAPI.
 Fonte única de get_current_user — todos os routers importam daqui.
 """
 
-from typing import Annotated, Generator
+from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.auth.firebase import FirebaseAuth, TokenPayload
 from app.db.models import User, UserIdentity, UserProfile
-from app.db.session import SessionLocal
+from app.db.session import get_db
 from app.settings import settings
 
-
-def get_db() -> Generator[Session, None, None]:
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
+# IMPORTANTE — UMA CONEXÃO POR REQUEST.
+#
+# Este módulo definia seu PRÓPRIO `get_db`, duplicando o de app.db.session.
+# O FastAPI faz cache de dependência **pelo callable**: como eram dois objetos
+# diferentes, um handler que usasse `CurrentUser` (que depende do get_db daqui)
+# E `Depends(get_db)` de app.db.session abria DUAS sessões e segurava DUAS
+# conexões simultâneas por request.
+#
+# Efeito medido: com pool_size=5 + max_overflow=10 (15 conexões), 10 requests
+# concorrentes em /auth/me precisavam de 20 conexões e esgotavam o pool. As
+# threads ficavam presas em QueuePool._do_get até o pool_timeout — foi essa a
+# causa do travamento observado no benchmark, e não o runtime nem o SQLite.
+#
+# Reexportando o get_db canônico, o callable passa a ser o MESMO objeto, o
+# cache de dependência do FastAPI resolve uma única vez e cada request usa
+# UMA conexão. Não altere isso para uma definição local de novo.
+__all__ = ["get_db", "get_current_user", "CurrentUser", "DBSession"]
 
 DBSession = Annotated[Session, Depends(get_db)]
 
