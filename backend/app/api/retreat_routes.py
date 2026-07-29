@@ -724,6 +724,9 @@ async def submit_payment_proof(
             public_id=f"user_{current_user.id}",
             overwrite=True,
             resource_type="image",
+            # RESILIÊNCIA: bound no upload externo — sem isto, um Cloudinary
+            # lento segura a request (e a conexão de banco do request) sem limite.
+            timeout=15,
         )
         url = upload_result["secure_url"]
     except Exception as exc:

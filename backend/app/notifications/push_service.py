@@ -23,6 +23,11 @@ def send_web_push(endpoint: str, p256dh: str, auth: str, payload: dict) -> tuple
             data=json.dumps(payload),
             vapid_private_key=settings.vapid_private_key,
             vapid_claims={"sub": settings.vapid_email},
+            # RESILIÊNCIA: sem timeout, pywebpush (via requests) pode ficar
+            # pendurado indefinidamente num endpoint lento — e como o envio é
+            # feito em lote (um por subscription), um único endpoint travado
+            # seguraria o batch inteiro. 10s é folgado para um POST de push.
+            timeout=10,
         )
         return True, None
     except WebPushException as e:
