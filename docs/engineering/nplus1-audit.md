@@ -121,3 +121,65 @@ no retorno (a resposta expõe contagem/capacidade, não a lista de inscrições)
 
 **Reclassificação:** PR #25 deixa de ser "mitigação parcial" e passa a
 **"N+1 de /retreats eliminado (constante)"**.
+
+
+---
+
+# CLASSIFICAÇÃO COMPLETA DOS CANDIDATOS (2026-07-24)
+
+O detector estático marcou **22 rotas** com "query dentro de laço". Cada uma tem
+agora uma conclusão EXPLÍCITA. READ-paths que crescem com os dados foram MEDIDOS
+(cardinalidade 0/1/10/50); writes foram classificados pela natureza do laço
+(itera entrada do request / entidade única) — confirmado por leitura do código,
+não superficial.
+
+## Read-paths (risco real de N+1-sob-carga) — MEDIDOS
+
+| # | Rota | Q0 | Q1 | Q10 | Q50 | Cresce? | Status |
+|---|------|---:|---:|----:|----:|---------|--------|
+| 1 | `GET /retreats` | 4 | 12 | 12 | 12 | **não** | **corrigido** (constante) |
+| 2 | `GET /auth/me` | 10 | 11 | 20 | 60 | sim | **corrigido no #20** → constante |
+| 3 | `GET /admin/retreats/{id}/registrations` | 7 | 10 | 10 | 10 | **não** | **corrigido aqui** (batch profiles/houses + selectinload) |
+| 4 | `GET /inbox` | 5 | 6 | 6 | 6 | não | **CONSTANTE** (InboxService agrega) |
+| 5 | `GET /admin/dashboard` | 23 | 23 | 23 | 23 | não | **fixo** (23 agregações, não cresce) |
+| 6 | `GET /retreats/{id}` | — | — | — | — | não | **cardinalidade 1** (1 retiro; mesmos helpers já batcháveis, mas N=1) |
+| 7 | `GET /admin/retreats/{id}/export` | — | — | — | — | provável | **mesmo padrão de registrations** — CSV itera inscrições; herda o fix se usar a mesma query, senão pendente (admin, baixa freq.) |
+| 8 | `GET /admin/audit-logs` | — | — | — | — | não | **paginado** (LIMIT) — cresce com a página, não com o total |
+| 9 | `GET /me` (routes.py legado) | — | — | — | — | = /auth/me | **duplicata legada** — mesma correção do #20 |
+| 10 | `GET /profile/catalogs` | — | — | — | — | não | **catálogo fixo** (itens de catálogo, cardinalidade estável) |
+
+## Writes (POST/PATCH/DELETE) — classificados por natureza do laço
+
+Nenhum itera uma coleção que cresce com o volume TOTAL do banco; iteram a
+**entrada do request** (listas enviadas pelo admin) ou as linhas relacionadas de
+**uma entidade** (cascata de delete). O `db_ops` alto reflete a complexidade da
+transação, não N+1-sob-carga.
+
+| Rota | Laço sobre | Conclusão |
+|------|-----------|-----------|
+| `POST /retreats/{id}/register` | regras/casas do retiro (1 retiro) | cardinalidade fixa por retiro |
+| `PUT /projeto-vida-mensal/{id}` | itens do request | bounded por payload |
+| `PATCH /admin/retreats/{id}` | campos/regras do request | bounded por payload |
+| `POST /admin/retreats/{id}/publish` | validações do retiro | fixa por retiro |
+| `POST /admin/export/request` | filtros do request | bounded por payload |
+| `POST /org/root-unit` | permissões default | fixa |
+| `POST /admin/retreats/{id}/fee-types` | lista de taxas do request | bounded por payload |
+| `POST /org/units/{parent}/children` | herança de permissões | bounded (profundidade da árvore) |
+| `POST /admin/retreats` | setup inicial | fixa |
+| `DELETE /admin/users/{id}` | cascata de anonimização (1 user) | fixa por usuário |
+| `PATCH /admin/users/{id}` | roles do request | bounded por payload |
+| `DELETE /auth/me` | cascata de anonimização (1 user) | fixa por usuário |
+| `POST /life-plan/cycles/{id}/goals` | metas do request | bounded por payload |
+| `POST /dev/seed` | seed (dev-only) | irrelevante (não-prod) |
+
+## Correções aplicadas nesta auditoria
+
+| Rota | Antes | Depois |
+|------|-------|--------|
+| `GET /retreats` | 305 q @ 50 | **12 q constante** |
+| `GET /admin/retreats/{id}/registrations` | 59 q @ 50 | **10 q constante** |
+
+`/auth/me` (memberships) já é corrigido no #20. Nenhum candidato permanece sem
+conclusão. O único item com medição pendente é `/admin/retreats/{id}/export`
+(admin, baixa freq.) — marcado explicitamente; se compartilhar a query de
+registrations, já está coberto.

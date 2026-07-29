@@ -197,12 +197,13 @@ def probe_inbox():
                 u = mk_admin(db)
                 for i in range(n):
                     msg = M.InboxMessage(
-                        subject=f"M{i}", body="x", sender_user_id=u.id,
-                        category=getattr(M, "InboxCategory", None) and M.InboxCategory.GERAL or "GERAL",
+                        title=f"M{i}", message="x", type=M.InboxMessageType.INFO,
+                        created_by_user_id=u.id, approval_status=M.InboxApprovalStatus.APPROVED,
+                        expires_at=datetime(2027, 1, 1, tzinfo=timezone.utc),
                     )
                     db.add(msg)
                     db.flush()
-                    db.add(M.InboxRecipient(message_id=msg.id, recipient_user_id=u.id))
+                    db.add(M.InboxRecipient(message_id=msg.id, user_id=u.id))
                 db.commit()
             h.client.get("/auth/me", headers=ADMIN_HDR)
             q, st = measure(h.client, "GET", "/inbox", ADMIN_HDR)
@@ -218,9 +219,41 @@ def probe_inbox():
     return counts
 
 
+def probe_dashboard():
+    print("\n## GET /admin/dashboard — por nº de usuários/unidades (agrega vários domínios)")
+    print("| entidades | queries | status |")
+    print("|---|---|---|")
+    counts = {}
+    for n in (0, 1, 10, 50):
+        h = Harness()
+        with h.session() as db:
+            mk_admin(db)
+            for i in range(n):
+                unit = M.OrgUnit(type=M.OrgUnitType.MINISTERIO, name=f"D{i}", slug=f"d{i}")
+                db.add(unit)
+                db.flush()
+                usr = M.User(is_active=True)
+                db.add(usr)
+                db.flush()
+                db.add(M.UserProfile(user_id=usr.id, status="COMPLETE",
+                                     birth_date=date(1990, 1, 1)))
+                db.add(M.OrgMembership(user_id=usr.id, org_unit_id=unit.id,
+                                       role=M.OrgRoleCode.MEMBER, status=M.MembershipStatus.ACTIVE))
+            db.commit()
+        h.client.get("/auth/me", headers=ADMIN_HDR)
+        q, st = measure(h.client, "GET", "/admin/dashboard", ADMIN_HDR)
+        counts[n] = q
+        print(f"| {n} | {q} | {st} |")
+        h.close()
+    delta = counts.get(50, 0) - counts.get(0, 0)
+    print(f"\n**Veredicto:** {'CRESCE' if delta > 4 else 'quase-constante'} (delta 0->50 = {delta})")
+    return counts
+
+
 if __name__ == "__main__":
     print("# Auditoria de N+1 — query count por cardinalidade")
     print("(SQLite in-memory; contagem de QUERIES, independe do banco)")
     probe_auth_me()
     probe_retreats()
     probe_inbox()
+    probe_dashboard()
