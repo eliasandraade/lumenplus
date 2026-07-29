@@ -21,7 +21,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3.0", "ruff>=0.8.0", "mypy>=1.13.0"]
+# Versões FIXAS para determinismo (espelham requirements-dev.txt + requirements.txt).
+# Floating (>=) reabre o drift de tooling que deixou o CI vermelho.
+dev = ["pytest==7.4.4", "pytest-asyncio==0.23.3", "ruff==0.15.22", "mypy==2.3.0"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
