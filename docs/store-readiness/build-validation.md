@@ -95,3 +95,50 @@ Mesmo código, mesma máquina, mesma toolchain — só o caminho mudou.
   `Info.plist` → `xcodebuild` para simulador sem assinatura.
 
 Node pinado em `22.19.0`, `npm ci` determinístico.
+
+
+---
+
+# ANDROID RELEASE — AAB DE PRODUÇÃO GERADO (2026-08-06)
+
+```
+BUILD SUCCESSFUL in 30m 6s   —   891 tasks executed
+app-release.aab   56 MB   <- artefato de submissão do Google Play
+app-release.apk   81 MB   <- instalável para teste
+```
+
+Gerado por `npm run android:release`, que detecta o caminho hostil do Windows,
+espelha para um diretório limpo, roda prebuild + `assembleRelease bundleRelease`
+e coleta os artefatos em `build-artifacts/` (ignorado pelo git).
+
+## Manifest RELEASE mesclado — auditado
+
+| Item | Valor | Status |
+|---|---|---|
+| `package` | `com.lumenchristi.lumenplus` | ✅ |
+| `versionName` / `versionCode` | `1.0.0` / `1` | ✅ |
+| **`targetSdkVersion`** | **36** | ✅ **atende a exigência do Google Play de 31/08/2026** |
+| `android:debuggable` | ausente | ✅ |
+
+### Permissões finais no APK/AAB de release
+
+| Permissão | Origem | Avaliação |
+|---|---|---|
+| `CAMERA`, `READ_MEDIA_IMAGES` | expo-image-picker | ✅ usadas (foto de perfil, comprovante) |
+| `READ/WRITE_EXTERNAL_STORAGE` | compat Android antigo | ✅ esperada |
+| `INTERNET`, `VIBRATE` | base | ✅ |
+| `USE_BIOMETRIC`, `USE_FINGERPRINT` | expo-secure-store | ⚠️ transitivas — avaliar remoção |
+| `RECORD_AUDIO` | — | ✅ **removida** |
+| `ACCESS_FINE/COARSE_LOCATION` | — | ✅ **removidas** |
+| `SYSTEM_ALERT_WINDOW` | dev menu do RN | ✅ **some em release** (confirmado; em debug aparecia) |
+
+## Reclassificação
+
+Android sai de *"compilação debug comprovada"* para
+**"AAB de produção gerado e manifest auditado"**.
+
+**Ainda NÃO comprovado:** o AAB está assinado com a chave de **debug** do Gradle
+(não há keystore de release) — serve para validação e teste, **não** para
+submissão. A assinatura final virá do **Play App Signing** ou de um keystore
+fornecido pelo operador. Nada foi instalado nem executado: `adb`/emulador não
+existem neste ambiente.
