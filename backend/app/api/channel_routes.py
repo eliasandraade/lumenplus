@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, DBSession
 from app.api.moderation_routes import blocked_user_ids
+from app.services.community_guidelines import require_accepted as require_guidelines_accepted
 from app.services.content_filter import FilterVerdict, check_content
 from app.audit.service import create_audit_log
 from app.db.models import (
@@ -289,6 +290,10 @@ def create_post(
     unit = _require_org_unit(db, org_unit_id)
     if not _resolve_can_post(membership, unit):
         raise HTTPException(status_code=403, detail={"error": "forbidden", "message": "Apenas coordenadores podem criar posts neste canal"})
+    # ACEITE DAS DIRETRIZES (Apple G1.2, 4a salvaguarda: EULA de tolerancia
+    # zero). Antes do filtro de conteudo de proposito — nao faz sentido dizer
+    # "seu texto viola a politica" a quem ainda nao viu a politica.
+    require_guidelines_accepted(db, current_user.id)
     # FILTRO PRE-PUBLICACAO (Apple G1.2, 1a das 4 salvaguardas de UGC).
     # Conservador: BLOQUEIA so o inequivocamente abusivo; o duvidoso e publicado
     # e cai na fila de moderacao humana — um filtro agressivo produziria falsos
@@ -413,9 +418,32 @@ def create_reply(
     post = db.scalars(select(ChannelPost).where(ChannelPost.id == post_id, ChannelPost.org_unit_id == org_unit_id, ChannelPost.deleted_at.is_(None))).first()
     if not post:
         raise HTTPException(status_code=404, detail={"error": "not_found", "message": "Post não encontrado"})
+    # Respostas sao UGC como qualquer post: mesmas salvaguardas. Estavam de
+    # fora — so os posts eram filtrados, o que deixava o caminho de resposta
+    # sem filtro pre-publicacao nenhum.
+    require_guidelines_accepted(db, current_user.id)
+    reply_verdict = check_content(body.body)
+    if reply_verdict.verdict is FilterVerdict.BLOCK:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "content_blocked", "message":
+                    "Sua resposta nao pode ser enviada porque viola a politica "
+                    "de conteudo da comunidade."},
+        )
+
     reply = ChannelReply(post_id=post_id, author_user_id=current_user.id, body=body.body)
     db.add(reply)
     db.flush()
+
+    if reply_verdict.verdict is FilterVerdict.FLAG:
+        db.add(ContentReport(
+            reporter_user_id=current_user.id,
+            target_type=ContentReportTargetType.REPLY,
+            target_id=reply.id,
+            reason=ContentReportReason.OTHER,
+            details=f"Sinalizado automaticamente: {reply_verdict.reason}",
+            content_snapshot=body.body[:4000],
+        ))
     create_audit_log(db, action="channel_reply_created", actor_user_id=current_user.id, entity_type="channel_reply", entity_id=str(reply.id), metadata={"post_id": str(post_id)})
     db.commit()
     author_name = db.scalars(select(UserProfile.full_name).where(UserProfile.user_id == current_user.id)).first() or "Membro"
