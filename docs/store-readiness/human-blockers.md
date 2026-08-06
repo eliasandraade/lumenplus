@@ -128,3 +128,68 @@ adicional, ajustar — senão o rate limit por IP fica incorreto.
 | Sem tela de exclusão de conta no app | **implementada** (`app/account/delete.tsx`) |
 | Permissões de câmera/fotos não declaradas | **declaradas** |
 | `android/`+`ios/` com scaffolding Flutter | **removidos** e gitignored |
+
+---
+
+## GRUPO D — Novos, revelados nesta rodada
+
+### D1. Escolher a estratégia de assinatura Android
+
+| | |
+|---|---|
+| **Decisão** | **Play App Signing** (Google guarda a chave) **ou keystore próprio** |
+| **Por quê** | O AAB atual sai com `CN=Android Debug` — confirmado por `apksigner`. O Google Play recusa |
+| **Já pronto** | O código lê as credenciais do ambiente (`plugins/withReleaseSigning.js`); falta só a chave |
+| **Risco do keystore próprio** | **perder o arquivo = nunca mais poder atualizar o app.** Só resta republicar sob outro `applicationId`, perdendo instalações e avaliações |
+| **Recomendação** | Play App Signing — a *upload key* é recuperável |
+| **Custo** | zero |
+| **Quem** | responsável pela conta do Google Play. **Não gerar o keystore de produção em máquina compartilhada** |
+
+Runbook completo: [`android-release-signing.md`](android-release-signing.md).
+
+### D2. Declarar dado sensível — decisão do Encarregado
+
+| | |
+|---|---|
+| **Decisão** | Confirmar a declaração de **crença religiosa** e **saúde** nas duas lojas |
+| **Por quê** | O perfil coleta 7 campos de vida religiosa (realidade vocacional, ano de consagração, acompanhamento, estado de vida) e 2 de saúde (restrição alimentar, plano). Ambas são categorias **sensíveis** para Apple e Google |
+| **Risco de não declarar** | **Sub-declarar dado sensível é causa comum de remoção do app**, inclusive depois de publicado |
+| **Alternativa** | Se a coordenação não quiser declarar, o caminho **não é omitir** — é **deixar de coletar** os campos |
+| **Quem** | Felipe Rocha Pinheiro Bastos — `lgpd@lumenserfeliz.org` |
+| **Custo** | zero |
+
+Respostas prontas: [`store-privacy-declarations.md`](store-privacy-declarations.md).
+
+### D3. URL pública de exclusão de conta
+
+| | |
+|---|---|
+| **Ação** | Publicar a página de exclusão num endereço **público, sem login** |
+| **Por quê** | O Google Play **exige** essa URL no formulário de Data Safety |
+| **Já pronto** | A tela existe (`lumen_mobile/app/excluir-conta.tsx`) |
+| **Falta** | O domínio de produção definitivo |
+| **Custo** | depende do domínio já contratado |
+
+### D4. Conflito Apple × retenção legal na exclusão de conta
+
+| | |
+|---|---|
+| **Decisão** | Se `retreat_registrations` deve ser reduzido a campos estritamente financeiros na exclusão |
+| **Por quê** | A Apple (5.1.1(v)) espera exclusão do registro da conta; a retenção de 5 anos sobre registro financeiro colide com a leitura mais literal |
+| **Postura atual** | Excluir todo dado pessoal e romper o vínculo de identidade, retendo só o mínimo com base legal **declarada na Política de Privacidade** — que é o que a Apple aceita |
+| **Quem** | Encarregado |
+
+Matriz completa: [`account-deletion-data-map.md`](account-deletion-data-map.md).
+
+---
+
+## Atualização — o que saiu da lista nesta rodada
+
+| Antes | Agora |
+|---|---|
+| Expo SDK 52 não compila contra Xcode 26 (bloqueio da Apple) | **SDK 54** — menor versão estável que atende Xcode 26 **e** target API 36 |
+| Target API 36 só comprovado em `gradle.properties` | **provado no artefato**: `aapt2` no APK e `bundletool` no AAB |
+| Android release nunca compilado | **BUILD SUCCESSFUL** — APK 90 MB, AAB 57 MB |
+| Sem `PrivacyInfo.xcprivacy` | declarado via `ios.privacyManifests` (falta o CI validar o gerado) |
+| Exclusão de conta deixava telefone, e-mail e push para trás | **corrigido**, com teste que percorre a matriz de dados |
+| Sem aceite de diretrizes antes de publicar (Apple 1.2) | **implementado**, versionado, com 428 e re-aceite automático |
