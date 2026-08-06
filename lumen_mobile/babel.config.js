@@ -3,7 +3,10 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      'react-native-reanimated/plugin',
+      // Reanimated 4 moveu o plugin para react-native-worklets. O caminho
+      // antigo ('react-native-reanimated/plugin') ainda funciona porque e um
+      // re-export, mas e um shim de compatibilidade — usamos o nome canonico.
+      'react-native-worklets/plugin',
     ],
   };
 };
