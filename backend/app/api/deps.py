@@ -40,11 +40,17 @@ firebase_auth = FirebaseAuth(
 )
 
 
-async def get_current_user(
+def get_current_user(
     request: Request,
     db: DBSession,
     authorization: Annotated[str | None, Header()] = None,
 ) -> User:
+    # NOTA DE RUNTIME: esta dependência é SÍNCRONA de propósito.
+    # Ela faz verificação de token (cripto) e I/O de banco síncrono e não tem
+    # nenhum `await`. Como `async def`, ela bloqueava o event loop em TODA
+    # request autenticada — o que serializava o backend inteiro (1 worker).
+    # Declarada como `def`, o FastAPI a executa no threadpool, restaurando a
+    # concorrência. Não altere para `async def` sem tornar o I/O assíncrono.
     if not authorization:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

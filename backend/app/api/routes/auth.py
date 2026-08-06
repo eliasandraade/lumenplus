@@ -166,7 +166,7 @@ async def login(data: LoginRequest, db: Session = Depends(get_db)) -> AuthRespon
 
 
 @router.get("/me", response_model=UserMeResponse)
-async def get_me(
+def get_me(  # `def` (não async): rota DB-bound síncrona → roda no threadpool
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> UserMeResponse:

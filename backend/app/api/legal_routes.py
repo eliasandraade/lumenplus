@@ -40,7 +40,7 @@ class AcceptLegalResponse(BaseModel):
 
 
 @router.get("/latest", response_model=LatestLegalResponse)
-async def get_latest_legal(db: DBSession) -> LatestLegalResponse:
+def get_latest_legal(db: DBSession) -> LatestLegalResponse:  # `def`: DB-bound → threadpool
     """Get latest published terms and privacy policy."""
     terms = get_latest_legal_document(db, "TERMS")
     privacy = get_latest_legal_document(db, "PRIVACY")
