@@ -88,7 +88,9 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install ruff mypy
+          # Toolchain FIXA (ruff/mypy) — antes era `pip install ruff mypy` sem
+          # pin, o que deixou o CI vermelho quando o ruff default mudou (0.16.0).
+          pip install -r requirements-dev.txt
 
       - name: Ruff lint
         run: ruff check .
