@@ -51,8 +51,32 @@ profiles. O plugin versiona apenas os **nomes** das variáveis.
 | Item | Status |
 |---|---|
 | Plugin altera o `build.gradle` gerado | **verificado** — bloco `signingConfigs` único, `lumenRelease` presente, `release` apontando para o seletor |
-| Fallback para debug sem credenciais | **verificado** — aviso emitido no prebuild |
-| Build completo assinado com chave real | **NÃO verificado** — exige um keystore, que é decisão e propriedade do operador |
+| Fallback para debug sem credenciais | **verificado** — `apksigner` no APK: `CN=Android Debug` |
+| **Build assinado com chave fornecida pelo ambiente** | **VERIFICADO** — ver abaixo |
+
+### Prova do caminho de assinatura
+
+Executado com um keystore **descartável**, gerado fora do repositório e
+destruído em seguida (validade 30 dias, `O=NAO USAR EM PRODUCAO`):
+
+```
+BUILD SUCCESSFUL in 1m 26s
+$ apksigner verify --print-certs app-release.apk
+Signer #1 certificate DN: CN=Lumen Teste Descartavel, OU=CI, O=NAO USAR EM PRODUCAO, C=BR
+```
+
+Contra o mesmo projeto **sem** as variáveis definidas:
+
+```
+Signer #1 certificate DN: CN=Android Debug, OU=Android, O=Unknown
+```
+
+Os dois ramos do seletor estão exercitados. O plugin funciona; o que falta é
+**exclusivamente** a chave real, que é propriedade e decisão do operador da
+conta do Google Play.
+
+> A chave de teste foi apagada após a verificação. Nenhum keystore, senha ou
+> alias real foi criado, lido ou versionado em momento algum.
 
 ## Decisão pendente de humano
 
