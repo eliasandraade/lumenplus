@@ -273,7 +273,66 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     return response
 
 
-# Health check
+# Backpressure: pool timeout / DB indisponível → 503 + Retry-After (não 500).
+from app.api.backpressure import register_backpressure_handlers  # noqa: E402
+
+register_backpressure_handlers(app)
+
+
+# ---------------------------------------------------------------------------
+# Métricas (in-process, formato Prometheus — sem dependência externa)
+# ---------------------------------------------------------------------------
+from app.observability.metrics import (  # noqa: E402
+    METRICS,
+    get_query_count,
+    register_query_counter,
+    reset_query_count,
+    safe_route,
+)
+
+# Conta cada query no request corrente (holder no ContextVar, propaga ao threadpool).
+if settings.metrics_enabled:
+    from app.db.session import engine as _web_engine
+
+    register_query_counter(_web_engine)
+
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next: Any) -> Any:
+    if not settings.metrics_enabled:
+        return await call_next(request)
+    import time as _time
+
+    reset_query_count()
+    METRICS.inc_in_flight()
+    start = _time.perf_counter()
+    status = 500
+    try:
+        response = await call_next(request)
+        status = response.status_code
+        return response
+    finally:
+        METRICS.dec_in_flight()
+        # rota NORMALIZADA (template), nunca o path com id — baixa cardinalidade.
+        METRICS.observe_request(
+            method=request.method,
+            route=safe_route(request),
+            status=status,
+            duration_s=_time.perf_counter() - start,
+            queries=get_query_count(),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Health checks — liveness vs readiness (distintos, de propósito)
+# ---------------------------------------------------------------------------
+# /health        — compat retro: liveness simples (não quebra clientes atuais).
+# /health/live   — LIVENESS: o processo está vivo? NÃO toca banco nem integrações.
+#                  Um orquestrador usa isto para decidir REINICIAR o container.
+# /health/ready  — READINESS: dá para receber tráfego? Checa o banco com timeout
+#                  curto. Um loadbalancer usa isto para decidir ROTEAR tráfego.
+# Separar os dois evita o anti-padrão em que uma lentidão de banco derruba a
+# liveness e dispara restarts em cascata sob carga.
 @app.get("/health")
 async def health() -> dict[str, Any]:
     from datetime import datetime, timezone
@@ -283,6 +342,72 @@ async def health() -> dict[str, Any]:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "version": settings.app_version,
     }
+
+
+@app.get("/health/live")
+async def health_live() -> dict[str, Any]:
+    """Liveness: só confirma que o processo responde. Sem dependências."""
+    return {"status": "alive", "version": settings.app_version}
+
+
+@app.get("/metrics")
+async def metrics_endpoint(request: Request) -> Any:
+    """
+    Métricas Prometheus. GATE: em produção exige X-Metrics-Token == settings.
+    Se não configurado em produção, responde 404 (não expõe publicamente).
+    Fora de produção, aberto.
+    """
+    from starlette.responses import PlainTextResponse
+
+    if not settings.metrics_enabled:
+        return JSONResponse(status_code=404, content={"detail": "not_found"})
+    if settings.is_production:
+        token = settings.metrics_token
+        if not token or request.headers.get("x-metrics-token") != token:
+            # 404 (não 401) para não revelar a existência do endpoint em prod.
+            return JSONResponse(status_code=404, content={"detail": "not_found"})
+
+    # Popula gauges do pool no momento do scrape (não em toda request).
+    try:
+        from app.db.session import engine as _eng
+
+        pool = _eng.pool
+        gauges: dict[str, float] = {}
+        for name in ("size", "checkedout", "checkedin", "overflow"):
+            fn = getattr(pool, name, None)
+            if callable(fn):
+                try:
+                    gauges[name] = float(fn())
+                except Exception:
+                    pass
+        METRICS.set_pool_gauges(gauges)
+    except Exception:
+        pass
+
+    return PlainTextResponse(METRICS.render(), media_type="text/plain; version=0.0.4")
+
+
+@app.get("/health/ready")
+async def health_ready() -> JSONResponse:
+    """
+    Readiness: o banco responde? Faz `SELECT 1` numa conexão curta.
+    503 se o banco estiver inacessível ou o pool esgotado — sem vazar detalhes.
+    """
+    from sqlalchemy import text
+
+    from app.db.session import engine
+
+    try:
+        # Conexão fora do pool de request; devolvida imediatamente.
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return JSONResponse(status_code=200, content={"status": "ready", "database": "ok"})
+    except Exception as exc:  # OperationalError, TimeoutError, etc.
+        logger.warning("readiness_db_check_failed", error_type=type(exc).__name__)
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "database": "unavailable"},
+        )
 
 
 # Rotas — imports após setup do app (necessário para que o lifespan e middlewares
