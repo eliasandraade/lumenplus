@@ -373,3 +373,52 @@ def test_desbloqueio_restaura_a_visibilidade(client: TestClient, db_session: Ses
 
     client.delete(f"/moderation/blocks/{d.id}", headers=_hdr("carla"))
     assert client.get(f"/channel/{unit.id}/posts", headers=_hdr("carla")).json()["total"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Filtro pré-publicação (Apple G1.2 — 1ª das 4 salvaguardas)
+# ---------------------------------------------------------------------------
+def test_filtro_bloqueia_conteudo_abusivo(client: TestClient, db_session: Session):
+    unit = _mk_unit(db_session, "min-filtro")
+    u = _mk_user(db_session, "filtro1", "Autor")
+    db_session.add(OrgMembership(user_id=u.id, org_unit_id=unit.id,
+                                 role=OrgRoleCode.COORDINATOR, status=MembershipStatus.ACTIVE))
+    db_session.commit()
+
+    r = client.post(f"/channel/{unit.id}/posts", headers=_hdr("filtro1"),
+                    json={"title": "Aviso", "body": "vou te matar"})
+    assert r.status_code == 422, r.text
+    assert r.json()["detail"]["error"] == "content_blocked"
+    assert db_session.execute(select(ChannelPost)).scalars().all() == []
+
+
+def test_filtro_permite_conversa_pastoral_legitima(client: TestClient, db_session: Session):
+    """Falso positivo é inaceitável: luto, vício e conflito são assunto natural aqui."""
+    unit = _mk_unit(db_session, "min-filtro2")
+    u = _mk_user(db_session, "filtro2", "Autor")
+    db_session.add(OrgMembership(user_id=u.id, org_unit_id=unit.id,
+                                 role=OrgRoleCode.COORDINATOR, status=MembershipStatus.ACTIVE))
+    db_session.commit()
+
+    r = client.post(f"/channel/{unit.id}/posts", headers=_hdr("filtro2"), json={
+        "title": "Partilha do retiro",
+        "body": "Falei sobre a morte do meu pai e sobre o vicio que enfrentei. "
+                "Foi dificil, mas a comunidade me acolheu.",
+    })
+    assert r.status_code == 201, r.text
+
+
+def test_filtro_sinaliza_sem_bloquear(client: TestClient, db_session: Session):
+    """Conteúdo duvidoso é publicado, mas entra na fila de moderação."""
+    unit = _mk_unit(db_session, "min-filtro3")
+    u = _mk_user(db_session, "filtro3", "Autor")
+    db_session.add(OrgMembership(user_id=u.id, org_unit_id=unit.id,
+                                 role=OrgRoleCode.COORDINATOR, status=MembershipStatus.ACTIVE))
+    db_session.commit()
+
+    r = client.post(f"/channel/{unit.id}/posts", headers=_hdr("filtro3"),
+                    json={"title": "Oferta", "body": "COMPRE AGORA COM DESCONTO NO WHATSAPP"})
+    assert r.status_code == 201, "conteúdo duvidoso deve ser publicado, não bloqueado"
+    reports = db_session.execute(select(ContentReport)).scalars().all()
+    assert len(reports) == 1, "deveria ter aberto denúncia automática"
+    assert "automaticamente" in (reports[0].details or "")
