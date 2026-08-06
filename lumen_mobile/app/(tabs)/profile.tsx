@@ -626,6 +626,17 @@ export default function ProfileScreen() {
           <Ionicons name="log-out-outline" size={20} color="#ef4444" />
           <Text style={styles.logoutText}>Sair da Conta</Text>
         </TouchableOpacity>
+        {/* ── Usuarios bloqueados (gate de UGC das lojas) ── */}
+        <TouchableOpacity
+          style={styles.blockedUsersButton}
+          onPress={() => router.push('/account/blocked' as Href)}
+          accessibilityRole="button"
+          accessibilityLabel="Ver usuários bloqueados"
+        >
+          <Ionicons name="shield-outline" size={18} color="#525252" />
+          <Text style={styles.blockedUsersText}>Usuários bloqueados</Text>
+        </TouchableOpacity>
+
         {/* ── Excluir conta (gate obrigatorio das lojas) ── */}
         <TouchableOpacity
           style={styles.deleteAccountButton}
@@ -1493,6 +1504,24 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
     fontFamily: 'Nunito-Bold',
   },
 
+  blockedUsersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 14,
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#d4d4d4',
+  },
+  blockedUsersText: {
+    fontSize: 15,
+    fontFamily: 'Nunito-Bold',
+    color: '#525252',
+  },
   deleteAccountButton: {
     flexDirection: 'row',
     alignItems: 'center',
