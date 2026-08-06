@@ -1,17 +1,28 @@
 {
   "cli": {
-    "version": ">= 10.0.0"
+    "version": ">= 10.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "channel": "development",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://localhost:8000",
+        "EXPO_PUBLIC_ENV": "development"
+      },
       "ios": {
         "simulator": true
       }
     },
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://backend-staging-staging-3d47.up.railway.app",
+        "EXPO_PUBLIC_ENV": "preview"
+      },
       "android": {
         "buildType": "apk"
       },
@@ -19,14 +30,41 @@
         "simulator": false
       }
     },
+    "staging": {
+      "distribution": "internal",
+      "channel": "staging",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://backend-staging-staging-3d47.up.railway.app",
+        "EXPO_PUBLIC_ENV": "staging"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_ENV": "production"
+      },
       "android": {
         "buildType": "app-bundle"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "//": "PENDENTE HUMANO: preencher appleId, ascAppId e appleTeamId (App Store Connect). Preferir App Store Connect API Key (.p8) via EXPO_APPLE_API_KEY_* em vez de senha.",
+        "appleId": "",
+        "ascAppId": "",
+        "appleTeamId": ""
+      },
+      "android": {
+        "//": "PENDENTE HUMANO: gerar service account JSON no Google Play Console (permissao de release) e apontar o caminho AQUI. NUNCA versionar o arquivo — mantenha-o fora do repo (o .gitignore ja bloqueia *.json de credencial).",
+        "serviceAccountKeyPath": "",
+        "track": "internal"
+      }
+    }
   }
 }

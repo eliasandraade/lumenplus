@@ -15,18 +15,38 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.lumenchristi.lumenplus"
+      "bundleIdentifier": "com.lumenchristi.lumenplus",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "O Lumen+ precisa acessar suas fotos para você definir a foto do seu perfil e enviar o comprovante de pagamento da inscrição em retiros.",
+        "NSCameraUsageDescription": "O Lumen+ usa a câmera para você tirar a foto do seu perfil ou fotografar o comprovante de pagamento da inscrição em retiros."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a365d"
       },
-      "package": "com.lumenchristi.lumenplus"
+      "package": "com.lumenchristi.lumenplus",
+      "permissions": [
+        "READ_MEDIA_IMAGES",
+        "CAMERA"
+      ],
+      "blockedPermissions": [
+        "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O Lumen+ precisa acessar suas fotos para você definir a foto do seu perfil e enviar o comprovante de pagamento da inscrição em retiros.",
+          "cameraPermission": "O Lumen+ usa a câmera para você tirar a foto do seu perfil ou fotografar o comprovante de pagamento da inscrição em retiros."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
