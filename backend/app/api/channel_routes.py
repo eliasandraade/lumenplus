@@ -24,8 +24,14 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, DBSession
+from app.api.moderation_routes import blocked_user_ids
+from app.services.content_filter import FilterVerdict, check_content
 from app.audit.service import create_audit_log
 from app.db.models import (
+    ContentReport,
+    ContentReportReason,
+    ContentReportStatus,
+    ContentReportTargetType,
     ChannelPost,
     ChannelPostMode,
     ChannelReply,
@@ -108,7 +114,15 @@ def _reply_count_subquery():
     )
 
 
-def _build_post_list(db: Session, org_unit_id: UUID, offset: int, limit: int):
+def _build_post_list(db: Session, org_unit_id: UUID, offset: int, limit: int,
+                     hidden_author_ids: set | None = None):
+    """
+    Lista posts do canal.
+
+    `hidden_author_ids`: autores cujo conteudo NAO deve aparecer para quem esta
+    lendo (bloqueio mutuo). Exigencia das lojas: bloquear um usuario precisa
+    realmente ocultar o conteudo dele — nao basta um botao na interface.
+    """
     reply_count_sq = _reply_count_subquery()
     rows = db.execute(
         select(
@@ -121,6 +135,11 @@ def _build_post_list(db: Session, org_unit_id: UUID, offset: int, limit: int):
         .where(
             ChannelPost.org_unit_id == org_unit_id,
             ChannelPost.deleted_at.is_(None),
+            *(
+                [ChannelPost.author_user_id.notin_(hidden_author_ids)]
+                if hidden_author_ids
+                else []
+            ),
         )
         .order_by(
             ChannelPost.is_institutional_highlight.desc(),
@@ -217,13 +236,17 @@ def list_posts(
     limit: int = 30,
 ) -> ChannelPostListResponse:
     _require_active_member(db, current_user.id, org_unit_id)
+    # Conteudo de usuarios bloqueados (nos dois sentidos) nao aparece no feed
+    # NEM entra na contagem — senao a paginacao mostraria "buracos".
+    hidden = blocked_user_ids(db, current_user.id)
     total = db.scalar(
         select(func.count()).where(
             ChannelPost.org_unit_id == org_unit_id,
             ChannelPost.deleted_at.is_(None),
+            *([ChannelPost.author_user_id.notin_(hidden)] if hidden else []),
         )
     ) or 0
-    rows = _build_post_list(db, org_unit_id, offset, limit)
+    rows = _build_post_list(db, org_unit_id, offset, limit, hidden)
     return ChannelPostListResponse(posts=[_row_to_post_response(r) for r in rows], total=total)
 
 
@@ -266,9 +289,35 @@ def create_post(
     unit = _require_org_unit(db, org_unit_id)
     if not _resolve_can_post(membership, unit):
         raise HTTPException(status_code=403, detail={"error": "forbidden", "message": "Apenas coordenadores podem criar posts neste canal"})
+    # FILTRO PRE-PUBLICACAO (Apple G1.2, 1a das 4 salvaguardas de UGC).
+    # Conservador: BLOQUEIA so o inequivocamente abusivo; o duvidoso e publicado
+    # e cai na fila de moderacao humana — um filtro agressivo produziria falsos
+    # positivos em conversas legitimas sobre luto, vicio ou conflito.
+    verdict = check_content(body.title + chr(10) + body.body)
+    if verdict.verdict is FilterVerdict.BLOCK:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "content_blocked", "message":
+                    "Sua publicacao nao pode ser enviada porque viola a politica "
+                    "de conteudo da comunidade."},
+        )
+
     post = ChannelPost(org_unit_id=org_unit_id, author_user_id=current_user.id, title=body.title, body=body.body)
     db.add(post)
     db.flush()
+
+    if verdict.verdict is FilterVerdict.FLAG:
+        # Publica, mas abre denuncia automatica para revisao humana.
+        db.add(ContentReport(
+            reporter_user_id=current_user.id,
+            target_type=ContentReportTargetType.POST,
+            target_id=post.id,
+            org_unit_id=org_unit_id,
+            reason=ContentReportReason.OTHER,
+            details=f"Sinalizado automaticamente: {verdict.reason}",
+            content_snapshot=(body.title + chr(10) * 2 + body.body)[:4000],
+            status=ContentReportStatus.OPEN,
+        ))
     create_audit_log(db, action="channel_post_created", actor_user_id=current_user.id, entity_type="channel_post", entity_id=str(post.id), metadata={"org_unit_id": str(org_unit_id), "title": body.title})
     db.commit()
     db.refresh(post)
