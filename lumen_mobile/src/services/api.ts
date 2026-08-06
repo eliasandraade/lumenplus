@@ -35,7 +35,20 @@ const getBaseUrl = () => {
     return process.env.EXPO_PUBLIC_API_URL;
   }
   if (!__DEV__) {
-    return 'https://api.lumenplus.app';
+    // FALHA ANTECIPADA (build de release sem configuração).
+    //
+    // Antes havia um fallback hardcoded para 'https://api.lumenplus.app', que
+    // NÃO resolve em DNS. Um build de loja sem EXPO_PUBLIC_API_URL apontaria
+    // silenciosamente para um host inexistente e o app abriria quebrado — o
+    // pior modo de falha possível numa build já publicada.
+    //
+    // Agora um build de release mal configurado falha de forma explícita e
+    // visível ANTES de chegar à loja. A URL é definida por perfil em eas.json
+    // (env.EXPO_PUBLIC_API_URL) para preview/staging/production.
+    throw new Error(
+      '[Lumen+] EXPO_PUBLIC_API_URL não definida em build de release. ' +
+        'Configure a variável no perfil do eas.json antes de gerar a build.'
+    );
   }
   // Fallback local: Android Emulator usa 10.0.2.2 para acessar o host
   if (Platform.OS === 'android') return 'http://10.0.2.2:8000';
