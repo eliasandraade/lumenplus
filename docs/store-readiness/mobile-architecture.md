@@ -1,5 +1,22 @@
 # Lumen+ Mobile — Arquitetura Real (auditoria para publicação nas lojas)
 
+> ## ⚠️ ATUALIZAÇÃO — pontos superados
+>
+> Documento levantado com o app em **Expo SDK 52**. Desde então, na branch
+> `mobile/upgrade-expo-store-toolchain` (PR #34): **Expo 54.0.36 / React Native
+> 0.81.5 / React 19.1.0 / expo-router 6.0.24**.
+>
+> Também superado neste documento:
+>
+> - "scaffold Flutter em `ios/` e `android/`" — removido; `expo prebuild` gera os projetos nativos.
+> - "não está pronto para build nativo de loja" — o Android **compila em release**; APK e AAB gerados e auditados com `aapt2` e `bundletool`.
+> - `@vercel/analytics` — **removido** do `package.json`, junto com os dois componentes stub que retornavam `null`. A conclusão de "dependência morta / nenhum analytics ativo" estava correta e a ação foi executada.
+>
+> **iOS continua NÃO compilado.** O Expo não gera o projeto iOS no Windows; a
+> verificação depende do job `macos-26` do CI.
+>
+> O texto original e preservado como registro da auditoria de 2026-08-06.
+
 - **Data da auditoria:** 2026-08-06
 - **Escopo:** `lumen_mobile/` no branch `main` (commit `7db785d`)
 - **Método:** leitura direta de arquivos-fonte + `git ls-files` + execução do script de validação de assets já existente no repo. Nenhum arquivo de código foi alterado.

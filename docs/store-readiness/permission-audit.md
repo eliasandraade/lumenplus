@@ -1,5 +1,23 @@
 # Auditoria de Permissões — Lumen+ Mobile
 
+> ## ⚠️ ATUALIZAÇÃO — pontos superados
+>
+> Documento levantado com o app em **Expo SDK 52**. Desde então, na branch
+> `mobile/upgrade-expo-store-toolchain` (PR #34): **Expo 54.0.36 / React Native
+> 0.81.5 / React 19.1.0 / expo-router 6.0.24**.
+>
+> As permissões em si foram **confirmadas no artefato empacotado** (não só na
+> configuração), com `aapt2 dump badging` sobre o `app-release.apk`:
+>
+> `CAMERA · INTERNET · READ_EXTERNAL_STORAGE · READ_MEDIA_IMAGES · VIBRATE ·
+> WRITE_EXTERNAL_STORAGE · USE_BIOMETRIC · USE_FINGERPRINT`
+>
+> Nenhuma das bloqueadas (`RECORD_AUDIO`, `ACCESS_*_LOCATION`,
+> `SYSTEM_ALERT_WINDOW`) aparece. O CI passou a falhar se alguma surgir no
+> manifest mesclado.
+>
+> O texto original e preservado como registro da auditoria de 2026-08-06.
+
 **Data:** 2026-08-06
 **Revisão adversarial:** 2026-08-06 — segundo agente reverificou cada achado contra o código. Correções aplicadas estão marcadas com **[CORRIGIDO NA REVISÃO]**. Ver §13 para o log completo.
 **Escopo:** `lumen_mobile/` (Expo SDK 52.0.48 / RN 0.76.9 / expo-router)

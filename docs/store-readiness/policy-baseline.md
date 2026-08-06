@@ -1,5 +1,21 @@
 # Baseline de políticas oficiais — verificado em 2026-08-06
 
+> ## ⚠️ ATUALIZAÇÃO — pontos superados
+>
+> Documento levantado com o app em **Expo SDK 52**. Desde então, na branch
+> `mobile/upgrade-expo-store-toolchain` (PR #34): **Expo 54.0.36 / React Native
+> 0.81.5 / React 19.1.0 / expo-router 6.0.24**.
+>
+> Também superado neste documento:
+>
+> - A linha de **App Privacy / SDKs de terceiros** cita `@vercel/analytics`: o pacote foi **removido**. Restam apenas `@sentry/react` (condicional, `sendDefaultPii: false`) e Firebase Auth.
+> - O requisito de **Xcode 26 / iOS SDK 26** passou a ser exigido pelo CI, com gate que falha se o runner trouxer versão anterior.
+>
+> A conclusão de **"sem compras no app, sem anúncios, sem tracking"** continua
+> válida — e ficou mais forte com a remoção do `@vercel/analytics`.
+>
+> O texto original e preservado como registro da auditoria de 2026-08-06.
+
 **Escopo:** requisitos de publicação nas lojas (Apple App Store, Google Play) e da toolchain
 oficial (Expo / EAS) aplicáveis ao **Lumen+** — app de comunidade católica, Expo SDK 52 /
 React Native 0.76, com contas de usuário, conteúdo gerado por usuário (posts em canais visíveis a
