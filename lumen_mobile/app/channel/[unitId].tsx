@@ -521,7 +521,10 @@ export default function ChannelScreen() {
                   t={t}
                 />
                 <View>
-                  <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 14, color: t.text.primary }}>
+                  <Text
+                    testID="post-author-name"
+                    style={{ fontFamily: 'Nunito-SemiBold', fontSize: 14, color: t.text.primary }}
+                  >
                     {selectedPost.author_name}
                   </Text>
                   <Text style={{ fontFamily: 'Nunito-Regular', fontSize: 12, color: t.text.tertiary }}>
@@ -545,6 +548,7 @@ export default function ChannelScreen() {
               {!isAuthorPost && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                   <Pressable
+                    testID="post-report"
                     onPress={() => openReport('POST', selectedPost.id)}
                     accessibilityRole="button"
                     accessibilityLabel="Denunciar esta publicacao"
@@ -560,6 +564,7 @@ export default function ChannelScreen() {
                     </Text>
                   </Pressable>
                   <Pressable
+                    testID="post-block-author"
                     onPress={() => confirmBlock(selectedPost.author_user_id, selectedPost.author_name)}
                     accessibilityRole="button"
                     accessibilityLabel={`Bloquear ${selectedPost.author_name ?? 'este usuario'}`}

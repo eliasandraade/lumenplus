@@ -628,6 +628,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
         {/* ── Usuarios bloqueados (gate de UGC das lojas) ── */}
         <TouchableOpacity
+          testID="profile-blocked-users"
           style={styles.blockedUsersButton}
           onPress={() => router.push('/account/blocked' as Href)}
           accessibilityRole="button"
@@ -639,6 +640,7 @@ export default function ProfileScreen() {
 
         {/* ── Excluir conta (gate obrigatorio das lojas) ── */}
         <TouchableOpacity
+          testID="profile-delete-account"
           style={styles.deleteAccountButton}
           onPress={() => router.push('/account/delete' as Href)}
           accessibilityRole="button"
