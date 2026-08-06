@@ -20,6 +20,7 @@ from sqlalchemy import (
     LargeBinary,
     String,
     Text,
+    CheckConstraint,
     UniqueConstraint,
     Index,
     func,
@@ -547,6 +548,130 @@ class ChannelReply(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     post: Mapped["ChannelPost"] = relationship("ChannelPost", back_populates="replies")
+
+
+# =============================================================================
+# MODERAÇÃO DE CONTEÚDO GERADO POR USUÁRIO (UGC)
+# =============================================================================
+# Membros ativos publicam posts e respostas nos canais, visíveis a outros
+# membros da unidade. Isso caracteriza UGC, e as lojas exigem que o usuário
+# possa DENUNCIAR conteúdo e BLOQUEAR outro usuário.
+
+
+class ContentReportTargetType(enum.Enum):
+    POST = "POST"
+    REPLY = "REPLY"
+    USER = "USER"
+
+
+class ContentReportReason(enum.Enum):
+    SPAM = "SPAM"
+    HARASSMENT = "HARASSMENT"          # assédio / bullying
+    HATE_SPEECH = "HATE_SPEECH"        # discurso de ódio
+    SEXUAL_CONTENT = "SEXUAL_CONTENT"
+    VIOLENCE = "VIOLENCE"
+    MISINFORMATION = "MISINFORMATION"
+    OFF_TOPIC = "OFF_TOPIC"            # fora do propósito do canal
+    OTHER = "OTHER"
+
+
+class ContentReportStatus(enum.Enum):
+    OPEN = "OPEN"
+    REVIEWING = "REVIEWING"
+    RESOLVED_REMOVED = "RESOLVED_REMOVED"    # conteúdo removido
+    RESOLVED_KEPT = "RESOLVED_KEPT"          # denúncia improcedente
+    DUPLICATE = "DUPLICATE"
+
+
+class ContentReport(Base):
+    """Denúncia de conteúdo ou de usuário, para a fila de moderação."""
+
+    __tablename__ = "content_reports"
+    __table_args__ = (
+        # Um mesmo denunciante não pode abrir duas denúncias do MESMO alvo.
+        # Evita flood e distorção da fila.
+        UniqueConstraint(
+            "reporter_user_id", "target_type", "target_id",
+            name="uq_content_report_reporter_target",
+        ),
+        Index("idx_content_reports_status", "status"),
+        Index("idx_content_reports_target", "target_type", "target_id"),
+        Index("idx_content_reports_org_unit", "org_unit_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True,
+        default=_uuid_mod.uuid4, server_default=func.gen_random_uuid(),
+    )
+    reporter_user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    target_type: Mapped[ContentReportTargetType] = mapped_column(
+        Enum(ContentReportTargetType, name="content_report_target_type", create_constraint=False),
+        nullable=False,
+    )
+    # ID do post, da resposta ou do usuário denunciado. Sem FK porque o alvo é
+    # polimórfico; a integridade é validada na camada de aplicação.
+    target_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    # Unidade onde o conteúdo está — permite rotear a denúncia ao coordenador certo.
+    org_unit_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("org_units.id", ondelete="CASCADE"), nullable=True
+    )
+    reason: Mapped[ContentReportReason] = mapped_column(
+        Enum(ContentReportReason, name="content_report_reason", create_constraint=False),
+        nullable=False,
+    )
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[ContentReportStatus] = mapped_column(
+        Enum(ContentReportStatus, name="content_report_status", create_constraint=False),
+        nullable=False, default=ContentReportStatus.OPEN, server_default="OPEN",
+    )
+    # Cópia do conteúdo no momento da denúncia — preserva a evidência mesmo que
+    # o autor edite ou apague depois.
+    content_snapshot: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    reviewed_by_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class UserBlock(Base):
+    """
+    Bloqueio de um usuário por outro.
+
+    Semântica adotada (documentada e testada): o bloqueio é SIMÉTRICO na
+    visibilidade — se A bloqueia B, A não vê o conteúdo de B e B não vê o
+    conteúdo de A. Isso evita que o bloqueado perceba o bloqueio pela ausência
+    unilateral e impede continuidade do contato pelos dois lados.
+    """
+
+    __tablename__ = "user_blocks"
+    __table_args__ = (
+        UniqueConstraint("blocker_user_id", "blocked_user_id", name="uq_user_block_pair"),
+        Index("idx_user_blocks_blocker", "blocker_user_id"),
+        Index("idx_user_blocks_blocked", "blocked_user_id"),
+        CheckConstraint("blocker_user_id <> blocked_user_id", name="ck_user_block_not_self"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True,
+        default=_uuid_mod.uuid4, server_default=func.gen_random_uuid(),
+    )
+    blocker_user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    blocked_user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class OrgMembership(Base):

@@ -24,6 +24,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser, DBSession
+from app.api.moderation_routes import blocked_user_ids
 from app.audit.service import create_audit_log
 from app.db.models import (
     ChannelPost,
@@ -108,7 +109,15 @@ def _reply_count_subquery():
     )
 
 
-def _build_post_list(db: Session, org_unit_id: UUID, offset: int, limit: int):
+def _build_post_list(db: Session, org_unit_id: UUID, offset: int, limit: int,
+                     hidden_author_ids: set | None = None):
+    """
+    Lista posts do canal.
+
+    `hidden_author_ids`: autores cujo conteudo NAO deve aparecer para quem esta
+    lendo (bloqueio mutuo). Exigencia das lojas: bloquear um usuario precisa
+    realmente ocultar o conteudo dele — nao basta um botao na interface.
+    """
     reply_count_sq = _reply_count_subquery()
     rows = db.execute(
         select(
@@ -121,6 +130,11 @@ def _build_post_list(db: Session, org_unit_id: UUID, offset: int, limit: int):
         .where(
             ChannelPost.org_unit_id == org_unit_id,
             ChannelPost.deleted_at.is_(None),
+            *(
+                [ChannelPost.author_user_id.notin_(hidden_author_ids)]
+                if hidden_author_ids
+                else []
+            ),
         )
         .order_by(
             ChannelPost.is_institutional_highlight.desc(),
@@ -217,13 +231,17 @@ def list_posts(
     limit: int = 30,
 ) -> ChannelPostListResponse:
     _require_active_member(db, current_user.id, org_unit_id)
+    # Conteudo de usuarios bloqueados (nos dois sentidos) nao aparece no feed
+    # NEM entra na contagem — senao a paginacao mostraria "buracos".
+    hidden = blocked_user_ids(db, current_user.id)
     total = db.scalar(
         select(func.count()).where(
             ChannelPost.org_unit_id == org_unit_id,
             ChannelPost.deleted_at.is_(None),
+            *([ChannelPost.author_user_id.notin_(hidden)] if hidden else []),
         )
     ) or 0
-    rows = _build_post_list(db, org_unit_id, offset, limit)
+    rows = _build_post_list(db, org_unit_id, offset, limit, hidden)
     return ChannelPostListResponse(posts=[_row_to_post_response(r) for r in rows], total=total)
 
 
