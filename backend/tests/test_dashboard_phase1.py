@@ -253,12 +253,17 @@ def test_b4_aniversario_hoje_faz_18_cair_em_18_25(client: TestClient, db_session
 
 def test_b4_vespera_do_aniversario_ainda_nao_completa(client: TestClient, db_session: Session):
     today = date.today()
-    tomorrow = today + timedelta(days=1)
-    # Faz 18 amanhã → hoje ainda tem 17
+    # Faz 18 daqui a alguns dias → hoje ainda tem 17.
+    # DETERMINISMO: usamos margem de 3 dias (e não "amanhã"). Com margem de 1 dia,
+    # qualquer diferença de fuso/virada de dia entre o date.today() do teste e o
+    # cálculo de idade da aplicação fazia o bucket alternar entre "< 18" e "18-25"
+    # (o teste falhava na virada de UTC). 3 dias tolera esse skew sem mudar o que
+    # está sendo testado: usuário que ainda NÃO completou 18.
+    future_bday = today + timedelta(days=3)
     try:
-        birth = date(tomorrow.year - 18, tomorrow.month, tomorrow.day)
+        birth = date(future_bday.year - 18, future_bday.month, future_bday.day)
     except ValueError:  # 29/02 em ano não bissexto
-        birth = date(tomorrow.year - 18, 3, 1)
+        birth = date(future_bday.year - 18, 3, 1)
     u = _mk_user(db_session, "b17", "b17@test.com")
     _mk_profile(db_session, u, birth_date=birth)
 
