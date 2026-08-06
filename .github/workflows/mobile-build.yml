@@ -1,0 +1,161 @@
+name: Mobile — Build & Validate
+
+# Compila o app nativo em runners LIMPOS (Linux/macOS).
+#
+# Por que existe: no ambiente Windows local, o build Android falha em
+# react-native-reanimated porque o caminho do projeto contém espaço e "+"
+# ("Projeto Lumen+"), e o ninja mutila o caminho de saída dos objetos C++:
+#     ninja: error: mkdir(.../worklets.dir/C_/Users/.../Projeto_Lumen+/...)
+# É limitação do ambiente, não do código. Em runner Linux o caminho é limpo,
+# então este workflow é a fonte de verdade sobre "o app compila?".
+
+on:
+  push:
+    branches: [main]
+    paths: ['lumen_mobile/**', '.github/workflows/mobile-build.yml']
+  pull_request:
+    paths: ['lumen_mobile/**', '.github/workflows/mobile-build.yml']
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: lumen_mobile
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Gates estáticos — rápidos, falham cedo
+  # ---------------------------------------------------------------------------
+  checks:
+    name: Lint · Typecheck · Assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'   # pinado — sem instalação flutuante
+          cache: npm
+          cache-dependency-path: lumen_mobile/package-lock.json
+
+      - name: Install (determinístico)
+        run: npm ci
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Validar assets (dimensões e canal alpha)
+        run: node scripts/check-assets.mjs
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+        continue-on-error: true   # informativo: reporta, não bloqueia
+
+      - name: Config pública resolve
+        run: npx expo config --type public > /dev/null
+
+  # ---------------------------------------------------------------------------
+  # Android — prova que o app COMPILA como binário nativo
+  # ---------------------------------------------------------------------------
+  android:
+    name: Android — prebuild + assembleDebug
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+          cache: npm
+          cache-dependency-path: lumen_mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+
+      - run: npm ci
+
+      - name: Prebuild (gera android/ nativo)
+        run: npx expo prebuild --platform android --clean --no-install
+        env:
+          # Sem env de produção aqui: build de validação, não de loja.
+          EXPO_PUBLIC_API_URL: https://backend-staging-staging-3d47.up.railway.app
+
+      - name: Conferir identidade gerada
+        run: |
+          grep -q "com.lumenchristi.lumenplus" android/app/build.gradle \
+            || { echo "applicationId incorreto"; exit 1; }
+          ! grep -rq "com.example\|flutter" android/app/build.gradle \
+            || { echo "residuo de scaffolding detectado"; exit 1; }
+          echo "identidade OK"
+
+      - name: Build APK (debug)
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: lumen_mobile/android
+
+      - name: Permissões do manifest mesclado
+        run: |
+          f=$(find android/app/build/intermediates -name AndroidManifest.xml -path "*merged*" | head -1)
+          echo "manifest: $f"
+          grep -oE 'android:name="android.permission.[A-Z_]+"' "$f" | sort -u
+          # As 4 bloqueadas NÃO podem aparecer no manifest final
+          for p in RECORD_AUDIO ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION SYSTEM_ALERT_WINDOW; do
+            if grep -q "android.permission.$p\"" "$f"; then
+              echo "FALHA: permissão bloqueada $p presente no manifest final"; exit 1
+            fi
+          done
+          echo "nenhuma permissão indevida no manifest final"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: lumen_mobile/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # iOS — compila no simulador (sem assinatura, sem conta Apple)
+  # ---------------------------------------------------------------------------
+  ios:
+    name: iOS — prebuild + build simulator
+    runs-on: macos-14
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+          cache: npm
+          cache-dependency-path: lumen_mobile/package-lock.json
+
+      - run: npm ci
+
+      - name: Prebuild (gera ios/ nativo)
+        run: npx expo prebuild --platform ios --clean --no-install
+        env:
+          EXPO_PUBLIC_API_URL: https://backend-staging-staging-3d47.up.railway.app
+
+      - name: CocoaPods
+        run: pod install
+        working-directory: lumen_mobile/ios
+
+      - name: Conferir Info.plist (purpose strings obrigatórias)
+        run: |
+          plist=$(find ios -name "Info.plist" -path "*/Lumen*" | head -1)
+          echo "plist: $plist"
+          for k in NSCameraUsageDescription NSPhotoLibraryUsageDescription; do
+            /usr/libexec/PlistBuddy -c "Print :$k" "$plist" \
+              || { echo "FALTA $k — App Store rejeita"; exit 1; }
+          done
+
+      - name: Build (simulador, sem assinatura)
+        working-directory: lumen_mobile/ios
+        run: |
+          scheme=$(xcodebuild -list -json | python3 -c "import sys,json;print(json.load(sys.stdin)['workspace']['schemes'][0])")
+          echo "scheme: $scheme"
+          xcodebuild -workspace *.xcworkspace -scheme "$scheme" \
+            -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -30
