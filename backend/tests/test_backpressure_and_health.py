@@ -125,18 +125,20 @@ def test_pool_exhaustion_end_to_end_503_e_recuperacao():
 
     app.dependency_overrides[deps_get_db] = override
     app.dependency_overrides[session_get_db] = override
-    # Usamos /legal/latest de propósito: é uma rota que usa UMA sessão por
-    # request (dependency DBSession, sem CurrentUser), então o teste isola o
-    # backpressure de qualquer variação de nº de conexões por request.
+    # Usamos /auth/me: rota autenticada que SEMPRE toca o banco (consentimentos,
+    # memberships, convites). NÃO usar /legal/latest aqui — desde o cache de
+    # documento legal, ela é servida da memória e não pediria conexão, então o
+    # teste passaria a não exercitar o pool.
+    hdr = {"Authorization": "Bearer dev:pool-x:pool-x@synthetic.invalid"}
     try:
         with TestClient(app) as client:
-            # baseline: com a conexão livre, a rota funciona
-            assert client.get("/legal/latest").status_code == 200
+            # baseline: com a conexão livre, a rota funciona (provisiona o usuário)
+            assert client.get("/auth/me", headers=hdr).status_code == 200
 
             # SEGURA a única conexão do pool
             held = engine.connect()
             try:
-                r = client.get("/legal/latest")
+                r = client.get("/auth/me", headers=hdr)
                 # backpressure: 503 controlado (não 500), com Retry-After e código
                 assert r.status_code == 503, f"esperava 503, veio {r.status_code}"
                 assert r.headers.get("Retry-After") == "3"
@@ -147,7 +149,7 @@ def test_pool_exhaustion_end_to_end_503_e_recuperacao():
                 held.close()  # libera a conexão
 
             # RECUPERAÇÃO: com a conexão de volta, a próxima request funciona
-            assert client.get("/legal/latest").status_code == 200
+            assert client.get("/auth/me", headers=hdr).status_code == 200
             # liveness nunca dependeu do banco
             assert client.get("/health/live").status_code == 200
     finally:

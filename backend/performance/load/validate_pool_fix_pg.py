@@ -25,7 +25,6 @@ import re
 import sys
 import threading
 import time
-import uuid
 
 # ---- alvo: exigir Postgres de staging, recusar producao --------------------
 _pub = os.environ.get("DATABASE_PUBLIC_URL", "")

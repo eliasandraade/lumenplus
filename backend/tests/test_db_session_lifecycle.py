@@ -9,6 +9,8 @@ session.get_db, callables distintos). Depois, cria 1.
 
 from __future__ import annotations
 
+import os
+import tempfile
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -17,7 +19,6 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
 
 SQLiteTypeCompiler.visit_UUID = lambda self, type_, **kw: "TEXT"
@@ -38,12 +39,20 @@ def counting_client():
     Client com engine próprio e um override de get_db que CONTA sessões criadas
     e rastreia checkouts/checkins do pool. Expõe os contadores para asserção.
     """
-    # StaticPool: uma única conexão in-memory compartilhada entre as threads do
-    # threadpool (rotas `def`). Sem isso, cada thread veria um banco vazio.
+    # Banco em ARQUIVO temporário (não in-memory/StaticPool).
+    #
+    # Motivo: `get_current_user` é `def`, então o FastAPI a executa no
+    # threadpool — várias threads atendem requests concorrentes. Com StaticPool
+    # todas compartilhariam UMA conexão sqlite3, e o uso concorrente dessa mesma
+    # conexão levanta `sqlite3.InterfaceError: bad parameter or other API misuse`.
+    # Com arquivo, cada thread pega a própria conexão do pool e todas enxergam
+    # os mesmos dados — que é o comportamento real (PostgreSQL + pool).
+    fd = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    fd.close()
+    db_path = fd.name
     engine = create_engine(
-        "sqlite://",
+        f"sqlite:///{db_path}",
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
     )
     Base.metadata.create_all(bind=engine)
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -92,6 +101,10 @@ def counting_client():
 
     app.dependency_overrides.clear()
     engine.dispose()
+    try:
+        os.unlink(db_path)
+    except OSError:
+        pass
 
 
 def _reset(state):
