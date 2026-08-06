@@ -55,8 +55,13 @@ const LUMEN_RELEASE_CONFIG = `
 // Groovy avaliado na configuração do buildType. Exige a variável E o arquivo:
 // um path apontando para keystore inexistente cairia num signingConfig sem
 // storeFile, e o gradle falharia tarde, no meio do empacotamento.
+//
+// ATENÇÃO à sintaxe: `signingConfig (cond) ? a : b` NÃO funciona. O Groovy lê
+// isso como a chamada `signingConfig(cond)` e só depois aplica o ternário ao
+// retorno — resultado: `Boolean cannot be cast to SigningConfig`. A forma com
+// `=` é atribuição de propriedade e não tem essa ambiguidade.
 const RELEASE_SELECTOR =
-  'signingConfig (System.getenv("LUMEN_ANDROID_KEYSTORE_PATH") && ' +
+  'signingConfig = (System.getenv("LUMEN_ANDROID_KEYSTORE_PATH") && ' +
   'file(System.getenv("LUMEN_ANDROID_KEYSTORE_PATH")).exists()) ' +
   '? signingConfigs.lumenRelease : signingConfigs.debug';
 
