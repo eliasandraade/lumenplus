@@ -1,5 +1,77 @@
 # Validação de build nativo — evidência
 
+## ATUALIZAÇÃO — build **release** em Expo SDK 54
+
+O registro abaixo (build *debug* em SDK 52) continua válido como histórico. O
+estado atual é outro:
+
+```
+BUILD SUCCESSFUL in 15m 26s
+575 actionable tasks: 551 executed, 24 up-to-date
+app-release.apk   90.3 MB
+app-release.aab   57.6 MB
+commit 06d0a33 · branch mobile/upgrade-expo-store-toolchain
+```
+
+### Evidência lida do ARTEFATO, não da configuração
+
+| Verificação | APK (`aapt2 dump badging`) | AAB (`bundletool dump manifest`) |
+|---|---|---|
+| `targetSdkVersion` | **36** | **36** |
+| `minSdkVersion` | 24 | 24 |
+| `compileSdkVersion` | 36 | 36 |
+| `allowBackup` | — | **false** |
+| `debuggable` | ausente | ausente |
+| `testOnly` | ausente | ausente |
+| `package` | `com.lumenchristi.lumenplus` | idem |
+
+`targetSdkVersion=36` fecha o prazo do Google Play de 31/08/2026, e está
+provado nos **dois** artefatos com as duas ferramentas oficiais —
+`gradle.properties` não conta como evidência, porque plugins e o manifest
+merger podem sobrescrever o valor efetivo.
+
+### Permissões no artefato
+
+`CAMERA · INTERNET · READ_EXTERNAL_STORAGE · READ_MEDIA_IMAGES · VIBRATE ·
+WRITE_EXTERNAL_STORAGE · USE_BIOMETRIC · USE_FINGERPRINT`
+
+Nenhuma das bloqueadas (`RECORD_AUDIO`, `ACCESS_*_LOCATION`,
+`SYSTEM_ALERT_WINDOW`) aparece.
+
+**Achado desta auditoria:** o AAB trazia também
+`com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE`,
+rastreada pelo `manifest-merger-report` até `com.android.installreferrer:2.2`
+← `expo-application` ← `expo-auth-session`. Install Referrer **é** mecanismo
+de atribuição e contradizia a declaração de privacidade. Como
+`expo-auth-session` e `expo-web-browser` tinham **zero uso** (a autenticação é
+só e-mail/senha, sem OAuth), ambos foram removidos.
+
+### Quatro falhas de build atravessadas até aqui
+
+1. **NDK 27.1.12297006 corrompido** — RN 0.81 o exige; a cópia instalada
+   falhava com `ZipException: Archive is not a ZIP archive`. Reinstalado.
+2. **`babel-preset-expo` não declarado** — vinha transitivo e *hoisted* no SDK
+   52; no 54 o layout mudou e o bundle release quebrava. Não aparecia em `tsc`
+   nem em `eslint` — só o bundler exercita esse caminho.
+3. **Disco cheio** — a falha se manifestou como erro de Gradle, não como falta
+   de espaço.
+4. **Bug de Groovy no plugin de assinatura** — `signingConfig (cond) ? a : b`
+   é lido pelo Groovy como a *chamada* `signingConfig(cond)`, produzindo
+   `Boolean cannot be cast to SigningConfig`. Só um build real revela: o
+   prebuild gera o arquivo sem avaliar o Groovy.
+
+### Assinatura
+
+`apksigner verify --print-certs` no APK: `CN=Android Debug, OU=Android,
+O=Unknown`. **Esperado** — sem as quatro variáveis de ambiente o plugin cai no
+fallback de debug, por projeto. O artefato serve para validação e teste e
+**não serve para submissão**. Ver
+[`android-release-signing.md`](android-release-signing.md).
+
+---
+
+# Registro anterior — build debug em SDK 52
+
 **Data:** 2026-08-06.
 
 ## Resultado: o app **COMPILA** como binário nativo Android
