@@ -47,7 +47,8 @@
           "photosPermission": "O Lumen+ precisa acessar suas fotos para você definir a foto do seu perfil e enviar o comprovante de pagamento da inscrição em retiros.",
           "cameraPermission": "O Lumen+ usa a câmera para você tirar a foto do seu perfil ou fotografar o comprovante de pagamento da inscrição em retiros."
         }
-      ]
+      ],
+      "expo-build-properties"
     ],
     "experiments": {
       "typedRoutes": true
