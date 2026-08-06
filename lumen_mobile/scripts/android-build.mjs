@@ -74,8 +74,13 @@ if (hostile) {
     // do projeto tem espaco, entao citamos explicitamente.
     const r = spawnSync(
       'robocopy',
+      // /XD com nome simples excluiria QUALQUER pasta com esse nome, inclusive
+      // node_modules/@expo/config-plugins/build/ios — o que quebra o prebuild.
+      // Por isso excluimos pelo CAMINHO COMPLETO da raiz do projeto.
       [`"${PROJECT}"`, `"${buildDir}"`, '/E', '/MT:16', '/NFL', '/NDL', '/NP',
-       '/XD', '.git', '.expo', 'android', 'ios'],
+       '/XD', `"${join(PROJECT, '.git')}"`, `"${join(PROJECT, '.expo')}"`,
+       `"${join(PROJECT, 'android')}"`, `"${join(PROJECT, 'ios')}"`,
+       `"${join(PROJECT, 'build-artifacts')}"`],
       { stdio: 'inherit', shell: true }
     );
     if ((r.status ?? 0) >= 8) {
@@ -83,8 +88,10 @@ if (hostile) {
       process.exit(1);
     }
   } else {
-    run('rsync', ['-a', '--delete', '--exclude=.git', '--exclude=.expo',
-                  '--exclude=android', '--exclude=ios', `${PROJECT}/`, `${buildDir}/`]);
+    // barra inicial = ancora na raiz (nao afeta pastas homonimas em node_modules)
+    run('rsync', ['-a', '--delete', '--exclude=/.git', '--exclude=/.expo',
+                  '--exclude=/android', '--exclude=/ios', '--exclude=/build-artifacts',
+                  `${PROJECT}/`, `${buildDir}/`]);
   }
 } else {
   console.log(`Caminho limpo — compilando no próprio projeto:\n  ${PROJECT}\n`);
@@ -99,7 +106,8 @@ run('npx', ['expo', 'prebuild', '--platform', 'android', '--clean', '--no-instal
 const androidDir = join(buildDir, 'android');
 const tasks = RELEASE ? ['assembleRelease', 'bundleRelease'] : ['assembleDebug'];
 console.log(`\n== gradle ${tasks.join(' ')} ==`);
-run(IS_WIN ? 'gradlew.bat' : './gradlew', [...tasks, '--no-daemon'], androidDir);
+const gradlew = join(androidDir, IS_WIN ? 'gradlew.bat' : 'gradlew');
+run(gradlew, [...tasks, '--no-daemon'], androidDir);
 
 // ---------------------------------------------------------------------------
 // 3. Coleta os artefatos
