@@ -377,6 +377,7 @@ def block_user(body: BlockRequest, current_user: CurrentUser, db: DBSession) -> 
 @router.delete(
     "/blocks/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
     response_class=Response,
 )
 def unblock_user(user_id: UUID, current_user: CurrentUser, db: DBSession) -> None:
