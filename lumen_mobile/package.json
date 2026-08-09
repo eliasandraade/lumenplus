@@ -14,7 +14,9 @@
     "assets:generate": "node scripts/generate-assets.mjs",
     "assets:check": "node scripts/check-assets.mjs",
     "android:build": "node scripts/android-build.mjs",
-    "android:release": "node scripts/android-build.mjs --release"
+    "android:release": "node scripts/android-build.mjs --release",
+    "signing:check": "node scripts/validate-signing.mjs",
+    "android:release:local": "node scripts/android-build.mjs --release"
   },
   "dependencies": {
     "@expo-google-fonts/nunito": "^0.4.2",

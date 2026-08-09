@@ -100,6 +100,25 @@ if (hostile) {
 // ---------------------------------------------------------------------------
 // 2. Prebuild + Gradle
 // ---------------------------------------------------------------------------
+// O portao fail-closed de plugins/withReleaseSigning.js recusa qualquer tarefa
+// de release sem perfil declarado. Este script produz artefato de TESTE LOCAL,
+// entao declara `releaseTest` — nunca `production`. Um store build de verdade
+// sai da esteira institucional, com as credenciais no ambiente, e nao daqui.
+if (RELEASE && !process.env.LUMEN_SIGNING_PROFILE) {
+  process.env.LUMEN_SIGNING_PROFILE = 'releaseTest';
+}
+if (RELEASE) {
+  console.log(`== perfil de assinatura: ${process.env.LUMEN_SIGNING_PROFILE} ==`);
+  if (process.env.LUMEN_SIGNING_PROFILE === 'production') {
+    // Deixa o plugin validar e abortar cedo, com mensagem legivel, em vez de
+    // descobrir a ausencia de credencial 15 minutos depois, no empacotamento.
+    const { validarPerfil } = await import('../plugins/withReleaseSigning.js').then(
+      (m) => m.default ?? m
+    );
+    validarPerfil(process.env);
+  }
+}
+
 console.log('== prebuild ==');
 run('npx', ['expo', 'prebuild', '--platform', 'android', '--clean', '--no-install'], buildDir);
 

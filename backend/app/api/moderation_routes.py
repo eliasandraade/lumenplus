@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -368,7 +368,17 @@ def block_user(body: BlockRequest, current_user: CurrentUser, db: DBSession) -> 
     return {"blocked": True, "already": False}
 
 
-@router.delete("/blocks/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+# response_class=Response é obrigatório aqui, não é estilo. No FastAPI 0.109
+# (a versão pinada em requirements.txt, que é a que vai para produção) a
+# anotação `-> None` ainda gera um campo de resposta, e o construtor da rota
+# aborta com "Status code 204 must not have a response body". Versões mais
+# novas tratam None como caso especial e não reclamam — por isso o erro só
+# aparecia no CI. Declarar a response_class resolve nas duas.
+@router.delete(
+    "/blocks/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 def unblock_user(user_id: UUID, current_user: CurrentUser, db: DBSession) -> None:
     """Desbloqueia. Idempotente — 204 mesmo se não havia bloqueio."""
     block = db.execute(

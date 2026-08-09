@@ -213,13 +213,40 @@ jobs:
       - name: Build (simulador, sem assinatura)
         working-directory: lumen_mobile/ios
         run: |
-          scheme=$(xcodebuild -list -json | python3 -c "import sys,json;print(json.load(sys.stdin)['workspace']['schemes'][0])")
-          echo "scheme: $scheme"
-          xcodebuild -workspace *.xcworkspace -scheme "$scheme" \
+          set -euo pipefail
+          # `xcodebuild -list -json` devolve a chave "workspace" OU "project",
+          # dependendo de haver .xcworkspace. Assumir "workspace" quebrava com
+          # KeyError antes mesmo de compilar. Aceitar as duas, e escolher o
+          # scheme do app (não os dos Pods, que também aparecem na lista).
+          scheme=$(xcodebuild -list -json | python3 -c '
+import sys, json
+d = json.load(sys.stdin)
+raiz = d.get("workspace") or d.get("project") or {}
+schemes = raiz.get("schemes") or []
+if not schemes:
+    sys.exit("Nenhum scheme retornado por xcodebuild -list -json")
+# Prefere o scheme homonimo do app; senao, o primeiro que nao seja de Pods.
+preferido = [s for s in schemes if s.lower() in ("lumenplus", "lumen", "lumenmobile")]
+if not preferido:
+    preferido = [s for s in schemes if not s.startswith("Pods")]
+print((preferido or schemes)[0])
+')
+          echo "scheme escolhido: $scheme"
+
+          # Se o pod install rodou, existe .xcworkspace e ele DEVE ser usado —
+          # compilar o .xcodeproj direto ignora as dependencias dos Pods.
+          if ls ./*.xcworkspace >/dev/null 2>&1; then
+            alvo=(-workspace "$(ls -d ./*.xcworkspace | head -1)")
+          else
+            alvo=(-project "$(ls -d ./*.xcodeproj | head -1)")
+          fi
+          echo "alvo: ${alvo[*]}"
+
+          xcodebuild "${alvo[@]}" -scheme "$scheme" \
             -configuration Debug -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO build | tail -30
+            CODE_SIGNING_ALLOWED=NO build | tail -40
 
       # Mesma disciplina do Android: a evidência é o BINÁRIO, não a config.
       # vtool lê o load command LC_BUILD_VERSION, que registra contra qual SDK

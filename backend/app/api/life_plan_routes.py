@@ -11,7 +11,7 @@ from datetime import date
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -364,7 +364,7 @@ def update_goal(goal_id: UUID, body: GoalUpdate, user: CurrentUser, db: DBSessio
     return goal
 
 
-@router.delete("/goals/{goal_id}", status_code=204)
+@router.delete("/goals/{goal_id}", status_code=204, response_class=Response)
 def delete_goal(goal_id: UUID, user: CurrentUser, db: DBSession) -> None:
     """Remove um objetivo e suas ações."""
     goal = db.execute(
@@ -424,7 +424,7 @@ def update_action(action_id: UUID, body: ActionUpdate, user: CurrentUser, db: DB
     return action
 
 
-@router.delete("/actions/{action_id}", status_code=204)
+@router.delete("/actions/{action_id}", status_code=204, response_class=Response)
 def delete_action(action_id: UUID, user: CurrentUser, db: DBSession) -> None:
     """Remove um meio concreto."""
     action = db.execute(
