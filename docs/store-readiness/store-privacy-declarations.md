@@ -160,3 +160,53 @@ eles é motivo de rejeição:
 3. **Alternativa a considerar:** se a coordenação preferir não declarar dado
    sensível, o caminho não é omitir da declaração — é **deixar de coletar** os
    campos. Omitir dado coletado é o que gera remoção do app.
+
+---
+
+## 6. Tabela de decisão para o Encarregado — campos sensíveis
+
+A decisão **não é "declarar ou não declarar"**. Enquanto o campo existir e for
+coletado, ele **tem** de ser declarado; omitir é o que derruba app publicado. A
+decisão legítima é entre **manter a coleta e declarar** ou **reduzir/remover a
+coleta**.
+
+Esta tabela existe para tornar essa escolha concreta, campo a campo.
+
+### Crença religiosa
+
+| Campo | Finalidade declarada | Obrigatório? | Pode ser opcional? | Pode ser menos granular? | Recomendação de engenharia |
+|---|---|---|---|---|---|
+| `vocational_reality_item_id` | direcionar conteúdo e convites por realidade vocacional | não verificado com a coordenação | **sim** | sim — faixas amplas em vez de item de catálogo | manter, tornar opcional |
+| `consecration_year` | histórico de consagração | não | **sim** | **sim** — o ano exato raramente é necessário; década basta | reduzir granularidade |
+| `has_vocational_accompaniment` | encaminhamento pastoral | não | sim | já é booleano | manter |
+| `realidade_atual` | segmentação de comunicação | não | sim | sim | manter, tornar opcional |
+| `despertar_encounter` | controle de participação em encontro | provável requisito operacional | não | já é booleano | manter |
+| `interested_in_ministry` | formação de equipes | não | sim | já é booleano | manter |
+| `life_state_item_id` | segmentação | não | sim | sim | manter, tornar opcional |
+| `projetos_vida_mensal.tema` / `.intencao` | texto livre espiritual do usuário | é o produto | não se aplica | não | manter — é conteúdo do próprio usuário |
+
+### Saúde
+
+| Campo | Finalidade declarada | Obrigatório? | Pode ser opcional? | Pode ser menos granular? | Recomendação de engenharia |
+|---|---|---|---|---|---|
+| `dietary_restriction` | refeições em retiros e encontros | **sim, quando há retiro** | sim fora de retiro | sim — categorias fechadas em vez de texto livre | **coletar no momento da inscrição no retiro, não no cadastro geral** |
+| `dietary_restriction_notes` | detalhe de alergia/restrição | só quando há restrição | sim | não — o detalhe é o ponto | manter atrelado ao campo acima |
+| `health_insurance` | emergência durante retiro | **sim, quando há retiro** | sim fora de retiro | já é booleano | mover para a inscrição do retiro |
+| `health_insurance_name` | acionar o plano em emergência | idem | sim | não | mover junto |
+
+### Documentos
+
+| Campo | Finalidade declarada | Obrigatório? | Pode ser opcional? | Pode ser menos granular? | Recomendação |
+|---|---|---|---|---|---|
+| `cpf_encrypted` / `cpf_hash` | identificação unívoca, requisito de inscrição | provável | não, se for chave de deduplicação | não | manter, já cifrado |
+| `rg_encrypted` | identificação em retiro | **questionável** — o CPF já identifica | **sim** | não | **avaliar remover**: dois documentos para a mesma finalidade é coleta excedente |
+
+### A recomendação de engenharia, em uma frase
+
+Mover **saúde** para o momento da inscrição no retiro e reavaliar o **RG**
+reduziria a superfície sensível sem perder função — e é a única mudança que
+altera o que precisa ser declarado. O restante é decisão pastoral, não técnica.
+
+> Nada disto foi implementado. São opções para o Encarregado e a coordenação
+> decidirem. **Enquanto os campos existirem como estão, as fichas das lojas
+> devem declará-los conforme a seção 2 e a seção 3 deste documento.**
