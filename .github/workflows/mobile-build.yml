@@ -218,19 +218,12 @@ jobs:
           # dependendo de haver .xcworkspace. Assumir "workspace" quebrava com
           # KeyError antes mesmo de compilar. Aceitar as duas, e escolher o
           # scheme do app (não os dos Pods, que também aparecem na lista).
-          scheme=$(xcodebuild -list -json | python3 -c '
-import sys, json
-d = json.load(sys.stdin)
-raiz = d.get("workspace") or d.get("project") or {}
-schemes = raiz.get("schemes") or []
-if not schemes:
-    sys.exit("Nenhum scheme retornado por xcodebuild -list -json")
-# Prefere o scheme homonimo do app; senao, o primeiro que nao seja de Pods.
-preferido = [s for s in schemes if s.lower() in ("lumenplus", "lumen", "lumenmobile")]
-if not preferido:
-    preferido = [s for s in schemes if not s.startswith("Pods")]
-print((preferido or schemes)[0])
-')
+          # Uma linha só, de propósito: Python multilinha dentro de um bloco
+          # `run: |` precisa ficar indentado junto com o YAML, e a primeira
+          # versão disto ficou na coluna 0 — quebrou o arquivo de workflow
+          # inteiro, e o GitHub recusou a run antes de executar qualquer passo.
+          scheme=$(xcodebuild -list -json | python3 -c "import sys,json;d=json.load(sys.stdin);r=d.get('workspace') or d.get('project') or {};s=[x for x in (r.get('schemes') or []) if not x.startswith('Pods')];print(s[0] if s else '')")
+          if [ -z "$scheme" ]; then echo "Nenhum scheme utilizavel em xcodebuild -list -json"; exit 1; fi
           echo "scheme escolhido: $scheme"
 
           # Se o pod install rodou, existe .xcworkspace e ele DEVE ser usado —
