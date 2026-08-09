@@ -27,6 +27,46 @@ const PROJECT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const RELEASE = process.argv.includes('--release');
 const IS_WIN = process.platform === 'win32';
 
+/**
+ * Escolhe um diretório de trabalho curto e sem espaços para o build nativo.
+ *
+ * Sem espaço porque é exatamente o que estamos contornando: o CMake/ninja do
+ * Android NDK falha quando o caminho tem espaço. Curto porque o Windows ainda
+ * tem limite prático de caminho, e os caminhos intermediários do Gradle são
+ * profundos.
+ *
+ * Ordem: variável de ambiente (escape do operador) → raiz do drive do
+ * projeto → tmpdir, se ele mesmo for utilizável.
+ */
+function resolveScratchDir() {
+  const candidatos = [];
+
+  if (IS_WIN) {
+    // Mesmo drive do projeto: evita cópia entre volumes e problema de
+    // permissão de escrita em raiz de outro disco.
+    const drive = resolve(PROJECT).slice(0, 2); // ex.: "C:"
+    candidatos.push(`${drive}\\lumen-build`);
+  }
+
+  const tmp = os.tmpdir();
+  if (!/\s/.test(tmp)) candidatos.push(join(tmp, 'lumen-build'));
+
+  for (const c of candidatos) {
+    try {
+      mkdirSync(c, { recursive: true });
+      return c;
+    } catch {
+      /* tenta o próximo */
+    }
+  }
+
+  console.error(
+    'Nao foi possivel criar um diretorio de build sem espaco no caminho.\n' +
+      'Defina LUMEN_BUILD_DIR apontando para um caminho curto e sem espacos.'
+  );
+  process.exit(1);
+}
+
 /** Caminho incompatível com CMake/ninja: espaço ou caracteres especiais. */
 function pathIsHostile(p) {
   return /[ +&()!,;=]/.test(p);
@@ -62,7 +102,15 @@ let buildDir = PROJECT;
 const hostile = pathIsHostile(PROJECT);
 
 if (hostile) {
-  buildDir = IS_WIN ? 'C:\\lumen-build' : join(os.tmpdir(), 'lumen-build');
+  // O scratch é DERIVADO, não fixo. A versão anterior escrevia 'C:\lumen-build'
+  // literalmente, o que só funcionava em máquina com disco C: gravável na raiz
+  // — um caminho de máquina específica versionado no repositório.
+  //
+  // A raiz precisa ser curta e sem espaço, porque é justamente disso que
+  // estamos fugindo: o CMake/ninja do NDK quebra com espaço no caminho. Por
+  // isso não dá para usar o tmpdir do Windows direto (ele fica sob
+  // C:\Users\<nome>\AppData\..., e o nome do usuário pode ter espaço).
+  buildDir = process.env.LUMEN_BUILD_DIR || resolveScratchDir();
   console.log(
     `\nAVISO: o caminho do projeto contém espaço/caractere especial:\n  ${PROJECT}\n` +
       `O CMake/ninja do Android NDK falha nesse caso. Espelhando para:\n  ${buildDir}\n`
