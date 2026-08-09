@@ -95,18 +95,38 @@ jobs:
         run: ./gradlew assembleDebug --no-daemon
         working-directory: lumen_mobile/android
 
-      - name: Permissões do manifest mesclado
+      # Gera o manifest de RELEASE sem compilar o app inteiro. Necessário
+      # porque o gate abaixo precisa avaliar o que é PUBLICADO.
+      - name: Gerar manifest de release
+        run: ./gradlew processReleaseMainManifest --no-daemon
+        working-directory: lumen_mobile/android
+        env:
+          # O portão fail-closed recusa tarefas de release sem perfil. Aqui é
+          # geração de manifest para auditoria, não artefato de loja.
+          LUMEN_SIGNING_PROFILE: releaseTest
+
+      - name: Permissões do manifest mesclado (RELEASE)
         run: |
-          f=$(find android/app/build/intermediates -name AndroidManifest.xml -path "*merged*" | head -1)
+          # ATENÇÃO: precisa ser o manifest de RELEASE, não o de debug.
+          # O React Native injeta SYSTEM_ALERT_WINDOW apenas na variante debug,
+          # para o overlay de desenvolvimento (red box). Rodar este gate contra
+          # o manifest de debug reprovava um build cujo artefato de release
+          # está correto — checagem no artefato errado, falha por construção.
+          f=$(find android/app/build/intermediates -name AndroidManifest.xml -path "*[Rr]elease*" | head -1)
+          if [ -z "$f" ]; then echo "manifest de release nao encontrado"; exit 1; fi
           echo "manifest: $f"
           grep -oE 'android:name="android.permission.[A-Z_]+"' "$f" | sort -u
-          # As 4 bloqueadas NÃO podem aparecer no manifest final
           for p in RECORD_AUDIO ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION SYSTEM_ALERT_WINDOW; do
             if grep -q "android.permission.$p\"" "$f"; then
-              echo "FALHA: permissão bloqueada $p presente no manifest final"; exit 1
+              echo "FALHA: permissão bloqueada $p presente no manifest de release"; exit 1
             fi
           done
-          echo "nenhuma permissão indevida no manifest final"
+          # Install Referrer é mecanismo de atribuição: contradiz a declaração
+          # de privacidade do app e já entrou uma vez, via expo-auth-session.
+          if grep -q "BIND_GET_INSTALL_REFERRER_SERVICE" "$f"; then
+            echo "FALHA: permissão de atribuição (Install Referrer) voltou ao manifest"; exit 1
+          fi
+          echo "nenhuma permissão indevida no manifest de release"
 
       # Prazo Google Play: apps novos precisam de target API 36 até 31/08/2026.
       # Lemos o APK EMPACOTADO com aapt2 — gradle.properties não é evidência,
