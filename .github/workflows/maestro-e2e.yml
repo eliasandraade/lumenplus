@@ -1,0 +1,117 @@
+name: E2E — Maestro (Android)
+
+# Os fluxos em lumen_mobile/.maestro/ cobrem os caminhos que a App Review
+# testa a mão: exclusão de conta (5.1.1(v)), denúncia e bloqueio (1.2).
+#
+# POR QUE EM CI E NÃO LOCAL: o Maestro não suporta Windows. A máquina de
+# desenvolvimento é Windows e não tem distro WSL instalada, então o único
+# ambiente compatível disponível é um runner Linux — que ainda por cima é onde
+# a verificação deve morar, para não depender da máquina de ninguém.
+#
+# Rodar emulador em CI é caro (~15-25 min), então isto NÃO dispara a cada push:
+# roda sob demanda e antes de release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      flow:
+        description: 'Fluxo específico (vazio = todos)'
+        required: false
+        default: ''
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  maestro:
+    name: Maestro no emulador Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: lumen_mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Instalar dependências
+        working-directory: lumen_mobile
+        run: npm ci
+
+      - name: Prebuild Android
+        working-directory: lumen_mobile
+        run: npx expo prebuild --platform android --clean --no-install
+
+      # Perfil explícito: artefato de TESTE. O portão fail-closed de
+      # withReleaseSigning recusaria uma tarefa de release sem perfil, e
+      # `production` aqui seria mentira — não há credencial institucional em CI.
+      - name: Build release de teste
+        working-directory: lumen_mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+        env:
+          LUMEN_SIGNING_PROFILE: releaseTest
+
+      - name: Instalar Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      # KVM é o que torna o emulador utilizável em runner; sem ele o boot
+      # demora tanto que o job estoura o timeout.
+      - name: Habilitar KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Emulador + Maestro
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: |
+            adb install -r lumen_mobile/android/app/build/outputs/apk/release/app-release.apk
+
+            # O app precisa ABRIR antes de qualquer fluxo. Um crash de
+            # inicialização (já aconteceu: Firebase Auth não registrava)
+            # faria todos os fluxos falharem com erro de seletor, escondendo
+            # a causa real. Este passo isola isso.
+            adb shell am start -W -n com.lumenchristi.lumenplus/.MainActivity
+            sleep 15
+            if ! adb shell pidof com.lumenchristi.lumenplus > /dev/null; then
+              echo "FALHA: o app nao sobreviveu ao lancamento."
+              adb logcat -d -t 300 | grep -iE "FATAL|AndroidRuntime|ReactNativeJS" | tail -40
+              exit 1
+            fi
+            echo "app abriu e permaneceu vivo"
+
+            cd lumen_mobile
+            if [ -n "${{ inputs.flow }}" ]; then
+              maestro test ".maestro/${{ inputs.flow }}"
+            else
+              maestro test .maestro/
+            fi
+
+      - name: Publicar evidência
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-resultados
+          path: |
+            ~/.maestro/tests/**
+            lumen_mobile/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
+          retention-days: 14
