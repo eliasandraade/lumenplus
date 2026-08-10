@@ -1,5 +1,77 @@
 # Validação de build nativo — evidência
 
+## ATUALIZAÇÃO — build **release** em Expo SDK 54
+
+O registro abaixo (build *debug* em SDK 52) continua válido como histórico. O
+estado atual é outro:
+
+```
+BUILD SUCCESSFUL in 15m 26s
+575 actionable tasks: 551 executed, 24 up-to-date
+app-release.apk   90.3 MB
+app-release.aab   57.6 MB
+commit 06d0a33 · branch mobile/upgrade-expo-store-toolchain
+```
+
+### Evidência lida do ARTEFATO, não da configuração
+
+| Verificação | APK (`aapt2 dump badging`) | AAB (`bundletool dump manifest`) |
+|---|---|---|
+| `targetSdkVersion` | **36** | **36** |
+| `minSdkVersion` | 24 | 24 |
+| `compileSdkVersion` | 36 | 36 |
+| `allowBackup` | — | **false** |
+| `debuggable` | ausente | ausente |
+| `testOnly` | ausente | ausente |
+| `package` | `com.lumenchristi.lumenplus` | idem |
+
+`targetSdkVersion=36` fecha o prazo do Google Play de 31/08/2026, e está
+provado nos **dois** artefatos com as duas ferramentas oficiais —
+`gradle.properties` não conta como evidência, porque plugins e o manifest
+merger podem sobrescrever o valor efetivo.
+
+### Permissões no artefato
+
+`CAMERA · INTERNET · READ_EXTERNAL_STORAGE · READ_MEDIA_IMAGES · VIBRATE ·
+WRITE_EXTERNAL_STORAGE · USE_BIOMETRIC · USE_FINGERPRINT`
+
+Nenhuma das bloqueadas (`RECORD_AUDIO`, `ACCESS_*_LOCATION`,
+`SYSTEM_ALERT_WINDOW`) aparece.
+
+**Achado desta auditoria:** o AAB trazia também
+`com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE`,
+rastreada pelo `manifest-merger-report` até `com.android.installreferrer:2.2`
+← `expo-application` ← `expo-auth-session`. Install Referrer **é** mecanismo
+de atribuição e contradizia a declaração de privacidade. Como
+`expo-auth-session` e `expo-web-browser` tinham **zero uso** (a autenticação é
+só e-mail/senha, sem OAuth), ambos foram removidos.
+
+### Quatro falhas de build atravessadas até aqui
+
+1. **NDK 27.1.12297006 corrompido** — RN 0.81 o exige; a cópia instalada
+   falhava com `ZipException: Archive is not a ZIP archive`. Reinstalado.
+2. **`babel-preset-expo` não declarado** — vinha transitivo e *hoisted* no SDK
+   52; no 54 o layout mudou e o bundle release quebrava. Não aparecia em `tsc`
+   nem em `eslint` — só o bundler exercita esse caminho.
+3. **Disco cheio** — a falha se manifestou como erro de Gradle, não como falta
+   de espaço.
+4. **Bug de Groovy no plugin de assinatura** — `signingConfig (cond) ? a : b`
+   é lido pelo Groovy como a *chamada* `signingConfig(cond)`, produzindo
+   `Boolean cannot be cast to SigningConfig`. Só um build real revela: o
+   prebuild gera o arquivo sem avaliar o Groovy.
+
+### Assinatura
+
+`apksigner verify --print-certs` no APK: `CN=Android Debug, OU=Android,
+O=Unknown`. **Esperado** — sem as quatro variáveis de ambiente o plugin cai no
+fallback de debug, por projeto. O artefato serve para validação e teste e
+**não serve para submissão**. Ver
+[`android-release-signing.md`](android-release-signing.md).
+
+---
+
+# Registro anterior — build debug em SDK 52
+
 **Data:** 2026-08-06.
 
 ## Resultado: o app **COMPILA** como binário nativo Android
@@ -95,3 +167,50 @@ Mesmo código, mesma máquina, mesma toolchain — só o caminho mudou.
   `Info.plist` → `xcodebuild` para simulador sem assinatura.
 
 Node pinado em `22.19.0`, `npm ci` determinístico.
+
+
+---
+
+# ANDROID RELEASE — AAB DE PRODUÇÃO GERADO (2026-08-06)
+
+```
+BUILD SUCCESSFUL in 30m 6s   —   891 tasks executed
+app-release.aab   56 MB   <- artefato de submissão do Google Play
+app-release.apk   81 MB   <- instalável para teste
+```
+
+Gerado por `npm run android:release`, que detecta o caminho hostil do Windows,
+espelha para um diretório limpo, roda prebuild + `assembleRelease bundleRelease`
+e coleta os artefatos em `build-artifacts/` (ignorado pelo git).
+
+## Manifest RELEASE mesclado — auditado
+
+| Item | Valor | Status |
+|---|---|---|
+| `package` | `com.lumenchristi.lumenplus` | ✅ |
+| `versionName` / `versionCode` | `1.0.0` / `1` | ✅ |
+| **`targetSdkVersion`** | **36** | ✅ **atende a exigência do Google Play de 31/08/2026** |
+| `android:debuggable` | ausente | ✅ |
+
+### Permissões finais no APK/AAB de release
+
+| Permissão | Origem | Avaliação |
+|---|---|---|
+| `CAMERA`, `READ_MEDIA_IMAGES` | expo-image-picker | ✅ usadas (foto de perfil, comprovante) |
+| `READ/WRITE_EXTERNAL_STORAGE` | compat Android antigo | ✅ esperada |
+| `INTERNET`, `VIBRATE` | base | ✅ |
+| `USE_BIOMETRIC`, `USE_FINGERPRINT` | expo-secure-store | ⚠️ transitivas — avaliar remoção |
+| `RECORD_AUDIO` | — | ✅ **removida** |
+| `ACCESS_FINE/COARSE_LOCATION` | — | ✅ **removidas** |
+| `SYSTEM_ALERT_WINDOW` | dev menu do RN | ✅ **some em release** (confirmado; em debug aparecia) |
+
+## Reclassificação
+
+Android sai de *"compilação debug comprovada"* para
+**"AAB de produção gerado e manifest auditado"**.
+
+**Ainda NÃO comprovado:** o AAB está assinado com a chave de **debug** do Gradle
+(não há keystore de release) — serve para validação e teste, **não** para
+submissão. A assinatura final virá do **Play App Signing** ou de um keystore
+fornecido pelo operador. Nada foi instalado nem executado: `adb`/emulador não
+existem neste ambiente.

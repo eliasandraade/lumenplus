@@ -1,5 +1,31 @@
 # Inventário de SDKs de Terceiros — Lumen+
 
+> ## ⚠️ ATUALIZAÇÃO — este documento foi parcialmente superado
+>
+> Levantado quando o app estava em **Expo SDK 52** e a pasta nativa ainda era
+> um scaffold Flutter. Desde então, na branch
+> `mobile/upgrade-expo-store-toolchain` (PR #34):
+>
+> | O que o texto abaixo diz | Situação atual |
+> |---|---|
+> | Expo SDK 52.0.48 / RN 0.76.9 / expo-router 4.x | **Expo 54.0.36 / RN 0.81.5 / React 19.1.0 / expo-router 6.0.24** |
+> | `ios/` e `android/` são scaffold Flutter | **superado** — scaffold removido; `expo prebuild` gera os projetos |
+> | "Não existe `PrivacyInfo.xcprivacy` em lugar algum" | **superado** — declarado via `ios.privacyManifests` (4 categorias de Required Reason API) |
+> | `applicationId = com.example.lumen_mobile` | **superado** — `com.lumenchristi.lumenplus`, confirmado por `aapt2` no APK |
+> | `@vercel/analytics` presente (stub no-op) | **REMOVIDO do `package.json`**, junto com os dois componentes stub |
+>
+> Versões resolvidas hoje: `firebase 10.14.1` · `@sentry/react 10.69.0` ·
+> `expo-image-picker 17.0.11` · `async-storage 2.2.0` · `expo-secure-store 15.0.8` ·
+> `expo-file-system 19.0.23` · `react-native-reanimated 4.1.7` (+ `react-native-worklets 0.5.1`).
+>
+> **O que continua válido:** a conclusão central — a superfície de terceiros é
+> pequena e **não há nenhum SDK de publicidade, atribuição ou tracking**. Os
+> únicos que enviam dados para fora seguem sendo Firebase Auth e Sentry
+> (condicional, sem PII). Com a remoção do `@vercel/analytics`, a superfície
+> ficou **menor** do que a descrita abaixo.
+>
+> O texto original é preservado como registro da auditoria de 2026-08-06.
+
 > **Escopo**: SDKs declarados em `lumen_mobile/package.json` e `backend/requirements.txt`, com uso real verificado por leitura do código.
 > **Data da auditoria**: 2026-08-06
 > **Branch**: `main` (commit `7db785d`)

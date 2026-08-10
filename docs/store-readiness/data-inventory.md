@@ -1,5 +1,18 @@
 # Inventário de Dados Pessoais — Lumen+
 
+> ## ⚠️ ATUALIZAÇÃO — pontos superados
+>
+> Documento levantado com o app em **Expo SDK 52**. Desde então, na branch
+> `mobile/upgrade-expo-store-toolchain` (PR #34): **Expo 54.0.36 / React Native
+> 0.81.5 / React 19.1.0 / expo-router 6.0.24**.
+>
+> Também superado neste documento:
+>
+> - `@vercel/analytics` — **removido** do `package.json` e os componentes stub apagados. A linha que o descreve como "INATIVO — stub no-op" continua correta quanto ao comportamento; a dependência não existe mais.
+> - **Exclusão de conta:** auditoria posterior encontrou dado pessoal sobrevivendo à exclusão — telefone (`phone_verifications.phone_e164`), e-mail (`email_verifications.email`), push, plano de vida e UGC. Corrigido; matriz completa em [`account-deletion-data-map.md`](account-deletion-data-map.md).
+>
+> O texto original e preservado como registro da auditoria de 2026-08-06.
+
 > **Escopo**: inventário REAL, derivado da leitura do código-fonte em `backend/` e `lumen_mobile/`.
 > **Data da auditoria**: 2026-08-06
 > **Branch**: `main` (commit `7db785d`)

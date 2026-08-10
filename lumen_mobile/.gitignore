@@ -16,3 +16,6 @@ expo-env.d.ts
 #  assinado com chave de debug — que faria o EAS Build tratar isto como bare workflow.)
 /android
 /ios
+
+# artefatos de build local (APK/AAB) — nunca versionar
+/build-artifacts

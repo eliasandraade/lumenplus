@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -19,6 +20,12 @@ import {
   channelService,
 } from '@/services/channel';
 import { authService } from '@/services';
+import moderationService, {
+  REPORT_REASONS,
+  type ReportReason,
+  type ReportTargetType,
+} from '@/services/moderation';
+import { showAlert, showConfirm } from '@/utils/alerts';
 import { useTheme } from '@/theme';
 import { radius } from '@/theme/tokens';
 import {
@@ -43,6 +50,57 @@ export default function ChannelScreen() {
   const { unitId } = useLocalSearchParams<{ unitId: string }>();
   const { t } = useTheme();
   const [currentUserId, setCurrentUserId] = useState('');
+
+  // --- Moderacao de UGC (denuncia/bloqueio) ---
+  const [reportTarget, setReportTarget] = useState<
+    { type: ReportTargetType; id: string } | null
+  >(null);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  // incrementa para forçar recarga da lista após bloquear
+  const [reloadToken, setReloadToken] = useState(0);
+
+  const openReport = useCallback((type: ReportTargetType, id: string) => {
+    setReportTarget({ type, id });
+  }, []);
+
+  const submitReport = useCallback(
+    async (reason: ReportReason) => {
+      if (!reportTarget || reportSubmitting) return;
+      setReportSubmitting(true);
+      try {
+        await moderationService.report(reportTarget.type, reportTarget.id, reason);
+        setReportTarget(null);
+        showAlert(
+          'Denúncia enviada',
+          'Obrigado. Um coordenador vai analisar. Você também pode bloquear este usuário se preferir não ver mais o conteúdo dele.'
+        );
+      } catch {
+        showAlert('Não foi possível denunciar', 'Tente novamente em instantes.');
+      } finally {
+        setReportSubmitting(false);
+      }
+    },
+    [reportTarget, reportSubmitting]
+  );
+
+  const confirmBlock = useCallback(async (userId: string, name?: string | null) => {
+    const ok = await showConfirm({
+      title: 'Bloquear usuário',
+      message:
+        `Você não verá mais publicações e respostas de ${name || 'este usuário'}, ` +
+        'e ele também não verá as suas. Você pode desfazer em Perfil › Usuários bloqueados.',
+      confirmText: 'Bloquear',
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await moderationService.block(userId);
+      showAlert('Usuário bloqueado', 'O conteúdo dele não aparece mais para você.');
+      setReloadToken((n) => n + 1);
+    } catch {
+      showAlert('Não foi possível bloquear', 'Tente novamente em instantes.');
+    }
+  }, []);
 
   const [screen, setScreen] = useState<Screen>('list');
   const [posts, setPosts] = useState<ChannelPost[]>([]);
@@ -85,7 +143,8 @@ export default function ChannelScreen() {
     }
   }, [unitId]);
 
-  useEffect(() => { loadList(); }, [loadList]);
+  // reloadToken força recarga após bloquear um usuário (o feed muda)
+  useEffect(() => { loadList(); }, [loadList, reloadToken]);
 
   useEffect(() => {
     authService.getMe()
@@ -462,7 +521,10 @@ export default function ChannelScreen() {
                   t={t}
                 />
                 <View>
-                  <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 14, color: t.text.primary }}>
+                  <Text
+                    testID="post-author-name"
+                    style={{ fontFamily: 'Nunito-SemiBold', fontSize: 14, color: t.text.primary }}
+                  >
                     {selectedPost.author_name}
                   </Text>
                   <Text style={{ fontFamily: 'Nunito-Regular', fontSize: 12, color: t.text.tertiary }}>
@@ -480,6 +542,45 @@ export default function ChannelScreen() {
               }}>
                 {selectedPost.body}
               </Text>
+
+              {/* Denunciar / Bloquear — exigido pelas lojas para conteudo de usuario.
+                  So aparece para quem NAO e o autor do post. */}
+              {!isAuthorPost && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                  <Pressable
+                    testID="post-report"
+                    onPress={() => openReport('POST', selectedPost.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Denunciar esta publicacao"
+                    style={{
+                      paddingHorizontal: 14, paddingVertical: 7, minHeight: 34,
+                      justifyContent: 'center',
+                      backgroundColor: t.bg.surface, borderRadius: radius.full,
+                      borderWidth: 1, borderColor: t.border.subtle,
+                    }}
+                  >
+                    <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 12, color: t.text.secondary }}>
+                      Denunciar
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    testID="post-block-author"
+                    onPress={() => confirmBlock(selectedPost.author_user_id, selectedPost.author_name)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Bloquear ${selectedPost.author_name ?? 'este usuario'}`}
+                    style={{
+                      paddingHorizontal: 14, paddingVertical: 7, minHeight: 34,
+                      justifyContent: 'center',
+                      backgroundColor: t.bg.surface, borderRadius: radius.full,
+                      borderWidth: 1, borderColor: t.border.subtle,
+                    }}
+                  >
+                    <Text style={{ fontFamily: 'Nunito-SemiBold', fontSize: 12, color: t.text.secondary }}>
+                      Bloquear autor
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
 
               {(canEditPost || (settings?.can_moderate ?? false)) && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
@@ -703,6 +804,68 @@ export default function ChannelScreen() {
           </Text>
         </Pressable>
       )}
+
+      {/* Modal de denúncia — motivos exigidos pelas políticas de UGC */}
+      <Modal
+        visible={reportTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReportTarget(null)}
+      >
+        <Pressable
+          onPress={() => setReportTarget(null)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: t.bg.elevated,
+              borderTopLeftRadius: 18, borderTopRightRadius: 18,
+              padding: 20, paddingBottom: 34, gap: 6,
+            }}
+          >
+            <Text
+              accessibilityRole="header"
+              style={{ fontFamily: 'Nunito-Bold', fontSize: 18, color: t.text.primary, marginBottom: 2 }}
+            >
+              Denunciar conteúdo
+            </Text>
+            <Text style={{ fontFamily: 'Nunito-Regular', fontSize: 14, color: t.text.secondary, marginBottom: 10 }}>
+              Escolha o motivo. Um coordenador da unidade vai analisar.
+            </Text>
+            {REPORT_REASONS.map((r) => (
+              <Pressable
+                key={r.value}
+                onPress={() => submitReport(r.value)}
+                disabled={reportSubmitting}
+                accessibilityRole="button"
+                accessibilityLabel={`Denunciar por ${r.label}`}
+                style={{
+                  paddingVertical: 13, paddingHorizontal: 4, minHeight: 46,
+                  justifyContent: 'center',
+                  borderBottomWidth: 1, borderBottomColor: t.border.subtle,
+                  opacity: reportSubmitting ? 0.5 : 1,
+                }}
+              >
+                <Text style={{ fontFamily: 'Nunito-Regular', fontSize: 15, color: t.text.primary }}>
+                  {r.label}
+                </Text>
+              </Pressable>
+            ))}
+            <Pressable
+              onPress={() => setReportTarget(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Cancelar denúncia"
+              style={{ paddingVertical: 14, alignItems: 'center', minHeight: 48, justifyContent: 'center' }}
+            >
+              <Text style={{ fontFamily: 'Nunito-Bold', fontSize: 15, color: t.text.secondary }}>
+                Cancelar
+              </Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
     </View>
   );
 }

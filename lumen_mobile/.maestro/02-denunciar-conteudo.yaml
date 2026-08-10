@@ -1,0 +1,41 @@
+# App Store Review Guideline 1.2 — denúncia de conteúdo censurável.
+#
+# Uma das quatro salvaguardas obrigatórias para apps com UGC. O revisor abre
+# um post de outro membro e procura como denunciá-lo.
+#
+# Pré-condição: usuário de teste autenticado, membro de uma unidade com pelo
+# menos um post de OUTRO autor (a ação não aparece nos posts do próprio
+# usuário — denunciar o próprio conteúdo não faz sentido).
+appId: com.lumenchristi.lumenplus
+---
+- launchApp:
+    clearState: false
+
+- tapOn: "Canais"
+- tapOn:
+    index: 0
+    text: ".*"
+
+# Abre o post de outro autor.
+- tapOn:
+    index: 0
+    text: ".*"
+
+- assertVisible:
+    id: "post-report"
+
+- tapOn:
+    id: "post-report"
+
+# O motivo é obrigatório: denúncia sem categoria não é acionável pela
+# moderação e não satisfaz a diretriz.
+- assertVisible: "Denunciar conteúdo"
+- tapOn: "Discurso de ódio"
+
+- tapOn: "Enviar denúncia"
+
+# Confirmação visível ao usuário — sem retorno, o revisor não tem como saber
+# que a denúncia foi registrada.
+- extendedWaitUntil:
+    visible: ".*[Dd]enúncia.*"
+    timeout: 10000

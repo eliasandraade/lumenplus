@@ -95,18 +95,67 @@ jobs:
         run: ./gradlew assembleDebug --no-daemon
         working-directory: lumen_mobile/android
 
-      - name: Permissões do manifest mesclado
+      # Gera o manifest de RELEASE sem compilar o app inteiro. Necessário
+      # porque o gate abaixo precisa avaliar o que é PUBLICADO.
+      - name: Gerar manifest de release
+        run: ./gradlew processReleaseMainManifest --no-daemon
+        working-directory: lumen_mobile/android
+        env:
+          # O portão fail-closed recusa tarefas de release sem perfil. Aqui é
+          # geração de manifest para auditoria, não artefato de loja.
+          LUMEN_SIGNING_PROFILE: releaseTest
+
+      - name: Permissões do manifest mesclado (RELEASE)
         run: |
-          f=$(find android/app/build/intermediates -name AndroidManifest.xml -path "*merged*" | head -1)
+          # ATENÇÃO: precisa ser o manifest de RELEASE, não o de debug.
+          # O React Native injeta SYSTEM_ALERT_WINDOW apenas na variante debug,
+          # para o overlay de desenvolvimento (red box). Rodar este gate contra
+          # o manifest de debug reprovava um build cujo artefato de release
+          # está correto — checagem no artefato errado, falha por construção.
+          f=$(find android/app/build/intermediates -name AndroidManifest.xml -path "*[Rr]elease*" | head -1)
+          if [ -z "$f" ]; then echo "manifest de release nao encontrado"; exit 1; fi
           echo "manifest: $f"
           grep -oE 'android:name="android.permission.[A-Z_]+"' "$f" | sort -u
-          # As 4 bloqueadas NÃO podem aparecer no manifest final
           for p in RECORD_AUDIO ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION SYSTEM_ALERT_WINDOW; do
             if grep -q "android.permission.$p\"" "$f"; then
-              echo "FALHA: permissão bloqueada $p presente no manifest final"; exit 1
+              echo "FALHA: permissão bloqueada $p presente no manifest de release"; exit 1
             fi
           done
-          echo "nenhuma permissão indevida no manifest final"
+          # Install Referrer é mecanismo de atribuição: contradiz a declaração
+          # de privacidade do app e já entrou uma vez, via expo-auth-session.
+          if grep -q "BIND_GET_INSTALL_REFERRER_SERVICE" "$f"; then
+            echo "FALHA: permissão de atribuição (Install Referrer) voltou ao manifest"; exit 1
+          fi
+          echo "nenhuma permissão indevida no manifest de release"
+
+      # Prazo Google Play: apps novos precisam de target API 36 até 31/08/2026.
+      # Lemos o APK EMPACOTADO com aapt2 — gradle.properties não é evidência,
+      # porque plugins e o manifest merger podem sobrescrever o valor efetivo.
+      - name: Provar target API 36 no APK empacotado
+        run: |
+          aapt2=$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -1)
+          apk=$(find android/app/build/outputs/apk/debug -name "*.apk" | head -1)
+          echo "aapt2: $aapt2"
+          echo "apk:   $apk"
+          badging=$("$aapt2" dump badging "$apk")
+          echo "$badging" | grep -E "^package:|SdkVersion"
+          echo "$badging" | grep -q "targetSdkVersion:'36'" \
+            || { echo "FALHA: target API efetivo != 36 (Google Play rejeita)"; exit 1; }
+          echo "$badging" | grep -q "package: name='com.lumenchristi.lumenplus'" \
+            || { echo "FALHA: applicationId inesperado no artefato"; exit 1; }
+          echo "OK: targetSdkVersion=36 confirmado no artefato"
+
+      # allowBackup=true exportaria token de sessão e dados pessoais via
+      # `adb backup` (o expo-secure-store só protege sharedpref/SecureStore;
+      # o AsyncStorage ficaria de fora). Debug APK não carrega a flag de
+      # release, então checamos o manifest mesclado.
+      - name: Conferir allowBackup desligado
+        run: |
+          f=$(find android/app/build/intermediates -name AndroidManifest.xml -path "*merged*" | head -1)
+          if grep -q 'android:allowBackup="true"' "$f"; then
+            echo "FALHA: allowBackup=true — dados pessoais sairiam via adb backup"; exit 1
+          fi
+          echo "OK: allowBackup não está habilitado"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -119,8 +168,11 @@ jobs:
   # iOS — compila no simulador (sem assinatura, sem conta Apple)
   # ---------------------------------------------------------------------------
   ios:
-    name: iOS — prebuild + build simulator
-    runs-on: macos-14
+    name: iOS — Xcode 26 + build simulator
+    # macos-26 (Tahoe) — GA no GitHub Actions desde 26/02/2026, traz Xcode 26.x
+    # por padrão. macos-14/15 entregam Xcode 15/16 e NÃO servem: desde
+    # 28/04/2026 a Apple recusa binários não compilados contra o iOS SDK 26.
+    runs-on: macos-26
     needs: checks
     steps:
       - uses: actions/checkout@v4
@@ -129,6 +181,21 @@ jobs:
           node-version: '22.19.0'
           cache: npm
           cache-dependency-path: lumen_mobile/package-lock.json
+
+      # GATE DURO. Este passo é a razão de o job existir: se o runner degradar
+      # para um Xcode anterior, o build ainda passaria — e só descobriríamos a
+      # incompatibilidade na recusa do App Store Connect. Falha aqui, cedo.
+      - name: Exigir Xcode >= 26 e iOS SDK >= 26
+        run: |
+          xcodebuild -version
+          major=$(xcodebuild -version | head -1 | sed -E 's/^Xcode ([0-9]+).*/\1/')
+          echo "Xcode major: $major"
+          [ "$major" -ge 26 ] || { echo "FALHA: Apple exige Xcode 26+; runner tem $major"; exit 1; }
+
+          sdk=$(xcodebuild -showsdks | grep -oE 'iphoneos[0-9]+' | sed 's/iphoneos//' | sort -n | tail -1)
+          echo "iOS SDK major: $sdk"
+          [ "$sdk" -ge 26 ] || { echo "FALHA: iOS SDK $sdk < 26"; exit 1; }
+          echo "OK: toolchain atende o requisito da Apple"
 
       - run: npm ci
 
@@ -150,12 +217,61 @@ jobs:
               || { echo "FALTA $k — App Store rejeita"; exit 1; }
           done
 
+      # Privacy Manifest — obrigatório desde maio/2024 para apps que usam
+      # "Required Reason APIs" (UserDefaults, timestamps de arquivo, disco).
+      # O app usa AsyncStorage, que grava em UserDefaults: entra na regra.
+      - name: Conferir Privacy Manifest
+        run: |
+          found=$(find ios -name "PrivacyInfo.xcprivacy" -not -path "*/Pods/*" | head -5)
+          if [ -z "$found" ]; then
+            echo "FALHA: PrivacyInfo.xcprivacy ausente no app target."
+            echo "A Apple recusa o upload sem ele quando há Required Reason APIs."
+            exit 1
+          fi
+          for f in $found; do echo "--- $f"; plutil -p "$f"; done
+
       - name: Build (simulador, sem assinatura)
         working-directory: lumen_mobile/ios
         run: |
-          scheme=$(xcodebuild -list -json | python3 -c "import sys,json;print(json.load(sys.stdin)['workspace']['schemes'][0])")
-          echo "scheme: $scheme"
-          xcodebuild -workspace *.xcworkspace -scheme "$scheme" \
+          set -euo pipefail
+          # `xcodebuild -list -json` devolve a chave "workspace" OU "project",
+          # dependendo de haver .xcworkspace. Assumir "workspace" quebrava com
+          # KeyError antes mesmo de compilar. Aceitar as duas, e escolher o
+          # scheme do app (não os dos Pods, que também aparecem na lista).
+          # Uma linha só, de propósito: Python multilinha dentro de um bloco
+          # `run: |` precisa ficar indentado junto com o YAML, e a primeira
+          # versão disto ficou na coluna 0 — quebrou o arquivo de workflow
+          # inteiro, e o GitHub recusou a run antes de executar qualquer passo.
+          scheme=$(xcodebuild -list -json | python3 -c "import sys,json;d=json.load(sys.stdin);r=d.get('workspace') or d.get('project') or {};s=[x for x in (r.get('schemes') or []) if not x.startswith('Pods')];print(s[0] if s else '')")
+          if [ -z "$scheme" ]; then echo "Nenhum scheme utilizavel em xcodebuild -list -json"; exit 1; fi
+          echo "scheme escolhido: $scheme"
+
+          # Se o pod install rodou, existe .xcworkspace e ele DEVE ser usado —
+          # compilar o .xcodeproj direto ignora as dependencias dos Pods.
+          if ls ./*.xcworkspace >/dev/null 2>&1; then
+            alvo=(-workspace "$(ls -d ./*.xcworkspace | head -1)")
+          else
+            alvo=(-project "$(ls -d ./*.xcodeproj | head -1)")
+          fi
+          echo "alvo: ${alvo[*]}"
+
+          xcodebuild "${alvo[@]}" -scheme "$scheme" \
             -configuration Debug -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO build | tail -30
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO build | tail -40
+
+      # Mesma disciplina do Android: a evidência é o BINÁRIO, não a config.
+      # vtool lê o load command LC_BUILD_VERSION, que registra contra qual SDK
+      # o Mach-O foi efetivamente linkado — é esse campo que a Apple inspeciona.
+      - name: Provar SDK de link no binário gerado
+        working-directory: lumen_mobile/ios
+        run: |
+          app=$(find build/Build/Products -name "*.app" -maxdepth 3 | head -1)
+          bin="$app/$(basename "$app" .app)"
+          echo "binário: $bin"
+          vtool -show-build "$bin" | tee /tmp/vtool.txt
+          sdk=$(grep -A5 'LC_BUILD_VERSION' /tmp/vtool.txt | grep -E '^\s*sdk' | head -1 | awk '{print $2}' | cut -d. -f1)
+          echo "SDK de link: $sdk"
+          [ "${sdk:-0}" -ge 26 ] || { echo "FALHA: binário linkado contra SDK $sdk (< 26)"; exit 1; }
+          echo "OK: binário linkado contra iOS SDK $sdk"

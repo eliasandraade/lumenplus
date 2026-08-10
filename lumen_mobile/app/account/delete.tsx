@@ -136,6 +136,10 @@ export default function DeleteAccountScreen() {
           Para confirmar, digite <Text style={s.bold}>{CONFIRM_WORD}</Text> no campo abaixo.
         </Text>
         <TextInput
+          // testID (e não o texto do botão) é a âncora dos fluxos Maestro em
+          // .maestro/. A App Review testa a exclusão de conta; prender o E2E à
+          // copy faria o teste quebrar a cada ajuste de redação.
+          testID="delete-account-confirm-input"
           style={s.input}
           value={confirmText}
           onChangeText={setConfirmText}
@@ -149,6 +153,7 @@ export default function DeleteAccountScreen() {
       </View>
 
       <TouchableOpacity
+        testID="delete-account-submit"
         style={[s.deleteBtn, !canConfirm && s.deleteBtnDisabled]}
         onPress={handleDelete}
         disabled={!canConfirm}
