@@ -83,6 +83,24 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
+            # O runner devolve o controle assim que o processo do emulador sobe,
+            # mas o device ainda pode estar `offline` — foi exatamente o que
+            # derrubou a primeira execução ("adb: device offline"). Esperar o
+            # boot de verdade antes de qualquer adb install.
+            adb wait-for-device
+            for i in $(seq 1 60); do
+              estado=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+              if [ "$estado" = "1" ]; then break; fi
+              sleep 5
+            done
+            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; then
+              echo "FALHA: emulador nao completou o boot em 5 minutos."
+              adb devices
+              exit 1
+            fi
+            adb shell input keyevent 82 || true
+            echo "emulador pronto: API $(adb shell getprop ro.build.version.sdk | tr -d '\r')"
+
             adb install -r lumen_mobile/android/app/build/outputs/apk/release/app-release.apk
 
             # O app precisa ABRIR antes de qualquer fluxo. Um crash de
