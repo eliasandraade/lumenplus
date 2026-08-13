@@ -83,10 +83,18 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
+            # O runner executa este script com `set -e`. Qualquer comando que
+            # retorne != 0 mata o passo na hora — e vários comandos de adb
+            # retornam != 0 em situações normais (getprop antes do boot, pidof
+            # sem processo). A segunda execução morreu em 91s sem imprimir
+            # nada por causa disso: falhava antes de qualquer echo.
+            set +e
+            trap 'echo "::error::passo abortou na linha $LINENO"' ERR
+
+            echo "::group::Preparando emulador"
             # O runner devolve o controle assim que o processo do emulador sobe,
-            # mas o device ainda pode estar `offline` — foi exatamente o que
-            # derrubou a primeira execução ("adb: device offline"). Esperar o
-            # boot de verdade antes de qualquer adb install.
+            # mas o device ainda pode estar `offline` — foi o que derrubou a
+            # primeira execução ("adb: device offline").
             adb wait-for-device
             for i in $(seq 1 60); do
               estado=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
@@ -100,8 +108,13 @@ jobs:
             fi
             adb shell input keyevent 82 || true
             echo "emulador pronto: API $(adb shell getprop ro.build.version.sdk | tr -d '\r')"
+            adb devices
+            echo "::endgroup::"
 
+            echo "::group::Instalando APK"
             adb install -r lumen_mobile/android/app/build/outputs/apk/release/app-release.apk
+            if [ $? -ne 0 ]; then echo "::error::adb install falhou"; exit 1; fi
+            echo "::endgroup::"
 
             # O app precisa ABRIR antes de qualquer fluxo. Um crash de
             # inicialização (já aconteceu: Firebase Auth não registrava)
