@@ -204,7 +204,16 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-boot-timeout: 900
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          # SEM `emulator-options` de propósito.
+          #
+          # Esta linha existia e sobrescrevia os padrões da action. O
+          # diagnóstico isolado que FUNCIONOU não a tinha — era a única
+          # diferença de configuração entre o job que sobe o emulador e o que
+          # não sobe. `emulator-options` substitui a lista inteira do padrão,
+          # incluindo flags necessárias ao boot headless (`-camera-back none`,
+          # `-camera-front none`, entre outras), e omiti-las trava o boot.
+          #
+          # Não reintroduzir sem antes provar num job de diagnóstico curto.
           script: |
             # O runner executa este script com `set -e`, e vários comandos de
             # adb retornam != 0 em situação normal (getprop antes do boot,
