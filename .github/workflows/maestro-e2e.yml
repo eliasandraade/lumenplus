@@ -238,77 +238,19 @@ jobs:
           # boot antes de o script rodar. Foi por isso que nenhum echo meu
           # apareceu em sete execuções.
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
-          script: |
-            # O runner executa este script com `set -e`, e vários comandos de
-            # adb retornam != 0 em situação normal (getprop antes do boot,
-            # pidof sem processo). Uma execução anterior morreu em 91s sem
-            # imprimir nada por causa disso.
-            set +e
-            mkdir -p diagnostico
-
-            echo "::group::Emulador"
-            adb wait-for-device
-            for i in $(seq 1 90); do
-              [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && break
-              sleep 5
-            done
-            estado=$(adb get-state 2>&1 | tr -d '\r')
-            booted=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
-            echo "get-state: $estado | boot_completed: $booted"
-            adb devices
-            if [ "$estado" != "device" ] || [ "$booted" != "1" ]; then
-              echo "::error::emulador nao ficou pronto (state=$estado boot=$booted)"
-              adb devices > diagnostico/adb-devices.txt 2>&1
-              exit 1
-            fi
-            adb shell input keyevent 82
-            echo "API: $(adb shell getprop ro.build.version.sdk | tr -d '\r')"
-            echo "::endgroup::"
-
-            echo "::group::Instalando APK"
-            adb install -r e2e/app-releaseTest.apk
-            if [ $? -ne 0 ]; then
-              echo "::error::adb install falhou"
-              adb logcat -d -t 400 > diagnostico/logcat-install.txt 2>&1
-              exit 1
-            fi
-            adb shell pm list packages | grep "${APP_ID}"
-            echo "::endgroup::"
-
-            # O app precisa ABRIR antes de qualquer fluxo. Um crash de
-            # inicialização (já aconteceu nesta branch: Firebase Auth não
-            # registrava) faria os três fluxos falharem com erro de seletor,
-            # escondendo a causa real.
-            echo "::group::Lancamento"
-            adb shell am start -W -n "${APP_ID}/.MainActivity"
-            sleep 20
-            if ! adb shell pidof "${APP_ID}" > /dev/null 2>&1; then
-              echo "::error::o app nao sobreviveu ao lancamento"
-              adb logcat -d -t 500 > diagnostico/logcat-crash.txt 2>&1
-              adb exec-out screencap -p > diagnostico/tela-crash.png 2>/dev/null
-              grep -iE "FATAL|AndroidRuntime|ReactNativeJS" diagnostico/logcat-crash.txt | tail -40
-              exit 1
-            fi
-            echo "app abriu e permaneceu vivo"
-            adb exec-out screencap -p > diagnostico/tela-inicial.png 2>/dev/null
-            echo "::endgroup::"
-
-            echo "::group::Fluxos Maestro"
-            if [ -n "${{ inputs.flow }}" ]; then
-              maestro test "e2e/maestro-flows/${{ inputs.flow }}"
-            else
-              maestro test e2e/maestro-flows/
-            fi
-            codigo=$?
-            echo "::endgroup::"
-
-            if [ $codigo -ne 0 ]; then
-              echo "::error::fluxos Maestro falharam (exit $codigo)"
-              adb logcat -d -t 600 > diagnostico/logcat-fluxos.txt 2>&1
-              adb exec-out screencap -p > diagnostico/tela-final.png 2>/dev/null
-              adb devices > diagnostico/adb-devices.txt 2>&1
-            fi
-            exit $codigo
+          # UMA linha, de proposito. O `script:` desta action NAO e um
+          # script: cada linha roda num `sh -c` separado. Isso derrubou SETE
+          # execucoes — `set +e` nao valia adiante, variaveis nao sobreviviam
+          # entre linhas, e todo for/if multilinha estourava com
+          #   Syntax error: end of file unexpected (expecting "done")
+          # Como a primeira linha de controle ja falhava, NENHUM echo meu
+          # aparecia, e procurei a causa no emulador, no KVM e no Ubuntu.
+          #
+          # A logica vive em .maestro/ci-run.sh, onde o shell e um so.
+          script: bash e2e/maestro-flows/ci-run.sh
+        env:
+          APP_ID: ${{ env.APP_ID }}
+          FLOW: ${{ inputs.flow }}
 
       - name: Publicar diagnóstico
         if: always()
