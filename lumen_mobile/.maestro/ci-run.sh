@@ -25,7 +25,12 @@ set -uo pipefail
 
 : "${APP_ID:?APP_ID nao definido}"
 
-mkdir -p diagnostico
+# Caminho ABSOLUTO, nao relativo. A primeira versao usava `diagnostico/` e o
+# artefato subiu vazio: o script roda com CWD proprio dentro da action, e o
+# passo de upload procurava no workspace. Justamente os logs de falha se
+# perdiam — que era o oposto do objetivo.
+DIAG="${GITHUB_WORKSPACE:-$PWD}/diagnostico"
+mkdir -p "$DIAG"
 
 echo "::group::Emulador"
 adb wait-for-device
@@ -37,7 +42,7 @@ done
 estado=$(adb get-state 2>&1 | tr -d '\r')
 booted=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
 echo "get-state: ${estado} | boot_completed: ${booted}"
-adb devices | tee diagnostico/adb-devices.txt
+adb devices | tee "$DIAG/adb-devices.txt"
 
 if [ "${estado}" != "device" ] || [ "${booted}" != "1" ]; then
   echo "::error::emulador nao ficou pronto (state=${estado} boot=${booted})"
@@ -51,7 +56,7 @@ echo "::endgroup::"
 echo "::group::Instalando APK"
 if ! adb install -r e2e/app-releaseTest.apk; then
   echo "::error::adb install falhou"
-  adb logcat -d -t 400 > diagnostico/logcat-install.txt 2>&1
+  adb logcat -d -t 400 > "$DIAG/logcat-install.txt" 2>&1
   exit 1
 fi
 adb shell pm list packages | grep "${APP_ID}"
@@ -66,13 +71,13 @@ adb shell am start -W -n "${APP_ID}/.MainActivity"
 sleep 20
 if ! adb shell pidof "${APP_ID}" >/dev/null 2>&1; then
   echo "::error::o app nao sobreviveu ao lancamento"
-  adb logcat -d -t 500 > diagnostico/logcat-crash.txt 2>&1
-  adb exec-out screencap -p > diagnostico/tela-crash.png 2>/dev/null
-  grep -iE "FATAL|AndroidRuntime|ReactNativeJS" diagnostico/logcat-crash.txt | tail -40
+  adb logcat -d -t 500 > "$DIAG/logcat-crash.txt" 2>&1
+  adb exec-out screencap -p > "$DIAG/tela-crash.png" 2>/dev/null
+  grep -iE "FATAL|AndroidRuntime|ReactNativeJS" "$DIAG/logcat-crash.txt" | tail -40
   exit 1
 fi
 echo "app abriu e permaneceu vivo"
-adb exec-out screencap -p > diagnostico/tela-inicial.png 2>/dev/null
+adb exec-out screencap -p > "$DIAG/tela-inicial.png" 2>/dev/null
 echo "::endgroup::"
 
 echo "::group::Fluxos Maestro"
@@ -86,8 +91,8 @@ echo "::endgroup::"
 
 if [ "${codigo}" -ne 0 ]; then
   echo "::error::fluxos Maestro falharam (exit ${codigo})"
-  adb logcat -d -t 600 > diagnostico/logcat-fluxos.txt 2>&1
-  adb exec-out screencap -p > diagnostico/tela-final.png 2>/dev/null
+  adb logcat -d -t 600 > "$DIAG/logcat-fluxos.txt" 2>&1
+  adb exec-out screencap -p > "$DIAG/tela-final.png" 2>/dev/null
 fi
 
 exit "${codigo}"
