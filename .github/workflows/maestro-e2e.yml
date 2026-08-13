@@ -25,7 +25,16 @@ on:
 jobs:
   maestro:
     name: Maestro no emulador Android
-    runs-on: ubuntu-latest
+    # ubuntu-22.04 fixado de propósito, NÃO ubuntu-latest.
+    #
+    # Desde que `ubuntu-latest` passou a apontar para 24.04, o
+    # android-emulator-runner falha na própria fase de espera do boot: o log
+    # mostra `adb ... failed with exit code 1` três vezes e o `script:` deste
+    # job nunca chega a rodar — nenhum dos echos instrumentados aparece. Ou
+    # seja, o problema é anterior aos fluxos do Maestro.
+    #
+    # Se um dia o runner 24.04 for suportado, isto pode voltar a `ubuntu-latest`.
+    runs-on: ubuntu-22.04
     timeout-minutes: 60
 
     steps:
