@@ -19,8 +19,11 @@ valor no log sem vazar nada.
 | Variable | Conteúdo |
 |---|---|
 | `E2E_FIREBASE_PROJECT_ID` | o `projectId` do projeto de **staging** que o E2E deve usar |
-| `PROD_FIREBASE_PROJECT_ID` | o `projectId` de **produção** — o guard recusa se o E2E cair nele |
-| `PROD_API_URL` | URL do backend de **produção** — mesma lógica |
+| `E2E_ENVIRONMENT` | exatamente `staging` |
+
+**Não há variable de produção.** O guard usa *allowlist positiva*: só segue se
+a configuração **provar** ser staging. Depender de alguém cadastrar o
+"proibido" faria o guard falhar **aberto** no dia em que a variable sumisse.
 
 Sem `E2E_FIREBASE_PROJECT_ID` o build para. Ela é a prova de que o secret
 aponta para o projeto certo: se alguém trocar o conteúdo do secret sem trocar
@@ -56,16 +59,20 @@ Estes **são** segredo de verdade e nunca podem sair do secret manager.
 | `E2E_USER2_EMAIL` / `E2E_USER2_PASSWORD` | segundo usuário: alvo de denúncia e bloqueio |
 | `E2E_THROWAWAY_EMAIL` / `E2E_THROWAWAY_PASSWORD` | conta descartável para o fluxo de exclusão |
 
-### Como criar
+### Você NÃO precisa criar estas contas à mão
 
-No **projeto Firebase de staging**, em Authentication → Users, criar três
-contas com e-mails que não existam de verdade (ex.: `e2e-1@<dominio-teste>`).
-Depois, no backend de staging, garantir que tenham perfil e pertençam à mesma
-unidade — o fluxo de denúncia exige que os dois primeiros vejam o mesmo canal.
+`.maestro/ci-provision.sh` as provisiona no início de cada execução, de forma
+idempotente: cria se não existir, e se já existir apenas autentica para provar
+que a senha do secret continua correta. Basta **escolher** e-mails e senhas e
+cadastrá-los como secrets.
 
-**A terceira é descartável por natureza:** o fluxo `01-excluir-conta` a apaga.
-Ela precisa ser recriada antes de cada execução completa, ou o fluxo passa a
-falhar por conta inexistente — o que é comportamento correto, não bug.
+Isso resolve a conta descartável: o fluxo `01-excluir-conta` a apaga, e a
+execução seguinte a recria sozinha. Sem isso, o pipeline passaria a falhar por
+manutenção esquecida em vez de por regressão.
+
+O provisionamento usa o endpoint REST público do Identity Toolkit com a mesma
+API key do cliente — **sem service account, sem chave privada, sem token
+administrativo**.
 
 Nada de service account, private key ou token administrativo entra neste
 pipeline. O E2E exercita o app como um usuário comum.
