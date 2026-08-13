@@ -1,15 +1,26 @@
 name: E2E — Maestro (Android)
 
-# Os fluxos em lumen_mobile/.maestro/ cobrem os caminhos que a App Review
-# testa a mão: exclusão de conta (5.1.1(v)), denúncia e bloqueio (1.2).
+# Os fluxos em lumen_mobile/.maestro/ cobrem os caminhos que a App Review testa
+# a mão: exclusão de conta (5.1.1(v)), denúncia e bloqueio (1.2).
 #
-# POR QUE EM CI E NÃO LOCAL: o Maestro não suporta Windows. A máquina de
-# desenvolvimento é Windows e não tem distro WSL instalada, então o único
-# ambiente compatível disponível é um runner Linux — que ainda por cima é onde
-# a verificação deve morar, para não depender da máquina de ninguém.
+# POR QUE DOIS JOBS
+# -----------------
+# A versão anterior compilava e rodava o emulador no MESMO runner, e o passo do
+# emulador falhava sempre — seis execuções. Um diagnóstico isolado provou que o
+# emulador sobe sem problema num runner limpo (`emulator-5554` respondendo,
+# boot completo). A única diferença estrutural era o build de release rodando
+# antes, consumindo disco e deixando estado no runner.
 #
-# Rodar emulador em CI é caro (~15-25 min), então isto NÃO dispara a cada push:
-# roda sob demanda e antes de release.
+# Isto é HIPÓTESE FORTEMENTE SUSTENTADA, não causa raiz estabelecida: não
+# sabemos se foi disco, memória ou estado do adb, e não precisamos saber. A
+# separação vale por si:
+#
+#   - cada falha passa a ser atribuível a UMA etapa;
+#   - o job do emulador roda em minutos, não em 40, porque não compila nada;
+#   - o APK testado é exatamente o publicado, verificado por SHA-256.
+#
+# Rodar emulador em CI é caro, então isto NÃO dispara a cada push: sob demanda
+# e em tags de release.
 
 on:
   workflow_dispatch:
@@ -22,64 +33,169 @@ on:
     tags:
       - 'v*'
 
+env:
+  APP_ID: com.lumenchristi.lumenplus
+
 jobs:
-  maestro:
-    name: Maestro no emulador Android
-    # ubuntu-latest de propósito, MEDIDO — não suposto.
-    #
-    # Cheguei a fixar ubuntu-22.04 achando que o 24.04 quebrava o
-    # android-emulator-runner. Um job de diagnóstico rodando os dois em matriz
-    # mostrou o inverso: no 24.04 o emulador sobe e responde; no 22.04 não.
-    # Os dois runners tem KVM funcional, entao virtualizacao nunca foi a causa.
+  # ===========================================================================
+  # JOB 1 — compila e publica. NÃO inicia emulador. NÃO instala Maestro.
+  # ===========================================================================
+  build-android-e2e:
+    name: Build APK releaseTest
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20.19.0'
           cache: npm
           cache-dependency-path: lumen_mobile/package-lock.json
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: '17'
 
       - name: Instalar dependências
         working-directory: lumen_mobile
         run: npm ci
+
+      - name: Lint
+        working-directory: lumen_mobile
+        run: npm run lint
+
+      - name: Typecheck
+        working-directory: lumen_mobile
+        run: npm run typecheck
+
+      - name: Testes unitários
+        working-directory: lumen_mobile
+        run: npm test
 
       - name: Prebuild Android
         working-directory: lumen_mobile
         run: npx expo prebuild --platform android --clean --no-install
 
       # Perfil explícito: artefato de TESTE. O portão fail-closed de
-      # withReleaseSigning recusaria uma tarefa de release sem perfil, e
-      # `production` aqui seria mentira — não há credencial institucional em CI.
-      - name: Build release de teste
+      # withReleaseSigning recusa release sem perfil, e `production` aqui seria
+      # mentira — não há credencial institucional em CI.
+      - name: Build APK releaseTest
         working-directory: lumen_mobile/android
         run: ./gradlew assembleRelease --no-daemon
         env:
           LUMEN_SIGNING_PROFILE: releaseTest
 
-      - name: Instalar Maestro
+      - name: Validar e publicar metadados do APK
+        id: meta
+        working-directory: lumen_mobile
         run: |
-          curl -Ls "https://get.maestro.mobile.dev" | bash
-          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+          set -euo pipefail
+          apk=$(find android/app/build/outputs/apk/release -name '*.apk' | head -1)
+          [ -n "$apk" ] || { echo "::error::APK nao encontrado"; exit 1; }
 
-      # KVM é o que torna o emulador utilizável em runner; sem ele o boot
-      # demora tanto que o job estoura o timeout.
+          aapt2=$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -1)
+          badging=$("$aapt2" dump badging "$apk")
+
+          pkg=$(echo "$badging" | sed -n "s/.*package: name='\([^']*\)'.*/\1/p")
+          vname=$(echo "$badging" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p")
+          vcode=$(echo "$badging" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p")
+          target=$(echo "$badging" | sed -n "s/.*targetSdkVersion:'\([^']*\)'.*/\1/p")
+
+          # O APK que vai para o E2E precisa ser o do app, não outro qualquer.
+          [ "$pkg" = "${APP_ID}" ] || { echo "::error::package '$pkg' != '${APP_ID}'"; exit 1; }
+          [ "$target" = "36" ] || { echo "::error::targetSdk '$target' != 36"; exit 1; }
+
+          sha=$(sha256sum "$apk" | cut -d' ' -f1)
+
+          mkdir -p ../e2e-artefato
+          cp "$apk" ../e2e-artefato/app-releaseTest.apk
+          cat > ../e2e-artefato/metadata.json <<JSON
+          {
+            "commit": "${GITHUB_SHA}",
+            "ref": "${GITHUB_REF}",
+            "package": "${pkg}",
+            "versionName": "${vname}",
+            "versionCode": "${vcode}",
+            "targetSdkVersion": "${target}",
+            "signingMode": "releaseTest",
+            "sha256": "${sha}",
+            "runId": "${GITHUB_RUN_ID}"
+          }
+          JSON
+          echo "--- metadata ---"
+          cat ../e2e-artefato/metadata.json
+
+      # Os fluxos viajam junto do APK para que o job 2 não precise do repo
+      # inteiro — e para garantir que fluxos e binário são do MESMO commit.
+      - name: Anexar fluxos Maestro
+        run: cp -r lumen_mobile/.maestro e2e-artefato/maestro-flows
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk-e2e
+          path: e2e-artefato/**
+          if-no-files-found: error
+          retention-days: 7
+
+  # ===========================================================================
+  # JOB 2 — runner LIMPO. Só consome o APK pronto. Nada de npm/prebuild/Gradle.
+  # ===========================================================================
+  maestro-android-e2e:
+    name: Maestro no emulador
+    needs: build-android-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk-e2e
+          path: e2e
+
+      - name: Conferir integridade do APK
+        run: |
+          set -euo pipefail
+          esperado=$(python3 -c "import json;print(json.load(open('e2e/metadata.json'))['sha256'])")
+          obtido=$(sha256sum e2e/app-releaseTest.apk | cut -d' ' -f1)
+          echo "esperado: $esperado"
+          echo "obtido:   $obtido"
+          # Sem esta conferência, um artefato truncado no upload/download faria
+          # os fluxos falharem com erro de seletor, e a causa real ficaria
+          # escondida atrás de "elemento não encontrado".
+          [ "$esperado" = "$obtido" ] || { echo "::error::SHA-256 divergente"; exit 1; }
+          echo "--- metadata do build ---"
+          cat e2e/metadata.json
+
+      - uses: android-actions/setup-android@v3
+
+      - name: adb no PATH e KVM comprovado
+        run: |
+          set -euo pipefail
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          export PATH="$PATH:$ANDROID_HOME/platform-tools"
+          which adb
+          adb version | head -1
+          # /dev/kvm precisa existir ANTES de tentar subir o AVD. Sem isto, a
+          # falha aparece como erro genérico de adb, minutos depois.
+          ls -la /dev/kvm || { echo "::error::/dev/kvm ausente — emulador nao sobe"; exit 1; }
+
       - name: Habilitar KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
 
-      - name: Emulador + Maestro
+      - name: Instalar Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Emulador + fluxos
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -87,68 +203,87 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
+          emulator-boot-timeout: 900
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
-            # O runner executa este script com `set -e`. Qualquer comando que
-            # retorne != 0 mata o passo na hora — e vários comandos de adb
-            # retornam != 0 em situações normais (getprop antes do boot, pidof
-            # sem processo). A segunda execução morreu em 91s sem imprimir
-            # nada por causa disso: falhava antes de qualquer echo.
+            # O runner executa este script com `set -e`, e vários comandos de
+            # adb retornam != 0 em situação normal (getprop antes do boot,
+            # pidof sem processo). Uma execução anterior morreu em 91s sem
+            # imprimir nada por causa disso.
             set +e
-            trap 'echo "::error::passo abortou na linha $LINENO"' ERR
+            mkdir -p diagnostico
 
-            echo "::group::Preparando emulador"
-            # O runner devolve o controle assim que o processo do emulador sobe,
-            # mas o device ainda pode estar `offline` — foi o que derrubou a
-            # primeira execução ("adb: device offline").
+            echo "::group::Emulador"
             adb wait-for-device
-            for i in $(seq 1 60); do
-              estado=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
-              if [ "$estado" = "1" ]; then break; fi
+            for i in $(seq 1 90); do
+              [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && break
               sleep 5
             done
-            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" != "1" ]; then
-              echo "FALHA: emulador nao completou o boot em 5 minutos."
-              adb devices
+            estado=$(adb get-state 2>&1 | tr -d '\r')
+            booted=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+            echo "get-state: $estado | boot_completed: $booted"
+            adb devices
+            if [ "$estado" != "device" ] || [ "$booted" != "1" ]; then
+              echo "::error::emulador nao ficou pronto (state=$estado boot=$booted)"
+              adb devices > diagnostico/adb-devices.txt 2>&1
               exit 1
             fi
-            adb shell input keyevent 82 || true
-            echo "emulador pronto: API $(adb shell getprop ro.build.version.sdk | tr -d '\r')"
-            adb devices
+            adb shell input keyevent 82
+            echo "API: $(adb shell getprop ro.build.version.sdk | tr -d '\r')"
             echo "::endgroup::"
 
             echo "::group::Instalando APK"
-            adb install -r lumen_mobile/android/app/build/outputs/apk/release/app-release.apk
-            if [ $? -ne 0 ]; then echo "::error::adb install falhou"; exit 1; fi
+            adb install -r e2e/app-releaseTest.apk
+            if [ $? -ne 0 ]; then
+              echo "::error::adb install falhou"
+              adb logcat -d -t 400 > diagnostico/logcat-install.txt 2>&1
+              exit 1
+            fi
+            adb shell pm list packages | grep "${APP_ID}"
             echo "::endgroup::"
 
             # O app precisa ABRIR antes de qualquer fluxo. Um crash de
-            # inicialização (já aconteceu: Firebase Auth não registrava)
-            # faria todos os fluxos falharem com erro de seletor, escondendo
-            # a causa real. Este passo isola isso.
-            adb shell am start -W -n com.lumenchristi.lumenplus/.MainActivity
-            sleep 15
-            if ! adb shell pidof com.lumenchristi.lumenplus > /dev/null; then
-              echo "FALHA: o app nao sobreviveu ao lancamento."
-              adb logcat -d -t 300 | grep -iE "FATAL|AndroidRuntime|ReactNativeJS" | tail -40
+            # inicialização (já aconteceu nesta branch: Firebase Auth não
+            # registrava) faria os três fluxos falharem com erro de seletor,
+            # escondendo a causa real.
+            echo "::group::Lancamento"
+            adb shell am start -W -n "${APP_ID}/.MainActivity"
+            sleep 20
+            if ! adb shell pidof "${APP_ID}" > /dev/null 2>&1; then
+              echo "::error::o app nao sobreviveu ao lancamento"
+              adb logcat -d -t 500 > diagnostico/logcat-crash.txt 2>&1
+              adb exec-out screencap -p > diagnostico/tela-crash.png 2>/dev/null
+              grep -iE "FATAL|AndroidRuntime|ReactNativeJS" diagnostico/logcat-crash.txt | tail -40
               exit 1
             fi
             echo "app abriu e permaneceu vivo"
+            adb exec-out screencap -p > diagnostico/tela-inicial.png 2>/dev/null
+            echo "::endgroup::"
 
-            cd lumen_mobile
+            echo "::group::Fluxos Maestro"
             if [ -n "${{ inputs.flow }}" ]; then
-              maestro test ".maestro/${{ inputs.flow }}"
+              maestro test "e2e/maestro-flows/${{ inputs.flow }}"
             else
-              maestro test .maestro/
+              maestro test e2e/maestro-flows/
             fi
+            codigo=$?
+            echo "::endgroup::"
 
-      - name: Publicar evidência
+            if [ $codigo -ne 0 ]; then
+              echo "::error::fluxos Maestro falharam (exit $codigo)"
+              adb logcat -d -t 600 > diagnostico/logcat-fluxos.txt 2>&1
+              adb exec-out screencap -p > diagnostico/tela-final.png 2>/dev/null
+              adb devices > diagnostico/adb-devices.txt 2>&1
+            fi
+            exit $codigo
+
+      - name: Publicar diagnóstico
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: maestro-resultados
+          name: e2e-diagnostico
           path: |
+            diagnostico/**
             ~/.maestro/tests/**
-            lumen_mobile/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: warn
           retention-days: 14
