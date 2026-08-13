@@ -27,6 +27,13 @@ import { showAlert } from '@/utils/alerts';
 import { Ionicons } from '@expo/vector-icons';
 import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from 'firebase/auth';
 import { auth, IS_DEV_AUTH } from '@/config/firebase';
+import { Input } from '@/components/Input';
+import {
+  validarCampoPasso1,
+  validarPasso1,
+  deveMostrarErro,
+  type CampoPasso1,
+} from '@/validation/registerFields';
 import { profileService } from '@/services';
 import api, { setDevToken } from '@/services/api';
 import brasilApi, { type Estado, type Municipio } from '@/services/brasilApi';
@@ -101,6 +108,11 @@ export default function RegisterScreen() {
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Campos em que o usuário já entrou e saiu. Sem isto, a única alternativa
+  // seria mostrar erro desde a montagem ou só no submit — nenhuma das duas é
+  // o comportamento esperado.
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [firebaseError, setFirebaseError] = useState('');
 
   // Catálogos carregados do backend
@@ -260,12 +272,31 @@ export default function RegisterScreen() {
   };
 
   // ── Validações ───────────────────────────────────────────────────────────────
+  //
+  // As regras do passo 1 vivem em src/validation/registerFields.ts como funções
+  // puras. Elas precisavam ser chamáveis por campo isolado — antes só existiam
+  // dentro deste `validateStep1`, que roda no submit, e por isso não havia como
+  // validar um campo quando o usuário sai dele.
+  //
+  // Regra de exibição: erro EXISTIR e erro APARECER são coisas diferentes. Um
+  // campo em que o usuário ainda não mexeu não deve ser repreendido.
+  const valoresPasso1 = { fullName, email, password, confirmPassword };
+
+  const marcarTocado = (campo: CampoPasso1) => {
+    setTouched(t => ({ ...t, [campo]: true }));
+    const msg = validarCampoPasso1(campo, valoresPasso1);
+    setErrors(e => ({ ...e, [campo]: msg ?? '' }));
+  };
+
+  /** Erro a exibir no campo — string vazia quando não deve aparecer. */
+  const erroVisivel = (campo: CampoPasso1): string | undefined => {
+    if (!deveMostrarErro(campo, touched, submitAttempted)) return undefined;
+    return errors[campo] || undefined;
+  };
+
   const validateStep1 = () => {
-    const e: Record<string, string> = {};
-    if (fullName.trim().length < 3) e.fullName = 'Nome deve ter pelo menos 3 caracteres';
-    if (!email.includes('@') || !email.includes('.')) e.email = 'Email inválido';
-    if (password.length < 6) e.password = 'Senha deve ter pelo menos 6 caracteres';
-    if (password !== confirmPassword) e.confirmPassword = 'Senhas não conferem';
+    setSubmitAttempted(true);
+    const e = validarPasso1(valoresPasso1);
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -449,29 +480,61 @@ export default function RegisterScreen() {
           ══════════════════════════════════════════════════════════════════ */}
           {step === 1 && (
             <View style={styles.form}>
-              <TextInput style={[styles.input, errors.fullName && styles.inputError]}
-                placeholder="Nome completo" value={fullName} placeholderTextColor={colors.gray}
-                onChangeText={t => { setFullName(t); setErrors({...errors, fullName: ''}); }}
-                autoCapitalize="words" />
-              {errors.fullName ? <Text style={styles.errorText}>{errors.fullName}</Text> : null}
+              {/* Campos do passo 1 usam o Input compartilhado — mesma aparência
+                  e mesmos estados do Login. O erro só aparece depois que o
+                  usuário sai do campo (onBlur) ou tenta enviar. */}
+              <Input
+                testID="register-full-name"
+                placeholder="Nome completo"
+                icon="person-outline"
+                value={fullName}
+                onChangeText={t => { setFullName(t); setErrors(e => ({ ...e, fullName: '' })); }}
+                onBlur={() => marcarTocado('fullName')}
+                error={erroVisivel('fullName')}
+                autoCapitalize="words"
+                autoComplete="name"
+                containerStyle={styles.campo}
+              />
 
-              <TextInput style={[styles.input, errors.email && styles.inputError]}
-                placeholder="E-mail" value={email} placeholderTextColor={colors.gray}
-                onChangeText={t => { setEmail(t); setErrors({...errors, email: ''}); }}
-                keyboardType="email-address" autoCapitalize="none" />
-              {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+              <Input
+                testID="register-email"
+                placeholder="E-mail"
+                icon="mail-outline"
+                value={email}
+                onChangeText={t => { setEmail(t); setErrors(e => ({ ...e, email: '' })); }}
+                onBlur={() => marcarTocado('email')}
+                error={erroVisivel('email')}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                containerStyle={styles.campo}
+              />
 
-              <TextInput style={[styles.input, errors.password && styles.inputError]}
-                placeholder="Senha (mínimo 6 caracteres)" value={password} placeholderTextColor={colors.gray}
-                onChangeText={t => { setPassword(t); setErrors({...errors, password: ''}); }}
-                secureTextEntry />
-              {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+              <Input
+                testID="register-password"
+                placeholder="Senha (mínimo 6 caracteres)"
+                icon="lock-closed-outline"
+                secure
+                value={password}
+                onChangeText={t => { setPassword(t); setErrors(e => ({ ...e, password: '' })); }}
+                onBlur={() => marcarTocado('password')}
+                error={erroVisivel('password')}
+                autoComplete="new-password"
+                containerStyle={styles.campo}
+              />
 
-              <TextInput style={[styles.input, errors.confirmPassword && styles.inputError]}
-                placeholder="Confirmar senha" value={confirmPassword} placeholderTextColor={colors.gray}
-                onChangeText={t => { setConfirmPassword(t); setErrors({...errors, confirmPassword: ''}); }}
-                secureTextEntry />
-              {errors.confirmPassword ? <Text style={styles.errorText}>{errors.confirmPassword}</Text> : null}
+              <Input
+                testID="register-confirm-password"
+                placeholder="Confirmar senha"
+                icon="lock-closed-outline"
+                secure
+                value={confirmPassword}
+                onChangeText={t => { setConfirmPassword(t); setErrors(e => ({ ...e, confirmPassword: '' })); }}
+                onBlur={() => marcarTocado('confirmPassword')}
+                error={erroVisivel('confirmPassword')}
+                autoComplete="new-password"
+                containerStyle={styles.campo}
+              />
 
               {firebaseError ? <View style={styles.errorBox}><Text style={styles.errorBoxText}>⚠️ {firebaseError}</Text></View> : null}
 
@@ -1042,6 +1105,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 14,
     fontSize: 16, marginBottom: 12, color: '#333',
   },
+  // Espacamento entre campos do Input compartilhado. O componente ja
+  // cuida de fundo, borda, raio e mensagem de erro.
+  campo: { marginBottom: 12 },
   inputError: { borderWidth: 2, borderColor: colors.error, marginBottom: 4 },
   inputDisabled: { opacity: 0.5 },
   selector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
