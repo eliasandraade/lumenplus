@@ -164,7 +164,6 @@ export default function LoginScreen() {
             <Input
               testID="login-email"
               placeholder="E-mail"
-              label="E-mail"
               icon="mail-outline"
               value={email}
               onChangeText={(t) => { setEmail(t); setErrors({ ...errors, email: '' }); setAuthError(''); }}
@@ -178,7 +177,6 @@ export default function LoginScreen() {
             <Input
               testID="login-password"
               placeholder="Senha"
-              label="Senha"
               icon="lock-closed-outline"
               secure
               value={password}
