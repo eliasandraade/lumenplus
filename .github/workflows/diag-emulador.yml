@@ -1,0 +1,84 @@
+name: Diagnóstico — emulador Android no runner
+
+# Job descartável, criado para PARAR DE ADIVINHAR.
+#
+# Cinco execuções do maestro-e2e falharam sempre no mesmo ponto, com
+#   ERROR | Unable to connect to adb daemon on port: 5037
+# e duas tentativas de correção foram palpite (espera de boot, ubuntu-22.04).
+# Cada ciclo custava ~40 min porque o build de release roda antes.
+#
+# Este workflow NÃO compila nada. Ele só responde: o emulador consegue subir
+# neste runner, e se não, por quê. Roda em ~5 min.
+#
+# Depois que a causa estiver estabelecida, este arquivo deve ser REMOVIDO —
+# não é infraestrutura, é instrumento de medição.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnostico:
+    strategy:
+      fail-fast: false
+      # Testa os dois runners de uma vez, em vez de um por ciclo.
+      matrix:
+        runner: [ubuntu-22.04, ubuntu-latest]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+
+    steps:
+      - name: Identidade do runner
+        run: |
+          echo "runner: ${{ matrix.runner }}"
+          . /etc/os-release && echo "os: $PRETTY_NAME"
+          echo "cpus: $(nproc) | ram: $(free -g | awk '/^Mem:/{print $2}')GB"
+
+      - name: Virtualização disponível?
+        run: |
+          echo "--- flags de CPU ---"
+          grep -o -m1 -E 'vmx|svm' /proc/cpuinfo | head -1 || echo "SEM vmx/svm — nao ha virtualizacao por hardware"
+          echo "--- /dev/kvm ---"
+          ls -la /dev/kvm 2>&1 || echo "/dev/kvm NAO EXISTE"
+          echo "--- kvm-ok ---"
+          sudo apt-get install -y cpu-checker >/dev/null 2>&1
+          kvm-ok 2>&1 || echo "kvm-ok indisponivel"
+
+      - name: Habilitar KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+
+      - name: adb antes de qualquer emulador
+        run: |
+          which adb && adb version
+          adb start-server
+          adb devices
+
+      # O teste decisivo: o emulador sobe? O script é mínimo de propósito —
+      # se falhar aqui, o problema não tem nada a ver com o app nem com os
+      # fluxos do Maestro.
+      - name: Emulador — teste mínimo
+        uses: reactivecircus/android-emulator-runner@v2
+        continue-on-error: true
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: |
+            echo "=== DENTRO DO SCRIPT — se esta linha aparece, o emulador subiu ==="
+            adb devices
+            adb shell getprop ro.build.version.sdk
+            adb shell getprop ro.product.cpu.abi
+            echo "=== EMULADOR OK NO RUNNER ${{ matrix.runner }} ==="
+
+      - name: Veredito
+        if: always()
+        run: |
+          echo "Se 'DENTRO DO SCRIPT' apareceu acima, o runner ${{ matrix.runner }} serve."
+          echo "Se nao apareceu, o emulador nao sobe neste runner e o E2E precisa de outro caminho."
