@@ -147,7 +147,7 @@ jobs:
     name: Maestro no emulador
     needs: build-android-e2e
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     steps:
       - uses: actions/download-artifact@v4
@@ -195,6 +195,33 @@ jobs:
           curl -Ls "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
+      # Criar o AVD do zero consumiu os 45 min do job inteiro na execução
+      # anterior — o timeout estourou antes de o script rodar. O cache é o que
+      # torna isto praticável: na primeira vez paga-se a criação, depois o
+      # snapshot é reaproveitado.
+      - name: Cache do AVD
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-api34-google_apis-x86_64-v1
+
+      - name: Criar AVD e gerar snapshot (só no cache miss)
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: false
+          emulator-boot-timeout: 1800
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          disable-animations: false
+          script: echo "snapshot do AVD gerado"
+
       - name: Emulador + fluxos
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -202,18 +229,15 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
+          force-avd-creation: false
           disable-animations: true
-          emulator-boot-timeout: 900
-          # SEM `emulator-options` de propósito.
-          #
-          # Esta linha existia e sobrescrevia os padrões da action. O
-          # diagnóstico isolado que FUNCIONOU não a tinha — era a única
-          # diferença de configuração entre o job que sobe o emulador e o que
-          # não sobe. `emulator-options` substitui a lista inteira do padrão,
-          # incluindo flags necessárias ao boot headless (`-camera-back none`,
-          # `-camera-front none`, entre outras), e omiti-las trava o boot.
-          #
-          # Não reintroduzir sem antes provar num job de diagnóstico curto.
+          emulator-boot-timeout: 1800
+          # Lista COMPLETA e documentada pela action — não a versão truncada
+          # que eu havia escrito. `emulator-options` substitui o padrão inteiro
+          # em vez de acrescentar, e as flags de câmera ausentes travavam o
+          # boot antes de o script rodar. Foi por isso que nenhum echo meu
+          # apareceu em sete execuções.
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
           script: |
             # O runner executa este script com `set -e`, e vários comandos de
             # adb retornam != 0 em situação normal (getprop antes do boot,
