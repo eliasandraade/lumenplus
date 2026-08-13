@@ -42,7 +42,7 @@ done
 estado=$(adb get-state 2>&1 | tr -d '\r')
 booted=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
 echo "get-state: ${estado} | boot_completed: ${booted}"
-adb devices | tee "$DIAG/adb-devices.txt"
+adb devices -l | tee "$DIAG/adb-devices.txt"
 
 if [ "${estado}" != "device" ] || [ "${booted}" != "1" ]; then
   echo "::error::emulador nao ficou pronto (state=${estado} boot=${booted})"
@@ -94,5 +94,18 @@ if [ "${codigo}" -ne 0 ]; then
   adb logcat -d -t 600 > "$DIAG/logcat-fluxos.txt" 2>&1
   adb exec-out screencap -p > "$DIAG/tela-final.png" 2>/dev/null
 fi
+
+# Evidencia completa SEMPRE, nao so em falha: uma execucao verde tambem
+# precisa provar contra qual APK e qual commit passou.
+{
+  echo "commit: ${GITHUB_SHA:-<local>}"
+  echo "run:    ${GITHUB_RUN_ID:-<local>}"
+  echo "app:    ${APP_ID}"
+  echo "exit:   ${codigo}"
+} > "$DIAG/resumo.txt"
+cp e2e/metadata.json "$DIAG/apk-metadata.json" 2>/dev/null || true
+adb devices -l > "$DIAG/adb-devices-final.txt" 2>&1
+adb shell getprop > "$DIAG/emulador-props.txt" 2>&1
+cp -r "${HOME}/.maestro/tests" "$DIAG/maestro-tests" 2>/dev/null || true
 
 exit "${codigo}"

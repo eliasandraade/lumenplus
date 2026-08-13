@@ -76,16 +76,21 @@ jobs:
         run: npm test
 
       # ===================================================================
-      # GUARDS DE AMBIENTE — antes de compilar qualquer coisa.
+      # GUARDS DE AMBIENTE — allowlist POSITIVA, antes de compilar.
       #
-      # O E2E autentica de verdade. Sem estes portões, um secret preenchido
-      # errado faria o pipeline criar contas, publicar posts e EXCLUIR CONTAS
-      # no Firebase e no backend de PRODUÇÃO. O fluxo 01-excluir-conta apaga
-      # uma conta de verdade — não há desfazer.
+      # Modelo: so segue se a configuracao for EXPLICITAMENTE de staging.
+      # Nao dependemos de conhecer os identificadores de producao — exigir
+      # PROD_* criaria dependencia humana existente so para o guard, e um
+      # guard que depende de alguem lembrar de cadastrar o "proibido" falha
+      # aberto no dia em que a variable some.
       #
-      # Nenhum fallback silencioso: faltando qualquer variável, o build para.
+      # Aqui produção não é "o que está na lista negra": é tudo que não provou
+      # ser staging. Faltando qualquer prova, o build para.
+      #
+      # Isto importa porque o fluxo 01-excluir-conta EXCLUI UMA CONTA DE
+      # VERDADE. Nao ha desfazer.
       # ===================================================================
-      - name: Guards de ambiente (recusa produção)
+      - name: Guards de ambiente (allowlist de staging)
         env:
           FB_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
           FB_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
@@ -95,59 +100,71 @@ jobs:
           FB_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
           API_URL: ${{ secrets.E2E_API_URL }}
           PROJECT_ID_ESPERADO: ${{ vars.E2E_FIREBASE_PROJECT_ID }}
-          PROJECT_ID_PRODUCAO: ${{ vars.PROD_FIREBASE_PROJECT_ID }}
-          API_URL_PRODUCAO: ${{ vars.PROD_API_URL }}
-          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
-          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          AMBIENTE: ${{ vars.E2E_ENVIRONMENT }}
+          U1: ${{ secrets.E2E_USER_EMAIL }}
+          P1: ${{ secrets.E2E_USER_PASSWORD }}
+          U2: ${{ secrets.E2E_USER2_EMAIL }}
+          P2: ${{ secrets.E2E_USER2_PASSWORD }}
+          U3: ${{ secrets.E2E_THROWAWAY_EMAIL }}
+          P3: ${{ secrets.E2E_THROWAWAY_PASSWORD }}
         run: |
           set -uo pipefail
           faltando=""
-          for v in FB_API_KEY FB_AUTH_DOMAIN FB_PROJECT_ID FB_STORAGE_BUCKET                    FB_SENDER_ID FB_APP_ID API_URL E2E_USER_EMAIL E2E_USER_PASSWORD; do
+          for v in FB_API_KEY FB_AUTH_DOMAIN FB_PROJECT_ID FB_STORAGE_BUCKET                    FB_SENDER_ID FB_APP_ID API_URL U1 P1 U2 P2 U3 P3; do
             [ -z "${!v:-}" ] && faltando="$faltando $v"
           done
+
+          # Presenca/ausencia apenas. Nenhum valor e impresso.
+          echo "--- configuracao (presenca, nunca valores) ---"
+          for v in FB_API_KEY FB_AUTH_DOMAIN FB_PROJECT_ID FB_STORAGE_BUCKET                    FB_SENDER_ID FB_APP_ID API_URL U1 P1 U2 P2 U3 P3; do
+            if [ -n "${!v:-}" ]; then echo "  $v: presente"; else echo "  $v: AUSENTE"; fi
+          done
+
           if [ -n "$faltando" ]; then
-            echo "::error::Secrets ausentes:$faltando"
-            echo "Cadastre-os em Settings > Secrets and variables > Actions."
-            echo "Use um projeto Firebase de STAGING/TESTE, nunca producao."
+            echo "::error::Firebase de staging ainda nao configurado. Ausentes:$faltando"
+            echo "Ver docs/store-readiness/e2e-secrets.md para o passo a passo."
+            echo "O pipeline NAO cai em AUTH_MODE=DEV nem em producao: para aqui."
             exit 1
           fi
 
-          # O projectId precisa ser o esperado, declarado como VARIABLE (nao
-          # secret) justamente para poder ser comparado em log sem vazar nada.
+          # --- allowlist positiva ---
+          if [ -z "${AMBIENTE:-}" ] || [ "$AMBIENTE" != "staging" ]; then
+            echo "::error::variable E2E_ENVIRONMENT deve valer exatamente 'staging' (atual: '${AMBIENTE:-<vazia>}')"
+            exit 1
+          fi
           if [ -z "${PROJECT_ID_ESPERADO:-}" ]; then
             echo "::error::variable E2E_FIREBASE_PROJECT_ID nao definida"
-            echo "Ela existe para provar que o secret aponta para o projeto certo."
             exit 1
           fi
           if [ "$FB_PROJECT_ID" != "$PROJECT_ID_ESPERADO" ]; then
-            echo "::error::projectId do secret difere do esperado ($PROJECT_ID_ESPERADO)"
+            echo "::error::projectId do secret difere do declarado em E2E_FIREBASE_PROJECT_ID"
             exit 1
           fi
-
-          # Recusa explicita de producao, nas duas pontas.
-          if [ -n "${PROJECT_ID_PRODUCAO:-}" ] && [ "$FB_PROJECT_ID" = "$PROJECT_ID_PRODUCAO" ]; then
-            echo "::error::E2E apontando para o Firebase de PRODUCAO. Recusado."
-            exit 1
-          fi
-          if [ -n "${API_URL_PRODUCAO:-}" ] && [ "$API_URL" = "$API_URL_PRODUCAO" ]; then
-            echo "::error::E2E apontando para o backend de PRODUCAO. Recusado."
-            exit 1
-          fi
-
-          # Heuristica adicional: o nome do projeto deve declarar o ambiente.
-          # Nao substitui as checagens acima — soma-se a elas.
-          case "$FB_PROJECT_ID" in
-            *staging*|*test*|*dev*|*homolog*|*qa*) : ;;
-            *)
-              echo "::error::projectId '$FB_PROJECT_ID' nao parece de staging/teste."
-              echo "Se o nome for legitimo, ajuste a heuristica conscientemente."
-              exit 1
-              ;;
+          case "$API_URL" in
+            https://*) : ;;
+            *) echo "::error::E2E_API_URL precisa ser HTTPS"; exit 1 ;;
           esac
 
-          echo "projeto Firebase: $FB_PROJECT_ID (staging/teste confirmado)"
-          echo "backend E2E: ${API_URL%%\?*}"
-          echo "guards OK"
+          echo "projectId: $PROJECT_ID_ESPERADO"
+          echo "ambiente:  $AMBIENTE"
+          echo "guards OK — allowlist de staging satisfeita"
+
+      # A conta descartavel e apagada pelo fluxo de exclusao. Recria-la a mao a
+      # cada execucao transformaria o E2E em cerimonia manual e faria o
+      # pipeline falhar por manutencao esquecida, nao por regressao.
+      - name: Provisionar usuarios sinteticos (idempotente)
+        run: bash lumen_mobile/.maestro/ci-provision.sh
+        env:
+          FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          E2E_FIREBASE_PROJECT_ID: ${{ vars.E2E_FIREBASE_PROJECT_ID }}
+          E2E_ENVIRONMENT: ${{ vars.E2E_ENVIRONMENT }}
+          E2E_API_URL: ${{ secrets.E2E_API_URL }}
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          E2E_USER2_EMAIL: ${{ secrets.E2E_USER2_EMAIL }}
+          E2E_USER2_PASSWORD: ${{ secrets.E2E_USER2_PASSWORD }}
+          E2E_THROWAWAY_EMAIL: ${{ secrets.E2E_THROWAWAY_EMAIL }}
+          E2E_THROWAWAY_PASSWORD: ${{ secrets.E2E_THROWAWAY_PASSWORD }}
 
       - name: Prebuild Android
         working-directory: lumen_mobile
@@ -343,6 +360,5 @@ jobs:
           name: e2e-diagnostico
           path: |
             diagnostico/**
-            ~/.maestro/tests/**
           if-no-files-found: warn
           retention-days: 14
