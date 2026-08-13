@@ -17,11 +17,28 @@
 # cadastrando. É deliberado: se este script vazasse por inteiro, não daria a
 # ninguém mais poder do que abrir o app e criar uma conta.
 #
-# IDEMPOTENTE
-# -----------
+# IDEMPOTENTE E AUTO-REPARADOR
+# ----------------------------
 # Tenta criar; se o e-mail já existe, apenas autentica para confirmar que a
 # senha do secret continua correta. Rodar dez vezes seguidas tem o mesmo efeito
 # de rodar uma.
+#
+# Os dois estados inconsistentes possíveis se reparam sozinhos, e vale
+# explicar por quê em vez de escrever código para algo que a arquitetura já
+# resolve:
+#
+#   existe no Firebase, falta no backend
+#     A chamada autenticada a /profile/me cria User + UserProfile +
+#     UserIdentity no primeiro acesso (app/api/deps.py).
+#
+#   existe no backend, falta no Firebase
+#     Acontece depois que o fluxo de exclusão apaga a conta. O signUp gera um
+#     UID novo, e o backend religa pelo e-mail — ele procura a identity por
+#     provider_uid e, não achando, cai no match por e-mail (deps.py). Ou seja,
+#     a conta descartável é recriada e reconectada ao registro existente sem
+#     intervenção.
+#
+# Nenhum dos dois caminhos precisa de privilégio administrativo.
 #
 # Variáveis esperadas (todas do ambiente, nunca argumentos — argumentos
 # aparecem em `ps` e em log de processo):

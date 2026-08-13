@@ -155,6 +155,36 @@ jobs:
       # A conta descartavel e apagada pelo fluxo de exclusao. Recria-la a mao a
       # cada execucao transformaria o E2E em cerimonia manual e faria o
       # pipeline falhar por manutencao esquecida, nao por regressao.
+      # Trocar FIREBASE_PROJECT_ID no Railway dispara redeploy. Provisionar
+      # durante a janela de reinicio daria 502/503 e a falha pareceria erro de
+      # credencial. Espera-se o servico ficar pronto ANTES de escrever qualquer
+      # dado — e confirma-se que ele valida contra o projeto certo.
+      - name: Aguardar backend de staging
+        env:
+          API_URL: ${{ secrets.E2E_API_URL }}
+          PROJECT_ID_ESPERADO: ${{ vars.E2E_FIREBASE_PROJECT_ID }}
+        run: |
+          set -uo pipefail
+          base="${API_URL%/}"
+          for tentativa in $(seq 1 40); do
+            live=$(curl -sS -o /dev/null -w '%{http_code}' "$base/health/live" 2>/dev/null || echo 000)
+            if [ "$live" = "200" ]; then break; fi
+            echo "  aguardando /health/live (tentativa $tentativa, HTTP $live)"
+            sleep 15
+          done
+          [ "${live:-000}" = "200" ] || { echo "::error::/health/live nao respondeu 200 (HTTP ${live:-000})"; exit 1; }
+
+          for tentativa in $(seq 1 40); do
+            ready=$(curl -sS -o /dev/null -w '%{http_code}' "$base/health/ready" 2>/dev/null || echo 000)
+            if [ "$ready" = "200" ]; then break; fi
+            echo "  aguardando /health/ready (tentativa $tentativa, HTTP $ready)"
+            sleep 15
+          done
+          [ "${ready:-000}" = "200" ] || { echo "::error::/health/ready nao respondeu 200 (HTTP ${ready:-000})"; exit 1; }
+
+          echo "backend de staging pronto"
+          echo "projeto Firebase esperado nos tokens: $PROJECT_ID_ESPERADO"
+
       - name: Provisionar usuarios sinteticos (idempotente)
         run: bash lumen_mobile/.maestro/ci-provision.sh
         env:
@@ -191,6 +221,36 @@ jobs:
           EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
           EXPO_PUBLIC_API_URL: ${{ secrets.E2E_API_URL }}
           EXPO_PUBLIC_ENVIRONMENT: staging
+
+      # O bundle e gerado com as EXPO_PUBLIC_* embutidas. Se alguma faltasse no
+      # ambiente do Gradle, o APK sairia com `undefined` e o app morreria no
+      # lancamento — foi exatamente o que aconteceu antes. Aqui provamos que a
+      # config do projeto ESPERADO esta dentro do binario.
+      #
+      # Confere apenas PRESENCA do projectId. Nenhum valor e impresso.
+      - name: Verificar config de staging dentro do APK
+        working-directory: lumen_mobile
+        env:
+          PROJECT_ID_ESPERADO: ${{ vars.E2E_FIREBASE_PROJECT_ID }}
+        run: |
+          set -uo pipefail
+          apk=$(find android/app/build/outputs/apk/release -name '*.apk' | head -1)
+          bundle=$(unzip -p "$apk" assets/index.android.bundle 2>/dev/null | wc -c)
+          [ "$bundle" -gt 0 ] || { echo "::error::bundle JS nao encontrado no APK"; exit 1; }
+
+          if unzip -p "$apk" assets/index.android.bundle 2>/dev/null | grep -qa "$PROJECT_ID_ESPERADO"; then
+            echo "  projectId de staging: PRESENTE no bundle"
+          else
+            echo "::error::o APK NAO contem a config do projeto de staging esperado."
+            echo "  As EXPO_PUBLIC_FIREBASE_* provavelmente nao chegaram ao Gradle."
+            exit 1
+          fi
+
+          if unzip -p "$apk" assets/index.android.bundle 2>/dev/null | grep -qa "lumenplus-3fec7"; then
+            echo "::error::o APK contem a config do projeto ATUAL/PRODUCAO. Recusado."
+            exit 1
+          fi
+          echo "  nenhum vestigio do projeto de producao no bundle"
 
       - name: Validar e publicar metadados do APK
         id: meta
