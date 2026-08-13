@@ -51,9 +51,17 @@ jobs:
           sudo udevadm trigger --name-match=kvm
           ls -la /dev/kvm
 
+      # O SDK vem pre-instalado no runner, mas platform-tools NAO esta no PATH.
+      # A primeira versao deste diagnostico chamava `adb` direto e morreu com
+      # 'command not found' — o que, por si so, ja e um achado: qualquer script
+      # que assuma `adb` no PATH quebra aqui.
+      - uses: android-actions/setup-android@v3
+
       - name: adb antes de qualquer emulador
         run: |
-          which adb && adb version
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          export PATH="$PATH:$ANDROID_HOME/platform-tools"
+          which adb && adb version | head -1
           adb start-server
           adb devices
 
