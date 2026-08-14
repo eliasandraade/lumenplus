@@ -11,7 +11,6 @@ import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
-import { VercelAnalytics } from '@/components/VercelAnalytics';
 import { useFonts } from 'expo-font';
 import {
   Nunito_400Regular,
@@ -136,7 +135,6 @@ function AppStack() {
         <Stack.Screen name="vida" options={{ headerShown: false }} />
         <Stack.Screen name="channel" options={{ headerShown: false }} />
       </Stack>
-      <VercelAnalytics />
     </>
   );
 }

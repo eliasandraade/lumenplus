@@ -21,13 +21,33 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3.0", "ruff>=0.8.0", "mypy>=1.13.0"]
+# Versões FIXAS para determinismo (espelham requirements-dev.txt + requirements.txt).
+# Floating (>=) reabre o drift de tooling que deixou o CI vermelho.
+dev = ["pytest==7.4.4", "pytest-asyncio==0.23.3", "ruff==0.15.22", "mypy==2.3.0"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+# Ruleset EXPLÍCITO = o default histórico do ruff (E4/E7/E9/F).
+# Sem esta linha, o ruff usa o "default do momento", que MUDA entre versões:
+# o CI faz `pip install ruff` sem pin, então uma versão nova (0.16.0) passou a
+# aplicar UP/I/RUF/B e gerou ~746 achados que NUNCA fizeram parte do lint deste
+# projeto — deixando o CI vermelho em todos os branches sem nenhuma mudança de
+# código. Fixar o select tira o CI da mão da versão do ruff. O código já passa
+# 100% sob este ruleset (verificado em main). Se um dia quiserem adotar UP/I,
+# que seja numa migração deliberada, não por drift de tooling.
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# Scripts de performance e arquivos de teste configuram env/patches (ex.:
+# os.environ, SQLiteTypeCompiler) ANTES de importar a app — de propósito.
+# E402 (import não no topo) é esperado e correto nesses casos.
+"performance/**" = ["E402"]
+"tests/**" = ["E402"]
 
 [tool.mypy]
 python_version = "3.12"

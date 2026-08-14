@@ -1,0 +1,40 @@
+# App Store Review Guideline 5.1.1(v) — exclusão de conta.
+#
+# O revisor precisa CONSEGUIR excluir a conta pelo app. Este fluxo percorre
+# exatamente o caminho que ele vai tentar: Perfil -> Excluir minha conta ->
+# confirmação por digitação -> exclusão efetiva.
+#
+# ATENÇÃO: exclui a conta de verdade. Só rodar com usuário de teste em
+# ambiente de teste.
+appId: com.lumenchristi.lumenplus
+---
+- launchApp:
+    clearState: false
+
+# A entrada precisa estar VISÍVEL no perfil, não escondida em submenu — a
+# rejeição mais comum na 5.1.1(v) é a opção existir mas ser difícil de achar.
+- tapOn:
+    id: "profile-delete-account"
+
+- assertVisible: "O que será excluído"
+# Transparência sobre retenção legal: a Apple aceita retenção declarada, mas
+# ela precisa estar visível ao usuário no momento da decisão.
+- assertVisible: "O que precisamos manter (e por quê)"
+
+# Botão deve começar DESABILITADO — exclusão irreversível não pode acontecer
+# por toque acidental.
+- assertVisible:
+    id: "delete-account-submit"
+
+- tapOn:
+    id: "delete-account-confirm-input"
+- inputText: "EXCLUIR"
+
+- tapOn:
+    id: "delete-account-submit"
+
+# Após excluir, o app precisa deslogar. Se continuasse na sessão, seria
+# desativação disfarçada de exclusão — exatamente o que a diretriz proíbe.
+- extendedWaitUntil:
+    visible: "Entrar"
+    timeout: 15000

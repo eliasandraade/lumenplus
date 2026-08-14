@@ -1,0 +1,428 @@
+name: E2E — Maestro (Android)
+
+# Os fluxos em lumen_mobile/.maestro/ cobrem os caminhos que a App Review testa
+# a mão: exclusão de conta (5.1.1(v)), denúncia e bloqueio (1.2).
+#
+# POR QUE DOIS JOBS
+# -----------------
+# A versão anterior compilava e rodava o emulador no MESMO runner, e o passo do
+# emulador falhava sempre — seis execuções. Um diagnóstico isolado provou que o
+# emulador sobe sem problema num runner limpo (`emulator-5554` respondendo,
+# boot completo). A única diferença estrutural era o build de release rodando
+# antes, consumindo disco e deixando estado no runner.
+#
+# Isto é HIPÓTESE FORTEMENTE SUSTENTADA, não causa raiz estabelecida: não
+# sabemos se foi disco, memória ou estado do adb, e não precisamos saber. A
+# separação vale por si:
+#
+#   - cada falha passa a ser atribuível a UMA etapa;
+#   - o job do emulador roda em minutos, não em 40, porque não compila nada;
+#   - o APK testado é exatamente o publicado, verificado por SHA-256.
+#
+# Rodar emulador em CI é caro, então isto NÃO dispara a cada push: sob demanda
+# e em tags de release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      flow:
+        description: 'Fluxo específico (vazio = todos)'
+        required: false
+        default: ''
+  push:
+    tags:
+      - 'v*'
+
+env:
+  APP_ID: com.lumenchristi.lumenplus
+
+jobs:
+  # ===========================================================================
+  # JOB 1 — compila e publica. NÃO inicia emulador. NÃO instala Maestro.
+  # ===========================================================================
+  build-android-e2e:
+    name: Build APK releaseTest
+    # Environment dedicado: os secrets do E2E ficam escopados aqui, e nao
+    # como Repository Secrets visiveis a qualquer workflow do repo.
+    environment: staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: npm
+          cache-dependency-path: lumen_mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Instalar dependências
+        working-directory: lumen_mobile
+        run: npm ci
+
+      - name: Lint
+        working-directory: lumen_mobile
+        run: npm run lint
+
+      - name: Typecheck
+        working-directory: lumen_mobile
+        run: npm run typecheck
+
+      - name: Testes unitários
+        working-directory: lumen_mobile
+        run: npm test
+
+      # ===================================================================
+      # GUARDS DE AMBIENTE — allowlist POSITIVA, antes de compilar.
+      #
+      # Modelo: so segue se a configuracao for EXPLICITAMENTE de staging.
+      # Nao dependemos de conhecer os identificadores de producao — exigir
+      # PROD_* criaria dependencia humana existente so para o guard, e um
+      # guard que depende de alguem lembrar de cadastrar o "proibido" falha
+      # aberto no dia em que a variable some.
+      #
+      # Aqui produção não é "o que está na lista negra": é tudo que não provou
+      # ser staging. Faltando qualquer prova, o build para.
+      #
+      # Isto importa porque o fluxo 01-excluir-conta EXCLUI UMA CONTA DE
+      # VERDADE. Nao ha desfazer.
+      # ===================================================================
+      - name: Guards de ambiente (allowlist de staging)
+        env:
+          FB_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          FB_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          FB_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+          FB_STORAGE_BUCKET: ${{ secrets.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          FB_SENDER_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          FB_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+          API_URL: ${{ secrets.E2E_API_URL }}
+          PROJECT_ID_ESPERADO: ${{ vars.E2E_FIREBASE_PROJECT_ID }}
+          AMBIENTE: ${{ vars.E2E_ENVIRONMENT }}
+          U1: ${{ secrets.E2E_USER_EMAIL }}
+          P1: ${{ secrets.E2E_USER_PASSWORD }}
+          U2: ${{ secrets.E2E_USER2_EMAIL }}
+          P2: ${{ secrets.E2E_USER2_PASSWORD }}
+          U3: ${{ secrets.E2E_THROWAWAY_EMAIL }}
+          P3: ${{ secrets.E2E_THROWAWAY_PASSWORD }}
+        run: |
+          set -uo pipefail
+          faltando=""
+          for v in FB_API_KEY FB_AUTH_DOMAIN FB_PROJECT_ID FB_STORAGE_BUCKET                    FB_SENDER_ID FB_APP_ID API_URL U1 P1 U2 P2 U3 P3; do
+            [ -z "${!v:-}" ] && faltando="$faltando $v"
+          done
+
+          # Presenca/ausencia apenas. Nenhum valor e impresso.
+          echo "--- configuracao (presenca, nunca valores) ---"
+          for v in FB_API_KEY FB_AUTH_DOMAIN FB_PROJECT_ID FB_STORAGE_BUCKET                    FB_SENDER_ID FB_APP_ID API_URL U1 P1 U2 P2 U3 P3; do
+            if [ -n "${!v:-}" ]; then echo "  $v: presente"; else echo "  $v: AUSENTE"; fi
+          done
+
+          if [ -n "$faltando" ]; then
+            echo "::error::Firebase de staging ainda nao configurado. Ausentes:$faltando"
+            echo "Ver docs/store-readiness/e2e-secrets.md para o passo a passo."
+            echo "O pipeline NAO cai em AUTH_MODE=DEV nem em producao: para aqui."
+            exit 1
+          fi
+
+          # --- allowlist positiva ---
+          if [ -z "${AMBIENTE:-}" ] || [ "$AMBIENTE" != "staging" ]; then
+            echo "::error::variable E2E_ENVIRONMENT deve valer exatamente 'staging' (atual: '${AMBIENTE:-<vazia>}')"
+            exit 1
+          fi
+          if [ -z "${PROJECT_ID_ESPERADO:-}" ]; then
+            echo "::error::variable E2E_FIREBASE_PROJECT_ID nao definida"
+            exit 1
+          fi
+          if [ "$FB_PROJECT_ID" != "$PROJECT_ID_ESPERADO" ]; then
+            echo "::error::projectId do secret difere do declarado em E2E_FIREBASE_PROJECT_ID"
+            exit 1
+          fi
+          case "$API_URL" in
+            https://*) : ;;
+            *) echo "::error::E2E_API_URL precisa ser HTTPS"; exit 1 ;;
+          esac
+
+          echo "projectId: $PROJECT_ID_ESPERADO"
+          echo "ambiente:  $AMBIENTE"
+          echo "guards OK — allowlist de staging satisfeita"
+
+      # A conta descartavel e apagada pelo fluxo de exclusao. Recria-la a mao a
+      # cada execucao transformaria o E2E em cerimonia manual e faria o
+      # pipeline falhar por manutencao esquecida, nao por regressao.
+      # Trocar FIREBASE_PROJECT_ID no Railway dispara redeploy. Provisionar
+      # durante a janela de reinicio daria 502/503 e a falha pareceria erro de
+      # credencial. Espera-se o servico ficar pronto ANTES de escrever qualquer
+      # dado — e confirma-se que ele valida contra o projeto certo.
+      - name: Aguardar backend de staging
+        env:
+          API_URL: ${{ secrets.E2E_API_URL }}
+          PROJECT_ID_ESPERADO: ${{ vars.E2E_FIREBASE_PROJECT_ID }}
+        run: |
+          set -uo pipefail
+          base="${API_URL%/}"
+          for tentativa in $(seq 1 40); do
+            live=$(curl -sS -o /dev/null -w '%{http_code}' "$base/health/live" 2>/dev/null || echo 000)
+            if [ "$live" = "200" ]; then break; fi
+            echo "  aguardando /health/live (tentativa $tentativa, HTTP $live)"
+            sleep 15
+          done
+          [ "${live:-000}" = "200" ] || { echo "::error::/health/live nao respondeu 200 (HTTP ${live:-000})"; exit 1; }
+
+          for tentativa in $(seq 1 40); do
+            ready=$(curl -sS -o /dev/null -w '%{http_code}' "$base/health/ready" 2>/dev/null || echo 000)
+            if [ "$ready" = "200" ]; then break; fi
+            echo "  aguardando /health/ready (tentativa $tentativa, HTTP $ready)"
+            sleep 15
+          done
+          [ "${ready:-000}" = "200" ] || { echo "::error::/health/ready nao respondeu 200 (HTTP ${ready:-000})"; exit 1; }
+
+          echo "backend de staging pronto"
+          echo "projeto Firebase esperado nos tokens: $PROJECT_ID_ESPERADO"
+
+      - name: Provisionar usuarios sinteticos (idempotente)
+        run: bash lumen_mobile/.maestro/ci-provision.sh
+        env:
+          FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          E2E_FIREBASE_PROJECT_ID: ${{ vars.E2E_FIREBASE_PROJECT_ID }}
+          E2E_ENVIRONMENT: ${{ vars.E2E_ENVIRONMENT }}
+          E2E_API_URL: ${{ secrets.E2E_API_URL }}
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          E2E_USER2_EMAIL: ${{ secrets.E2E_USER2_EMAIL }}
+          E2E_USER2_PASSWORD: ${{ secrets.E2E_USER2_PASSWORD }}
+          E2E_THROWAWAY_EMAIL: ${{ secrets.E2E_THROWAWAY_EMAIL }}
+          E2E_THROWAWAY_PASSWORD: ${{ secrets.E2E_THROWAWAY_PASSWORD }}
+
+      - name: Prebuild Android
+        working-directory: lumen_mobile
+        run: npx expo prebuild --platform android --clean --no-install
+        env:
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+
+      # Perfil explícito: artefato de TESTE. O portão fail-closed de
+      # withReleaseSigning recusa release sem perfil, e `production` aqui seria
+      # mentira — não há credencial institucional em CI.
+      - name: Build APK releaseTest
+        working-directory: lumen_mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+        env:
+          LUMEN_SIGNING_PROFILE: releaseTest
+          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+          EXPO_PUBLIC_API_URL: ${{ secrets.E2E_API_URL }}
+          EXPO_PUBLIC_ENVIRONMENT: staging
+
+      # O bundle e gerado com as EXPO_PUBLIC_* embutidas. Se alguma faltasse no
+      # ambiente do Gradle, o APK sairia com `undefined` e o app morreria no
+      # lancamento — foi exatamente o que aconteceu antes. Aqui provamos que a
+      # config do projeto ESPERADO esta dentro do binario.
+      #
+      # Confere apenas PRESENCA do projectId. Nenhum valor e impresso.
+      - name: Verificar config de staging dentro do APK
+        working-directory: lumen_mobile
+        env:
+          PROJECT_ID_ESPERADO: ${{ vars.E2E_FIREBASE_PROJECT_ID }}
+        run: |
+          set -uo pipefail
+          apk=$(find android/app/build/outputs/apk/release -name '*.apk' | head -1)
+          bundle=$(unzip -p "$apk" assets/index.android.bundle 2>/dev/null | wc -c)
+          [ "$bundle" -gt 0 ] || { echo "::error::bundle JS nao encontrado no APK"; exit 1; }
+
+          if unzip -p "$apk" assets/index.android.bundle 2>/dev/null | grep -qa "$PROJECT_ID_ESPERADO"; then
+            echo "  projectId de staging: PRESENTE no bundle"
+          else
+            echo "::error::o APK NAO contem a config do projeto de staging esperado."
+            echo "  As EXPO_PUBLIC_FIREBASE_* provavelmente nao chegaram ao Gradle."
+            exit 1
+          fi
+
+          if unzip -p "$apk" assets/index.android.bundle 2>/dev/null | grep -qa "lumenplus-3fec7"; then
+            echo "::error::o APK contem a config do projeto ATUAL/PRODUCAO. Recusado."
+            exit 1
+          fi
+          echo "  nenhum vestigio do projeto de producao no bundle"
+
+      - name: Validar e publicar metadados do APK
+        id: meta
+        working-directory: lumen_mobile
+        run: |
+          set -euo pipefail
+          apk=$(find android/app/build/outputs/apk/release -name '*.apk' | head -1)
+          [ -n "$apk" ] || { echo "::error::APK nao encontrado"; exit 1; }
+
+          aapt2=$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -1)
+          badging=$("$aapt2" dump badging "$apk")
+
+          pkg=$(echo "$badging" | sed -n "s/.*package: name='\([^']*\)'.*/\1/p")
+          vname=$(echo "$badging" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p")
+          vcode=$(echo "$badging" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p")
+          target=$(echo "$badging" | sed -n "s/.*targetSdkVersion:'\([^']*\)'.*/\1/p")
+
+          # O APK que vai para o E2E precisa ser o do app, não outro qualquer.
+          [ "$pkg" = "${APP_ID}" ] || { echo "::error::package '$pkg' != '${APP_ID}'"; exit 1; }
+          [ "$target" = "36" ] || { echo "::error::targetSdk '$target' != 36"; exit 1; }
+
+          sha=$(sha256sum "$apk" | cut -d' ' -f1)
+
+          mkdir -p ../e2e-artefato
+          cp "$apk" ../e2e-artefato/app-releaseTest.apk
+          cat > ../e2e-artefato/metadata.json <<JSON
+          {
+            "commit": "${GITHUB_SHA}",
+            "ref": "${GITHUB_REF}",
+            "package": "${pkg}",
+            "versionName": "${vname}",
+            "versionCode": "${vcode}",
+            "targetSdkVersion": "${target}",
+            "signingMode": "releaseTest",
+            "sha256": "${sha}",
+            "runId": "${GITHUB_RUN_ID}"
+          }
+          JSON
+          echo "--- metadata ---"
+          cat ../e2e-artefato/metadata.json
+
+      # Os fluxos viajam junto do APK para que o job 2 não precise do repo
+      # inteiro — e para garantir que fluxos e binário são do MESMO commit.
+      - name: Anexar fluxos Maestro
+        run: cp -r lumen_mobile/.maestro e2e-artefato/maestro-flows
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk-e2e
+          path: e2e-artefato/**
+          if-no-files-found: error
+          retention-days: 7
+
+  # ===========================================================================
+  # JOB 2 — runner LIMPO. Só consome o APK pronto. Nada de npm/prebuild/Gradle.
+  # ===========================================================================
+  maestro-android-e2e:
+    name: Maestro no emulador
+    needs: build-android-e2e
+    environment: staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk-e2e
+          path: e2e
+
+      - name: Conferir integridade do APK
+        run: |
+          set -euo pipefail
+          esperado=$(python3 -c "import json;print(json.load(open('e2e/metadata.json'))['sha256'])")
+          obtido=$(sha256sum e2e/app-releaseTest.apk | cut -d' ' -f1)
+          echo "esperado: $esperado"
+          echo "obtido:   $obtido"
+          # Sem esta conferência, um artefato truncado no upload/download faria
+          # os fluxos falharem com erro de seletor, e a causa real ficaria
+          # escondida atrás de "elemento não encontrado".
+          [ "$esperado" = "$obtido" ] || { echo "::error::SHA-256 divergente"; exit 1; }
+          echo "--- metadata do build ---"
+          cat e2e/metadata.json
+
+      - uses: android-actions/setup-android@v3
+
+      - name: adb no PATH e KVM comprovado
+        run: |
+          set -euo pipefail
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          export PATH="$PATH:$ANDROID_HOME/platform-tools"
+          which adb
+          adb version | head -1
+          # /dev/kvm precisa existir ANTES de tentar subir o AVD. Sem isto, a
+          # falha aparece como erro genérico de adb, minutos depois.
+          ls -la /dev/kvm || { echo "::error::/dev/kvm ausente — emulador nao sobe"; exit 1; }
+
+      - name: Habilitar KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+
+      - name: Instalar Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      # Criar o AVD do zero consumiu os 45 min do job inteiro na execução
+      # anterior — o timeout estourou antes de o script rodar. O cache é o que
+      # torna isto praticável: na primeira vez paga-se a criação, depois o
+      # snapshot é reaproveitado.
+      - name: Cache do AVD
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-api34-google_apis-x86_64-v1
+
+      - name: Criar AVD e gerar snapshot (só no cache miss)
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: false
+          emulator-boot-timeout: 1800
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          disable-animations: false
+          script: echo "snapshot do AVD gerado"
+
+      - name: Emulador + fluxos
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: false
+          disable-animations: true
+          emulator-boot-timeout: 1800
+          # Lista COMPLETA e documentada pela action — não a versão truncada
+          # que eu havia escrito. `emulator-options` substitui o padrão inteiro
+          # em vez de acrescentar, e as flags de câmera ausentes travavam o
+          # boot antes de o script rodar. Foi por isso que nenhum echo meu
+          # apareceu em sete execuções.
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          # UMA linha, de proposito. O `script:` desta action NAO e um
+          # script: cada linha roda num `sh -c` separado. Isso derrubou SETE
+          # execucoes — `set +e` nao valia adiante, variaveis nao sobreviviam
+          # entre linhas, e todo for/if multilinha estourava com
+          #   Syntax error: end of file unexpected (expecting "done")
+          # Como a primeira linha de controle ja falhava, NENHUM echo meu
+          # aparecia, e procurei a causa no emulador, no KVM e no Ubuntu.
+          #
+          # A logica vive em .maestro/ci-run.sh, onde o shell e um so.
+          script: bash e2e/maestro-flows/ci-run.sh
+        env:
+          APP_ID: ${{ env.APP_ID }}
+          FLOW: ${{ inputs.flow }}
+
+      - name: Publicar diagnóstico
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-diagnostico
+          path: |
+            diagnostico/**
+          if-no-files-found: warn
+          retention-days: 14

@@ -48,15 +48,25 @@ function initFirebase(): { app: FirebaseApp; auth: Auth } {
 
   function createAuth(): Auth {
     if (Platform.OS === 'web') return getAuth(app);
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { getReactNativePersistence } = require('firebase/auth');
-      return initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
-    } catch {
-      return getAuth(app);
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { getReactNativePersistence } = require('firebase/auth');
+
+    // O try/catch que existia aqui engolia o erro e caía em getAuth(app) — que
+    // falha exatamente igual, com "Component auth has not been registered yet".
+    // O resultado era um crash na inicialização cuja causa não aparecia em
+    // lugar nenhum. Se a persistência de RN não estiver disponível, o problema
+    // é de resolução de módulo (ver metro.config.js) e precisa aparecer.
+    if (typeof getReactNativePersistence !== 'function') {
+      throw new Error(
+        'firebase/auth foi resolvido sem getReactNativePersistence — o Metro ' +
+          'provavelmente carregou o bundle de browser. Ver metro.config.js.'
+      );
     }
+
+    return initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
   }
 
   return { app, auth: createAuth() };

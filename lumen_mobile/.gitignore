@@ -10,3 +10,12 @@ expo-env.d.ts
 .env.local
 .env.*.local
 .vercel
+
+# Projetos nativos: gerados pelo EAS/prebuild, nunca versionados.
+# (As pastas anteriores eram scaffolding FLUTTER orfao — package com.example.lumen_mobile,
+#  assinado com chave de debug — que faria o EAS Build tratar isto como bare workflow.)
+/android
+/ios
+
+# artefatos de build local (APK/AAB) — nunca versionar
+/build-artifacts

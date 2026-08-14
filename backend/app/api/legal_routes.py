@@ -5,10 +5,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import desc
-
 from app.api.deps import CurrentUser, DBSession
 from app.audit.service import create_audit_log
+from app.services import community_guidelines as cg
+from app.services.legal_cache import get_latest_legal_document
 from app.db.models import LegalDocument, UserConsent, UserPreferences
 
 router = APIRouter(prefix="/legal", tags=["Legal"])
@@ -41,21 +41,10 @@ class AcceptLegalResponse(BaseModel):
 
 
 @router.get("/latest", response_model=LatestLegalResponse)
-async def get_latest_legal(db: DBSession) -> LatestLegalResponse:
+def get_latest_legal(db: DBSession) -> LatestLegalResponse:  # `def`: DB-bound → threadpool
     """Get latest published terms and privacy policy."""
-    terms = (
-        db.query(LegalDocument)
-        .filter(LegalDocument.type == "TERMS")
-        .order_by(desc(LegalDocument.published_at))
-        .first()
-    )
-
-    privacy = (
-        db.query(LegalDocument)
-        .filter(LegalDocument.type == "PRIVACY")
-        .order_by(desc(LegalDocument.published_at))
-        .first()
-    )
+    terms = get_latest_legal_document(db, "TERMS")
+    privacy = get_latest_legal_document(db, "PRIVACY")
 
     return LatestLegalResponse(
         terms=LegalDocumentResponse(
@@ -171,4 +160,99 @@ async def accept_legal(
         message="Consents recorded successfully",
         terms_accepted=terms_accepted,
         privacy_accepted=privacy_accepted,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Diretrizes da Comunidade — pré-requisito para publicar conteúdo (Apple 1.2)
+# ---------------------------------------------------------------------------
+class CommunityGuidelinesResponse(BaseModel):
+    document: LegalDocumentResponse | None
+    accepted: bool
+
+
+class AcceptGuidelinesRequest(BaseModel):
+    version: str
+
+
+class AcceptGuidelinesResponse(BaseModel):
+    message: str
+    accepted_version: str
+
+
+@router.get("/community-guidelines", response_model=CommunityGuidelinesResponse)
+def get_community_guidelines(  # `def`: DB-bound → threadpool
+    current_user: CurrentUser, db: DBSession
+) -> CommunityGuidelinesResponse:
+    """
+    Diretrizes vigentes e se o usuário já as aceitou.
+
+    O app chama isto antes de abrir o compositor: se `accepted` for falso,
+    exibe o texto e pede o aceite — evitando o 428 na hora de publicar.
+    """
+    accepted, doc = cg.has_accepted_latest(db, current_user.id)
+    return CommunityGuidelinesResponse(
+        document=LegalDocumentResponse(
+            id=doc.id,
+            type=doc.type,
+            version=doc.version,
+            content=doc.content,
+            published_at=doc.published_at,
+        )
+        if doc
+        else None,
+        accepted=accepted,
+    )
+
+
+@router.post("/community-guidelines/accept", response_model=AcceptGuidelinesResponse)
+def accept_community_guidelines(  # `def`: DB-bound → threadpool
+    request: Request,
+    body: AcceptGuidelinesRequest,
+    current_user: CurrentUser,
+    db: DBSession,
+) -> AcceptGuidelinesResponse:
+    """
+    Registra o aceite de uma versão específica.
+
+    A versão vai no corpo de propósito: se as diretrizes forem republicadas
+    entre a leitura e o envio, o aceite não pode recair silenciosamente sobre
+    um texto que o usuário não viu.
+    """
+    doc = (
+        db.query(LegalDocument)
+        .filter(LegalDocument.type == cg.LEGAL_TYPE, LegalDocument.version == body.version)
+        .first()
+    )
+    if not doc:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "bad_request",
+                "message": f"Community guidelines version {body.version} not found",
+            },
+        )
+
+    already = (
+        db.query(UserConsent)
+        .filter(UserConsent.user_id == current_user.id, UserConsent.document_id == doc.id)
+        .first()
+    )
+    if not already:
+        db.add(UserConsent(user_id=current_user.id, document_id=doc.id))
+        create_audit_log(
+            db=db,
+            actor_user_id=current_user.id,
+            action="community_guidelines_accepted",
+            entity_type="user_consent",
+            entity_id=str(current_user.id),
+            ip=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent"),
+            metadata={"version": doc.version},
+        )
+        db.commit()
+
+    return AcceptGuidelinesResponse(
+        message="Community guidelines accepted",
+        accepted_version=doc.version,
     )

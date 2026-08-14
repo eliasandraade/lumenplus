@@ -18,6 +18,7 @@ import cloudinary.uploader
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DBSession
 from app.db.models import (
@@ -188,14 +189,24 @@ def _get_user_voc_code(db: Any, user_id: UUID) -> str | None:
 
 
 def _get_user_fee_info(
-    db: Any, user_id: UUID, retreat: Retreat, modality: str | None = None
+    db: Any,
+    user_id: UUID,
+    retreat: Retreat,
+    modality: str | None = None,
+    voc_code: str | None = None,
+    _voc_provided: bool = False,
 ) -> dict[str, Any] | None:
     """
     Retorna a taxa esperada do usuário para o retiro.
     Se modalidade = HÍBRIDO, retorna a taxa HIBRIDO independente de perfil.
     Caso contrário, calcula a partir da realidade vocacional (papel = PARTICIPANTE por padrão).
+
+    `voc_code` pode ser pré-calculado pelo chamador (é invariante entre retiros
+    do mesmo usuário) para evitar N+1 — ver list_retreats. Quando não é passado,
+    é consultado aqui, preservando o comportamento anterior dos demais chamadores.
     """
-    voc_code = _get_user_voc_code(db, user_id)
+    if voc_code is None and not _voc_provided:
+        voc_code = _get_user_voc_code(db, user_id)
     fee_cat = _compute_fee_category("PARTICIPANTE", voc_code, modality)
     fee_type = db.execute(
         select(RetreatFeeType).where(
@@ -358,9 +369,70 @@ def _spots_available(db: Any, retreat: Retreat, modality: str | None = None) -> 
 @router.get("")
 async def list_retreats(current_user: CurrentUser, db: DBSession) -> Any:
     """Lista retiros publicados visíveis para o usuário logado."""
+    # PERF (N+1): eager-load de houses e eligibility_rules — sem isso, cada
+    # retiro do laço disparava lazy-loads separados (medido: ~6 queries/retiro,
+    # 305 para 50 retiros). selectinload usa 1 query por relação para o conjunto
+    # todo, preservando exatamente os mesmos dados.
     retreats = (
-        db.execute(select(Retreat).where(Retreat.status == RetreatStatus.PUBLISHED)).scalars().all()
+        db.execute(
+            select(Retreat)
+            .where(Retreat.status == RetreatStatus.PUBLISHED)
+            .options(
+                selectinload(Retreat.houses),
+                selectinload(Retreat.eligibility_rules),
+                # fee_types e registrations são acessados por _retreat_to_dict
+                # (contagem de inscritos e taxas) — sem eager-load, cada retiro
+                # dispara 2 lazy-loads. selectinload batcheia em 1 query/relação.
+                # Mesmo volume de linhas que o acesso lazy anterior (usado só para
+                # CONTAR inscritos ativos), sem aumento de payload no retorno.
+                selectinload(Retreat.fee_types),
+                selectinload(Retreat.registrations),
+            )
+        )
+        .scalars()
+        .all()
     )
+
+    # PERF (N+1): a realidade vocacional do usuário é INVARIANTE entre retiros —
+    # calculada uma única vez aqui e reusada, em vez de re-consultada por retiro.
+    voc_code = _get_user_voc_code(db, current_user.id)
+
+    retreat_ids = [r.id for r in retreats]
+
+    # PERF (N+1): BATCH das inscrições do usuário — uma query para TODOS os
+    # retiros, em vez de uma por retiro. Mapeadas por retreat_id.
+    regs_by_retreat: dict[Any, RetreatRegistration] = {}
+    if retreat_ids:
+        for reg in (
+            db.execute(
+                select(RetreatRegistration).where(
+                    RetreatRegistration.user_id == current_user.id,
+                    RetreatRegistration.retreat_id.in_(retreat_ids),
+                )
+            )
+            .scalars()
+            .all()
+        ):
+            regs_by_retreat[reg.retreat_id] = reg
+
+    # PERF (N+1): BATCH das taxas. A categoria de taxa (fee_cat) depende só da
+    # realidade vocacional do usuário (invariante entre retiros na listagem, onde
+    # modality=None), então é a MESMA para todos. Uma query carrega a taxa dessa
+    # categoria para todos os retiros de uma vez, mapeada por retreat_id.
+    fee_cat = _compute_fee_category("PARTICIPANTE", voc_code, None)
+    fees_by_retreat: dict[Any, RetreatFeeType] = {}
+    if retreat_ids:
+        for ft in (
+            db.execute(
+                select(RetreatFeeType).where(
+                    RetreatFeeType.retreat_id.in_(retreat_ids),
+                    RetreatFeeType.fee_category == fee_cat,
+                )
+            )
+            .scalars()
+            .all()
+        ):
+            fees_by_retreat[ft.retreat_id] = ft
 
     result = []
     for retreat in retreats:
@@ -368,13 +440,15 @@ async def list_retreats(current_user: CurrentUser, db: DBSession) -> Any:
         as_service = _user_eligible_as_service(db, current_user.id, retreat)
         if not as_participant and not as_service:
             continue
-        reg = db.execute(
-            select(RetreatRegistration).where(
-                RetreatRegistration.retreat_id == retreat.id,
-                RetreatRegistration.user_id == current_user.id,
-            )
-        ).scalar_one_or_none()
-        user_fee = _get_user_fee_info(db, current_user.id, retreat)
+        reg = regs_by_retreat.get(retreat.id)
+        # Monta o mesmo dict que _get_user_fee_info produziria (modality=None),
+        # sem a query por retiro — a taxa já veio no batch acima.
+        fee_type = fees_by_retreat.get(retreat.id)
+        user_fee = {
+            "fee_category": fee_cat,
+            "fee_label": FEE_CATEGORY_LABELS.get(fee_cat, fee_cat),
+            "amount_brl": fee_type.amount_brl if fee_type else None,
+        }
         result.append(_retreat_to_dict(retreat, reg, user_fee, as_participant, as_service))
 
     return {"retreats": result}
@@ -724,6 +798,9 @@ async def submit_payment_proof(
             public_id=f"user_{current_user.id}",
             overwrite=True,
             resource_type="image",
+            # RESILIÊNCIA: bound no upload externo — sem isto, um Cloudinary
+            # lento segura a request (e a conexão de banco do request) sem limite.
+            timeout=15,
         )
         url = upload_result["secure_url"]
     except Exception as exc:

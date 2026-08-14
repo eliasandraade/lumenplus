@@ -30,6 +30,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from sqlalchemy.orm import Session
 
@@ -906,17 +907,47 @@ async def list_registrations(retreat_id: UUID, current_user: CurrentUser, db: DB
         )
 
     regs = (
-        db.execute(select(RetreatRegistration).where(RetreatRegistration.retreat_id == retreat_id))
+        db.execute(
+            select(RetreatRegistration)
+            .where(RetreatRegistration.retreat_id == retreat_id)
+            # PERF (N+1): team_preferences e team_assignment_entries eram
+            # lazy-loaded por inscrição. selectinload batcheia em 1 query/relação.
+            .options(
+                selectinload(RetreatRegistration.team_preferences),
+                selectinload(RetreatRegistration.team_assignment_entries),
+            )
+        )
         .scalars()
         .all()
     )
 
+    # PERF (N+1): antes, cada inscrição disparava 1 query de UserProfile e 1 de
+    # RetreatHouse (medido: ~1 query/inscrição, 59 para 50 inscritos). Batcheamos
+    # ambos em uma query cada, mapeados por id, e consultamos in-memory no laço.
+    user_ids = {reg.user_id for reg in regs}
+    profiles_by_user: dict[Any, UserProfile] = {}
+    if user_ids:
+        for prof in (
+            db.execute(select(UserProfile).where(UserProfile.user_id.in_(user_ids)))
+            .scalars()
+            .all()
+        ):
+            profiles_by_user[prof.user_id] = prof
+
+    house_ids = {reg.assigned_house_id for reg in regs if reg.assigned_house_id}
+    houses_by_id: dict[Any, RetreatHouse] = {}
+    if house_ids:
+        for hs in (
+            db.execute(select(RetreatHouse).where(RetreatHouse.id.in_(house_ids)))
+            .scalars()
+            .all()
+        ):
+            houses_by_id[hs.id] = hs
+
     items = []
     for reg in regs:
-        profile = db.execute(
-            select(UserProfile).where(UserProfile.user_id == reg.user_id)
-        ).scalar_one_or_none()
-        house = db.get(RetreatHouse, reg.assigned_house_id) if reg.assigned_house_id else None
+        profile = profiles_by_user.get(reg.user_id)
+        house = houses_by_id.get(reg.assigned_house_id) if reg.assigned_house_id else None
         team_prefs = sorted(reg.team_preferences or [], key=lambda p: p.preference_order)
         team_assignments = [
             {

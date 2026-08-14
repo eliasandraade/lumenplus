@@ -6,6 +6,7 @@ Funciona corretamente em ambientes com múltiplas instâncias.
 """
 
 import hashlib
+import ipaddress
 import time
 from typing import Any, Callable, cast
 
@@ -18,6 +19,37 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.settings import settings
 
 logger = structlog.get_logger()
+
+
+def _is_valid_ip(value: str) -> bool:
+    try:
+        ipaddress.ip_address(value)
+        return True
+    except ValueError:
+        return False
+
+
+def _resolve_client_ip(request: Request) -> str | None:
+    """Resolve o IP real do cliente de forma resistente a spoofing de X-Forwarded-For.
+
+    Formato do XFF: "cliente, proxy1, proxy2" — cada proxy confiável APENDE o IP
+    de quem se conectou a ele, à direita. O valor mais à esquerda é controlado
+    pelo cliente (spoofável). Pegamos a entrada a ``trusted_proxy_hops`` posições
+    a partir da direita (Railway = 1 hop) e validamos o formato; se inválida,
+    caímos para o peer TCP direto.
+    """
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        parts = [p.strip() for p in forwarded.split(",") if p.strip()]
+        hops = settings.trusted_proxy_hops if settings.trusted_proxy_hops >= 1 else 1
+        if len(parts) >= hops:
+            candidate = parts[-hops]
+            if _is_valid_ip(candidate):
+                return candidate
+    if request.client and _is_valid_ip(request.client.host):
+        return request.client.host
+    return None
+
 
 _redis_client: redis_lib.Redis | None = None
 _redis_last_failure: float = 0.0
@@ -90,15 +122,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             token_hash = hashlib.sha256(token.encode()).hexdigest()[:16]
             return f"auth:{token_hash}"
 
-        # X-Forwarded-For: apenas confiável quando atrás de um proxy reverso confiável
-        forwarded = request.headers.get("x-forwarded-for")
-        if forwarded:
-            return f"ip:{forwarded.split(',')[0].strip()}"
-
-        if request.client:
-            return f"ip:{request.client.host}"
-
-        return "ip:unknown"
+        # IP real resolvido de forma resistente a spoofing (ver _resolve_client_ip).
+        ip = _resolve_client_ip(request)
+        return f"ip:{ip}" if ip else "ip:unknown"
 
     async def _is_rate_limited(self, client_id: str) -> bool:
         redis = await _get_redis()

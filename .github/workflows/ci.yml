@@ -36,7 +36,7 @@ jobs:
         run: npx expo export --platform web
         env:
           # Placeholder seguro — não usa URL de produção no CI
-          EXPO_PUBLIC_API_URL: https://backend-staging.up.railway.app
+          EXPO_PUBLIC_API_URL: https://backend-staging-staging-3d47.up.railway.app
 
   backend:
     name: Backend — Pytest + Mypy
@@ -88,7 +88,9 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install ruff mypy
+          # Toolchain FIXA (ruff/mypy) — antes era `pip install ruff mypy` sem
+          # pin, o que deixou o CI vermelho quando o ruff default mudou (0.16.0).
+          pip install -r requirements-dev.txt
 
       - name: Ruff lint
         run: ruff check .

@@ -1,0 +1,75 @@
+# Regras de alerta Prometheus para o backend Lumen+.
+#
+# Baseadas nas métricas expostas por GET /metrics (ver
+# docs/engineering/observability-resilience.md, seção "Métricas IMPLEMENTADAS").
+#
+# THRESHOLDS: todos marcados como VALOR INICIAL — A VALIDAR NA SPRINT 7.
+# Não são thresholds comprovados; devem ser recalibrados com os números reais do
+# teste de carga (erro/p95/pool sob 200-250 simultâneos).
+
+groups:
+  - name: lumen-backend
+    rules:
+      # --- erro por rota acima de 2% (janela de 5min) ---
+      - alert: LumenHighErrorRate
+        expr: |
+          sum(rate(lumen_requests_total{status="5xx"}[5m])) by (route)
+          /
+          clamp_min(sum(rate(lumen_requests_total[5m])) by (route), 1)
+          > 0.02
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "Erro 5xx > 2% em {{ $labels.route }} (VALOR INICIAL)"
+
+      # --- p95 de latência acima de 2s ---
+      - alert: LumenHighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(lumen_request_duration_seconds_bucket[5m])) by (le, route)
+          ) > 2
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "p95 > 2s em {{ $labels.route }} (VALOR INICIAL — recalibrar na Sprint 7)"
+
+      # --- pool perto do esgotamento (checkedout / size) ---
+      - alert: LumenDbPoolNearExhaustion
+        expr: lumen_db_pool_checkedout / clamp_min(lumen_db_pool_size, 1) > 0.8
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: "Pool de banco > 80% em uso (VALOR INICIAL)"
+
+      # --- pool em overflow sustentado (indica subdimensionamento) ---
+      - alert: LumenDbPoolOverflow
+        expr: lumen_db_pool_overflow > 0
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Pool usando overflow por 5min — considerar mais conexões/workers"
+
+      # --- backpressure disparando (503 DATABASE_BUSY) ---
+      - alert: LumenBackpressure503
+        expr: sum(rate(lumen_requests_total{status="5xx"}[5m])) > 0.5
+        for: 3m
+        labels: { severity: critical }
+        annotations:
+          summary: "Taxa alta de 5xx (possível 503 de pool) — ver readiness/pool"
+
+      # --- readiness caiu (scrape do /health/ready externo) ---
+      # Requer um blackbox_exporter apontando para /health/ready. Placeholder:
+      - alert: LumenReadinessDown
+        expr: probe_success{instance=~".*/health/ready"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "Readiness do backend indisponível (banco?)"
+
+      # --- in-flight muito alto (saturação) ---
+      - alert: LumenHighInFlight
+        expr: lumen_requests_in_flight > 100
+        for: 3m
+        labels: { severity: warning }
+        annotations:
+          summary: "> 100 requests em voo — saturação (VALOR INICIAL)"

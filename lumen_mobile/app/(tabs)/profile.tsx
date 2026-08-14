@@ -626,6 +626,30 @@ export default function ProfileScreen() {
           <Ionicons name="log-out-outline" size={20} color="#ef4444" />
           <Text style={styles.logoutText}>Sair da Conta</Text>
         </TouchableOpacity>
+        {/* ── Usuarios bloqueados (gate de UGC das lojas) ── */}
+        <TouchableOpacity
+          testID="profile-blocked-users"
+          style={styles.blockedUsersButton}
+          onPress={() => router.push('/account/blocked' as Href)}
+          accessibilityRole="button"
+          accessibilityLabel="Ver usuários bloqueados"
+        >
+          <Ionicons name="shield-outline" size={18} color="#525252" />
+          <Text style={styles.blockedUsersText}>Usuários bloqueados</Text>
+        </TouchableOpacity>
+
+        {/* ── Excluir conta (gate obrigatorio das lojas) ── */}
+        <TouchableOpacity
+          testID="profile-delete-account"
+          style={styles.deleteAccountButton}
+          onPress={() => router.push('/account/delete' as Href)}
+          accessibilityRole="button"
+          accessibilityLabel="Excluir minha conta"
+        >
+          <Ionicons name="trash-outline" size={18} color="#ef4444" />
+          <Text style={styles.deleteAccountText}>Excluir minha conta</Text>
+        </TouchableOpacity>
+
         <Text style={styles.version}>Lumen+ v1.0.0</Text>
       </ScrollView>
 
@@ -1480,5 +1504,43 @@ const makeStyles = (t: SemanticTokens) => StyleSheet.create({
   },
   themeBtnTextActive: {
     fontFamily: 'Nunito-Bold',
+  },
+
+  blockedUsersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 14,
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#d4d4d4',
+  },
+  blockedUsersText: {
+    fontSize: 15,
+    fontFamily: 'Nunito-Bold',
+    color: '#525252',
+  },
+  deleteAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 8,
+    paddingVertical: 14,
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
+  deleteAccountText: {
+    fontSize: 15,
+    fontFamily: 'Nunito-Bold',
+    color: '#ef4444',
   },
 });

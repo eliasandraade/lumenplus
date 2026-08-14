@@ -192,7 +192,12 @@ export default function VerifyPhoneScreen() {
           {code.map((digit, index) => (
             <TextInput
               key={index}
-              ref={(ref) => (inputRefs.current[index] = ref)}
+              // Chaves obrigatorias: no React 19 o retorno de um ref callback e
+              // tratado como funcao de cleanup. A forma implicita devolvia o
+              // proprio TextInput, que o React tentaria chamar ao desmontar.
+              ref={(ref) => {
+                inputRefs.current[index] = ref;
+              }}
               style={[styles.codeInput, digit ? styles.codeInputFilled : null]}
               value={digit}
               onChangeText={(value) => handleCodeChange(index, value)}

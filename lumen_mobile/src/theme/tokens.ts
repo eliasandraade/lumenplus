@@ -145,6 +145,31 @@ const lightTokens = {
     highlight: primitives.navyBrand[800],
     critical:  primitives.red.main,
   },
+  // Campos de formulário — fonte ÚNICA para todos os inputs do app.
+  //
+  // Antes, `login.tsx` e `register.tsx` definiam cada um a sua paleta local
+  // hardcoded, o que produziu duas aparências diferentes para a mesma coisa:
+  // input translúcido escuro no login, pílula branca no cadastro. Este grupo
+  // existe para que isso não possa acontecer de novo.
+  //
+  // O padrão adotado é o do Login — superfície translúcida sobre o fundo da
+  // tela, borda sutil. No esquema claro, a mesma ideia com tinta escura.
+  input: {
+    bg:            'rgba(15, 25, 35, 0.04)',
+    bgFocus:       'rgba(15, 25, 35, 0.06)',
+    bgDisabled:    'rgba(15, 25, 35, 0.02)',
+    border:        primitives.neutralGray[300],
+    borderFocus:   primitives.navyBrand[600],
+    borderError:   primitives.red.main,
+    text:          primitives.neutralGray[900],
+    textDisabled:  primitives.neutralGray[500],
+    placeholder:   primitives.neutralGray[500],
+    caret:         primitives.navyBrand[600],
+    icon:          primitives.neutralGray[600],
+    iconFocus:     primitives.navyBrand[600],
+    errorText:     primitives.red.dark,
+    radius:        14,
+  },
 } as const;
 
 const darkTokens = {
@@ -200,6 +225,25 @@ const darkTokens = {
     spiritual: primitives.gold[400],
     highlight: primitives.teal[400],
     critical:  '#f87171',
+  },
+  // Valores herdados literalmente do tratamento do Login, que foi escolhido
+  // como padrão — não são aproximações. Ver o comentário no bloco `input` do
+  // esquema claro para o motivo de este grupo existir.
+  input: {
+    bg:            'rgba(255, 255, 255, 0.07)',
+    bgFocus:       'rgba(255, 255, 255, 0.10)',
+    bgDisabled:    'rgba(255, 255, 255, 0.03)',
+    border:        'rgba(255, 255, 255, 0.14)',
+    borderFocus:   primitives.teal[300],
+    borderError:   'rgba(252, 165, 165, 0.60)',
+    text:          '#ffffff',
+    textDisabled:  'rgba(255, 255, 255, 0.35)',
+    placeholder:   'rgba(255, 255, 255, 0.40)',
+    caret:         primitives.teal[300],
+    icon:          'rgba(255, 255, 255, 0.55)',
+    iconFocus:     primitives.teal[300],
+    errorText:     '#fca5a5',
+    radius:        14,
   },
 } as const;
 

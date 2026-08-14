@@ -25,6 +25,7 @@ import {
 } from 'firebase/auth';
 import { auth, IS_DEV_AUTH } from '@/config/firebase';
 import api, { setDevToken } from '@/services/api';
+import { Input } from '@/components/Input';
 
 // ── Paleta "Vela em Catedral" ──────────────────────────────────────────────
 const C = {
@@ -156,60 +157,34 @@ export default function LoginScreen() {
           {/* ── Formulário ───────────────────────────────────── */}
           <View style={styles.form}>
 
-            {/* E-mail */}
-            <View style={[styles.inputWrapper, errors.email ? styles.inputWrapperError : null]}>
-              <Ionicons name="mail-outline" size={18} color={C.placeholder} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="E-mail"
-                value={email}
-                onChangeText={(t) => { setEmail(t); setErrors({ ...errors, email: '' }); setAuthError(''); }}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                placeholderTextColor={C.placeholder}
-                accessibilityLabel="Campo de e-mail"
-              />
-              {errors.email ? (
-                <Ionicons name="alert-circle" size={18} color={C.errorText} />
-              ) : null}
-            </View>
-            {errors.email ? (
-              <View style={styles.fieldError}>
-                <Ionicons name="alert-circle-outline" size={13} color={C.errorText} />
-                <Text style={styles.fieldErrorText}>{errors.email}</Text>
-              </View>
-            ) : null}
+            {/* Os dois campos usam o Input compartilhado — a mesma fonte de
+                aparência do cadastro. Era daqui que vinha o tratamento visual
+                escolhido como padrão; agora ele mora nos tokens do tema, e não
+                nesta tela. */}
+            <Input
+              testID="login-email"
+              placeholder="E-mail"
+              icon="mail-outline"
+              value={email}
+              onChangeText={(t) => { setEmail(t); setErrors({ ...errors, email: '' }); setAuthError(''); }}
+              error={errors.email || undefined}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              containerStyle={styles.campo}
+            />
 
-            {/* Senha */}
-            <View style={[styles.inputWrapper, errors.password ? styles.inputWrapperError : null]}>
-              <Ionicons name="lock-closed-outline" size={18} color={C.placeholder} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Senha"
-                value={password}
-                onChangeText={(t) => { setPassword(t); setErrors({ ...errors, password: '' }); setAuthError(''); }}
-                secureTextEntry={!showPassword}
-                placeholderTextColor={C.placeholder}
-                accessibilityLabel="Campo de senha"
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={18}
-                  color={C.placeholder}
-                />
-              </TouchableOpacity>
-            </View>
-            {errors.password ? (
-              <View style={styles.fieldError}>
-                <Ionicons name="alert-circle-outline" size={13} color={C.errorText} />
-                <Text style={styles.fieldErrorText}>{errors.password}</Text>
-              </View>
-            ) : null}
+            <Input
+              testID="login-password"
+              placeholder="Senha"
+              icon="lock-closed-outline"
+              secure
+              value={password}
+              onChangeText={(t) => { setPassword(t); setErrors({ ...errors, password: '' }); setAuthError(''); }}
+              error={errors.password || undefined}
+              autoComplete="current-password"
+              containerStyle={styles.campo}
+            />
 
             {/* Erro de auth */}
             {authError ? (
@@ -337,6 +312,8 @@ const styles = StyleSheet.create({
   form: {
     gap: 0,
   },
+  // Espacamento entre campos; o Input compartilhado cuida do resto.
+  campo: { marginBottom: 14 },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',

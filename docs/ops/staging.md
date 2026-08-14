@@ -2,7 +2,7 @@
 
 **Data de criação:** 2026-06-13  
 **Atualizado:** 2026-06-14  
-**Status:** ✅ Backend staging UP com Firebase — `/health` 200. Aguardando smoke test manual do frontend.
+**Status:** ✅ OPERACIONAL — smoke test completo em 2026-06-14. `/health` 200, `/auth/me` 200, CORS correto, Firebase funcional.
 
 ---
 
@@ -66,7 +66,7 @@ IS_DEV_AUTH=false
 ENABLE_DEV_ENDPOINTS=false
 DATABASE_URL=${{Postgres-mFan.DATABASE_URL}}   ← referência Railway
 SECRET_KEY=<gerado com openssl rand -hex 32>   ← novo, exclusivo do staging
-ALLOWED_ORIGINS=https://lumenplus-git-staging-applumenplus-1605s-projects.vercel.app,https://lumenplus.vercel.app
+CORS_ORIGINS=https://lumenplus-git-staging-applumenplus-1605s-projects.vercel.app,https://lumenplus.vercel.app
 ENCRYPTION_KEY=<gerado com python secrets — novo, exclusivo do staging>
 HMAC_PEPPER=<gerado com python secrets — novo, exclusivo do staging>
 APP_NAME=Lumen+ API
@@ -155,16 +155,17 @@ Railway Dashboard → backend-staging → Variables → DATABASE_URL → deve mo
 - [x] `GET https://backend-staging-staging-3d47.up.railway.app/health` → 200 ✅ (2026-06-14)
 - [x] `GET https://backend-staging-staging-3d47.up.railway.app/openapi.json` → 200 ✅ (2026-06-14)
 
-### Frontend (manual — pendente)
+### Frontend (manual — concluído 2026-06-14)
 
-Abrir no browser: `https://lumenplus-git-staging-applumenplus-1605s-projects.vercel.app`
+URL: `https://lumenplus-git-staging-applumenplus-1605s-projects.vercel.app`
 
-- [ ] App carrega sem erros no console
-- [ ] Login com usuário de teste → sucesso
-- [ ] DevTools → Network: requests vão para `https://backend-staging-staging-3d47.up.railway.app` (não para `backend-production-6efc`)
-- [ ] `/auth/me` retorna usuário logado
-- [ ] Tela comum (ex: Projeto de Vida) abre normalmente
-- [ ] Admin abre com usuário DEV (se houver conta de teste com role admin)
+- [x] App carrega ✅
+- [x] Login com usuário de teste → sucesso ✅
+- [x] DevTools → Network: requests vão para `backend-staging-staging-3d47.up.railway.app` ✅
+- [x] CORS preflight OK (`access-control-allow-origin` correto) ✅
+- [x] `/auth/me` → 200 `{"user_id":"faf1f091...","is_active":true,"profile_status":"COMPLETE"}` ✅
+- [x] Firebase token validation funcional (RS256 + public keys Google) ✅
+- [x] Usuário provisionado no banco staging ✅
 
 **Itens opcionais (não bloqueiam staging mínimo):**
 - [ ] Upload de foto → requer `CLOUDINARY_*` no Railway
@@ -186,7 +187,7 @@ Variáveis obrigatórias para o backend funcionar em staging:
 | `ENABLE_DEV_ENDPOINTS` | ✅ CLI | `false` |
 | `ENVIRONMENT` | ✅ CLI | `staging` |
 | `SENTRY_ENVIRONMENT` | ✅ CLI | `staging` |
-| `ALLOWED_ORIGINS` | ✅ CLI | Vercel staging + Vercel prod |
+| `CORS_ORIGINS` | ✅ CLI | Vercel staging + Vercel prod (var correta — não `ALLOWED_ORIGINS`) |
 | `ENCRYPTION_KEY` | ✅ CLI | novo, gerado com python secrets |
 | `HMAC_PEPPER` | ✅ CLI | novo, gerado com python secrets |
 | `FIREBASE_PROJECT_ID` | ✅ CLI | `lumenplus-3fec7` (mesmo de produção — valor público) |
@@ -222,3 +223,13 @@ Para remover o ambiente staging:
 3. Deletar branch `staging` do repositório: `git push origin --delete staging`
 
 Não afeta produção.
+
+---
+
+## Atualização 2026-07-16 (Ciclo 2 — fechamento)
+
+- **Saúde:** backend prod e staging respondendo `200` em `/health` e `/openapi.json` (verificado 2026-07-16).
+- **`.env.example` completado:** adicionadas as variáveis que faltavam (`VAPID_*`, `SENDGRID_*`, `RATE_LIMIT_*`, `INVITE_EXPIRATION_DAYS`) para provisionar um ambiente sem lacunas.
+- **VAPID:** ativo em staging **e** produção (pares distintos) — ver `docs/ops/push-web-activation-plan.md`.
+- **CSP:** enforced preparado apenas para o host de staging (SEC-01) — ver `docs/ops/csp-plan.md`.
+- **Drift staging × produção:** `ENCRYPTION_KEY`/`HMAC_PEPPER` são obrigatórios no boot também em staging (CryptoService); validações "production-only" (`AUTH_MODE`, `FIREBASE_PROJECT_ID`, `ENABLE_DEV_ENDPOINTS`, `DEBUG_VERIFICATION_CODE`) só disparam em `ENVIRONMENT=production`. Ver `docs/ops/secrets-rotation.md`.

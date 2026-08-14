@@ -1,0 +1,12 @@
+# Ferramentas de desenvolvimento/CI — VERSÕES FIXAS (determinismo de pipeline).
+#
+# Motivo: o CI fazia `pip install ruff mypy` SEM pin. O último job verde
+# (2026-07-18) usou ruff 0.15.22 e mypy 2.3.0; uma versão nova de ruff (0.16.0)
+# expandiu o ruleset default e deixou o CI vermelho em todos os branches sem
+# nenhuma mudança de código. Fixar aqui tira o lint/typecheck da mão do "default
+# do momento". Ao subir uma versão, faça-o deliberadamente e revalide.
+#
+# pytest/pytest-asyncio já são fixados em requirements.txt (7.4.4 / 0.23.3).
+
+ruff==0.15.22
+mypy==2.3.0

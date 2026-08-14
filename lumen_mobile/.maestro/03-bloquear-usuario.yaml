@@ -1,0 +1,54 @@
+# App Store Review Guideline 1.2 — bloqueio de usuário abusivo.
+#
+# A diretriz exige que bloquear tenha EFEITO REAL: o conteúdo do bloqueado
+# precisa sumir do feed. Um botão que só registra o bloqueio no banco, sem
+# filtrar a exibição, não satisfaz o requisito — e é a falha mais comum.
+#
+# Pré-condição: usuário de teste membro de uma unidade com post de OUTRO autor.
+appId: com.lumenchristi.lumenplus
+---
+- launchApp:
+    clearState: false
+
+- tapOn: "Canais"
+- tapOn:
+    index: 0
+    text: ".*"
+
+# Guarda o autor do primeiro post para conferir depois que ele sumiu.
+- copyTextFrom:
+    id: "post-author-name"
+
+
+- tapOn:
+    index: 0
+    text: ".*"
+
+- tapOn:
+    id: "post-block-author"
+
+- assertVisible: "Bloquear usuário"
+- tapOn: "Bloquear"
+
+# O feed precisa recarregar sozinho. Se o post continuasse visível até o
+# usuário sair e voltar, o revisor concluiria que o bloqueio não funciona.
+- extendedWaitUntil:
+    notVisible: "${maestro.copiedText}"
+    timeout: 10000
+
+# O bloqueio tem de ser reversível e auditável pelo usuário — a lista de
+# bloqueados é parte do requisito, não um extra.
+- tapOn: "Perfil"
+- tapOn:
+    id: "profile-blocked-users"
+- assertVisible: "${maestro.copiedText}"
+
+# Desbloquear restaura a visibilidade.
+- tapOn: "Desbloquear"
+- tapOn: "Canais"
+- tapOn:
+    index: 0
+    text: ".*"
+- extendedWaitUntil:
+    visible: "${maestro.copiedText}"
+    timeout: 10000

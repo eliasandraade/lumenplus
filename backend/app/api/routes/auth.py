@@ -12,7 +12,7 @@ from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.db.session import get_db
 from app.db.models import (
@@ -21,10 +21,11 @@ from app.db.models import (
     UserProfile,
     UserConsent,
     MembershipStatus,
+    OrgMembership,
     OrgInvite,
     InviteStatus,
-    LegalDocument,
 )
+from app.services.legal_cache import get_latest_legal_document
 from app.schemas.auth import (
     RegisterRequest,
     LoginRequest,
@@ -165,7 +166,7 @@ async def login(data: LoginRequest, db: Session = Depends(get_db)) -> AuthRespon
 
 
 @router.get("/me", response_model=UserMeResponse)
-async def get_me(
+def get_me(  # `def` (não async): rota DB-bound síncrona → roda no threadpool
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> UserMeResponse:
@@ -189,19 +190,10 @@ async def get_me(
     email_verified = any(i.email_verified for i in user.identities)
 
     # Consents
-    latest_terms = db.execute(
-        select(LegalDocument)
-        .where(LegalDocument.type == "TERMS")
-        .order_by(LegalDocument.published_at.desc())
-        .limit(1)
-    ).scalar_one_or_none()
-
-    latest_privacy = db.execute(
-        select(LegalDocument)
-        .where(LegalDocument.type == "PRIVACY")
-        .order_by(LegalDocument.published_at.desc())
-        .limit(1)
-    ).scalar_one_or_none()
+    # Documento legal "mais recente" via cache em processo (invalidado no
+    # restart/deploy). Remove 2 queries de cada GET /auth/me (endpoint quente).
+    latest_terms = get_latest_legal_document(db, "TERMS")
+    latest_privacy = get_latest_legal_document(db, "PRIVACY")
 
     user_consent_doc_ids = set()
     consents = db.execute(select(UserConsent).where(UserConsent.user_id == user.id)).scalars().all()
@@ -217,21 +209,34 @@ async def get_me(
         pending_privacy=pending_privacy,
     )
 
-    # Memberships
+    # Memberships — eager-load de org_unit para evitar N+1.
+    # Antes: `user.memberships` (1 query) + `m.org_unit` lazy POR item (N queries).
+    # Agora: 1 query com JOIN to-one (joinedload) + filtro ACTIVE no SQL.
     memberships = []
-    for m in user.memberships:
-        if m.status == MembershipStatus.ACTIVE:
-            memberships.append(
-                MembershipOut(
-                    id=m.id,
-                    org_unit_id=m.org_unit_id,
-                    org_unit_name=m.org_unit.name,
-                    org_unit_type=m.org_unit.type.value,
-                    role=m.role.value,
-                    status=m.status.value,
-                    joined_at=m.joined_at,
-                )
+    active_memberships = (
+        db.execute(
+            select(OrgMembership)
+            .where(
+                OrgMembership.user_id == user.id,
+                OrgMembership.status == MembershipStatus.ACTIVE,
             )
+            .options(joinedload(OrgMembership.org_unit))
+        )
+        .scalars()
+        .all()
+    )
+    for m in active_memberships:
+        memberships.append(
+            MembershipOut(
+                id=m.id,
+                org_unit_id=m.org_unit_id,
+                org_unit_name=m.org_unit.name,
+                org_unit_type=m.org_unit.type.value,
+                role=m.role.value,
+                status=m.status.value,
+                joined_at=m.joined_at,
+            )
+        )
 
     # Pending invites (exclui expirados)
     pending_invites = []

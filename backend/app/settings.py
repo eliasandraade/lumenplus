@@ -58,6 +58,18 @@ class Settings(BaseSettings):
 
     database_pool_size: int = Field(default=5)
     database_max_overflow: int = Field(default=10)
+    # Backpressure de banco. MEDIDO em 2026-07-24 no Postgres de staging:
+    # statement_timeout=0 e idle_in_transaction_session_timeout=0 (ambos
+    # DESABILITADOS no servidor). Sem limite, uma query patológica ou uma
+    # transação ociosa segura a conexão indefinidamente e esgota o pool.
+    # Aplicados por aplicação (não no servidor) para que migrations e jobs
+    # possam ter limites diferentes do tráfego web.
+    database_statement_timeout_ms: int = Field(default=15000)
+    database_idle_tx_timeout_ms: int = Field(default=30000)
+    # Espera máxima por uma conexão do pool. O default do SQLAlchemy é 30s:
+    # sob saturação isso enfileira requests por 30s em vez de falhar rápido.
+    database_pool_timeout: int = Field(default=10)
+    database_pool_recycle: int = Field(default=1800)
     redis_url: str = Field(default="redis://localhost:6379/0")
 
     # =========================================================================
@@ -96,8 +108,18 @@ class Settings(BaseSettings):
     # =========================================================================
     # RATE LIMITING
     # =========================================================================
+    # Observabilidade / métricas
+    metrics_enabled: bool = Field(default=True)
+    # Em produção, /metrics exige este token no header X-Metrics-Token. Se vazio
+    # em produção, /metrics responde 404 (não expõe métricas publicamente).
+    metrics_token: str = Field(default="")
+
     rate_limit_enabled: bool = Field(default=True)
     rate_limit_requests_per_minute: int = Field(default=60)
+    # Nº de proxies reversos confiáveis à frente da app (Railway = 1). Usado para
+    # extrair o IP real do X-Forwarded-For a partir da DIREITA (o valor à esquerda
+    # é controlado pelo cliente). Ajustar se houver CDN/edge adicional na frente.
+    trusted_proxy_hops: int = Field(default=1)
     rate_limit_verification_per_hour: int = Field(default=5)
 
     # =========================================================================
@@ -138,6 +160,11 @@ class Settings(BaseSettings):
                 errors.append("HMAC_PEPPER é obrigatório em produção")
             if not self.firebase_project_id:
                 errors.append("FIREBASE_PROJECT_ID é obrigatório em produção")
+            if "*" in self.cors_origins_list:
+                errors.append("CORS_ORIGINS não pode conter '*' em produção")
+            for origin in self.cors_origins_list:
+                if not origin.startswith("https://"):
+                    errors.append(f"CORS origin deve usar HTTPS em produção: {origin}")
         return errors
 
 
