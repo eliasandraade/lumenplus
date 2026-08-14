@@ -24,6 +24,8 @@
 set -uo pipefail
 
 : "${APP_ID:?APP_ID nao definido}"
+: "${E2E_EMAIL:?E2E_EMAIL nao definido}"
+: "${E2E_SENHA:?E2E_SENHA nao definido}"
 
 # Caminho ABSOLUTO, nao relativo. A primeira versao usava `diagnostico/` e o
 # artefato subiu vazio: o script roda com CWD proprio dentro da action, e o
@@ -82,9 +84,10 @@ echo "::endgroup::"
 
 echo "::group::Fluxos Maestro"
 if [ -n "${FLOW:-}" ]; then
-  maestro test "e2e/maestro-flows/${FLOW}"
+  maestro test -e E2E_EMAIL="$E2E_EMAIL" -e E2E_SENHA="$E2E_SENHA" "e2e/maestro-flows/${FLOW}"
 else
-  maestro test e2e/maestro-flows/
+  # 00-login.yaml e subfluxo: entra via runFlow, nao no glob.
+  maestro test -e E2E_EMAIL="$E2E_EMAIL" -e E2E_SENHA="$E2E_SENHA" \n    e2e/maestro-flows/01-excluir-conta.yaml \n    e2e/maestro-flows/02-denunciar-conteudo.yaml \n    e2e/maestro-flows/03-bloquear-usuario.yaml
 fi
 codigo=$?
 echo "::endgroup::"

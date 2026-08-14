@@ -1,0 +1,36 @@
+# Subfluxo de login — pré-requisito dos três fluxos de loja.
+#
+# POR QUE ISTO EXISTE
+# Os fluxos 01, 02 e 03 foram escritos assumindo "usuário autenticado" como
+# pré-condição declarada em comentário. Na primeira execução real os três
+# falharam com "Element not found" — o app abre no login, e nada autenticava.
+# Pré-condição que ninguém executa não é pré-condição, é suposição.
+#
+# As credenciais vêm do ambiente (secrets do GitHub), nunca do arquivo.
+appId: com.lumenchristi.lumenplus
+---
+- launchApp:
+    clearState: true
+
+# `clearState: true` garante ponto de partida idêntico a cada execução. Sem
+# isso, um fluxo anterior deixaria sessão aberta e o próximo pareceria passar
+# por motivo errado — ou falharia por estado sujo.
+- assertVisible: "E-mail"
+
+- tapOn:
+    id: "login-email"
+- inputText: ${E2E_EMAIL}
+
+- tapOn:
+    id: "login-password"
+- inputText: ${E2E_SENHA}
+
+- hideKeyboard
+- tapOn: "Entrar"
+
+# Espera generosa: o primeiro login faz round-trip ao Firebase e ao backend de
+# staging, que pode estar frio. Falhar aqui por impaciência produziria um
+# diagnóstico enganoso — pareceria credencial inválida.
+- extendedWaitUntil:
+    visible: "Canais"
+    timeout: 45000

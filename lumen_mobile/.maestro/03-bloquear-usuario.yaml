@@ -7,8 +7,10 @@
 # Pré-condição: usuário de teste membro de uma unidade com post de OUTRO autor.
 appId: com.lumenchristi.lumenplus
 ---
-- launchApp:
-    clearState: false
+# Autentica antes de tudo. Sem isto o app fica na tela de login e todo
+# seletor falha com 'Element not found' — foi exatamente o que os tres
+# fluxos fizeram na primeira execucao real.
+- runFlow: 00-login.yaml
 
 - tapOn: "Canais"
 - tapOn:
