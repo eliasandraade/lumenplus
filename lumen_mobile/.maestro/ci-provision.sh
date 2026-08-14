@@ -71,7 +71,12 @@ provisionar() {
   local rotulo="$1" email="$2" senha="$3"
   local corpo resposta erro token
 
-  corpo=$(printf '{"email":"%s","password":"%s","returnSecureToken":true}' "$email" "$senha")
+  # JSON montado por json.dumps, NAO por printf. A primeira versao usava
+  # printf e quebrava com "Invalid JSON payload" — qualquer aspas, barra
+  # invertida ou caractere especial na senha corrompe o payload, e o erro do
+  # Google nao diz qual campo. Escapar a mao e exatamente o tipo de coisa que
+  # a biblioteca faz certo e a gente faz errado.
+  corpo=$(EMAIL="$email" SENHA="$senha" python3 -c 'import json,os;print(json.dumps({"email":os.environ["EMAIL"],"password":os.environ["SENHA"],"returnSecureToken":True}))')
 
   resposta=$(curl -sS -X POST "${IDENTITY}:signUp?key=${FIREBASE_API_KEY}" \
     -H 'Content-Type: application/json' --data "$corpo" 2>/dev/null)
