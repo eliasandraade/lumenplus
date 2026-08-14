@@ -1,0 +1,28 @@
+# Sem este arquivo, o `COPY . .` do Dockerfile assa o .env LOCAL dentro da
+# imagem — com credenciais reais de desenvolvimento.
+#
+# Além do risco óbvio de vazamento, isso também explica classe de bug difícil:
+# o pydantic-settings lê `.env` (SettingsConfigDict(env_file=".env")), então a
+# imagem carrega configuração que ninguém cadastrou no Railway, e o serviço
+# passa a se comportar de um jeito que não corresponde às variáveis da
+# plataforma.
+.env
+.env.*
+!.env.example
+!.env.staging.example
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.db
+*.sqlite3
+.git/
+.github/
+tests/
+performance/
