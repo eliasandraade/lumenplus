@@ -44,7 +44,7 @@ jobs:
     name: Build APK releaseTest
     # Environment dedicado: os secrets do E2E ficam escopados aqui, e nao
     # como Repository Secrets visiveis a qualquer workflow do repo.
-    environment: staging
+    environment: "lumen+ / staging"
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -310,7 +310,7 @@ jobs:
   maestro-android-e2e:
     name: Maestro no emulador
     needs: build-android-e2e
-    environment: staging
+    environment: "lumen+ / staging"
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
