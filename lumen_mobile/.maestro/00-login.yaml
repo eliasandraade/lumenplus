@@ -15,7 +15,14 @@ appId: com.lumenchristi.lumenplus
 # `clearState: true` garante ponto de partida idêntico a cada execução. Sem
 # isso, um fluxo anterior deixaria sessão aberta e o próximo pareceria passar
 # por motivo errado — ou falharia por estado sujo.
-- assertVisible: "E-mail"
+# Âncora por testID, não pelo texto "E-mail".
+#
+# Depois que removi o rótulo duplicado da tela, "E-mail" passou a existir só
+# como placeholder — e placeholder não conta como texto visível para o
+# Maestro. A asserção falhava numa tela que estava perfeitamente correta.
+# testID não depende de copy nem de como o RN expõe o placeholder.
+- assertVisible:
+    id: "login-email"
 
 - tapOn:
     id: "login-email"
