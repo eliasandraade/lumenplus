@@ -82,12 +82,26 @@ echo "app abriu e permaneceu vivo"
 adb exec-out screencap -p > "$DIAG/tela-inicial.png" 2>/dev/null
 echo "::endgroup::"
 
+# As credenciais vao por EXPORT, nao por `-e` na linha de comando.
+#
+# Com `-e E2E_SENHA="$SENHA"` o picocli do Maestro tentou reprocessar aspas
+# dentro do valor e falhou:
+#   [picocli WARN] Unbalanced quotes in [Nq`[G%4_Oz]
+#   Flow path does not exist: .../n
+# A senha tem crase e aspas; o parsing transbordou e comeu o caminho do fluxo.
+# Senha secreta nao pode ser saneada nem impressa para depurar — o caminho
+# certo e nao expo-la a um parser de linha de comando.
+export E2E_EMAIL E2E_SENHA
+
 echo "::group::Fluxos Maestro"
 if [ -n "${FLOW:-}" ]; then
-  maestro test -e E2E_EMAIL="$E2E_EMAIL" -e E2E_SENHA="$E2E_SENHA" "e2e/maestro-flows/${FLOW}"
+  maestro test "e2e/maestro-flows/${FLOW}"
 else
   # 00-login.yaml e subfluxo: entra via runFlow, nao no glob.
-  maestro test -e E2E_EMAIL="$E2E_EMAIL" -e E2E_SENHA="$E2E_SENHA" \n    e2e/maestro-flows/01-excluir-conta.yaml \n    e2e/maestro-flows/02-denunciar-conteudo.yaml \n    e2e/maestro-flows/03-bloquear-usuario.yaml
+  maestro test \
+    e2e/maestro-flows/01-excluir-conta.yaml \
+    e2e/maestro-flows/02-denunciar-conteudo.yaml \
+    e2e/maestro-flows/03-bloquear-usuario.yaml
 fi
 codigo=$?
 echo "::endgroup::"
