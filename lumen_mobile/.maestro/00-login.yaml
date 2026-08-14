@@ -38,6 +38,21 @@ appId: com.lumenchristi.lumenplus
 # Espera generosa: o primeiro login faz round-trip ao Firebase e ao backend de
 # staging, que pode estar frio. Falhar aqui por impaciência produziria um
 # diagnóstico enganoso — pareceria credencial inválida.
+# Aceite dos documentos legais — portão de primeiro acesso.
+#
+# Descoberto pela hierarquia de tela do artefato: depois de autenticar, o app
+# exige aceitar Termos de Uso e Política de Privacidade antes de liberar a
+# navegação. Não é bug, é requisito de produto (e de LGPD).
+#
+# CONDICIONAL de propósito: com `clearState: true` a tela aparece toda vez,
+# mas se um dia o estado for preservado ela não aparece, e um `tapOn` fixo
+# quebraria o fluxo. `when: visible` mantém o subfluxo idempotente.
+- runFlow:
+    when:
+      visible: "Aceitar e Continuar"
+    commands:
+      - tapOn: "Aceitar e Continuar"
+
 - extendedWaitUntil:
     visible: "Canais"
     timeout: 45000
