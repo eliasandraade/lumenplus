@@ -6,7 +6,10 @@
 # falharam com "Element not found" — o app abre no login, e nada autenticava.
 # Pré-condição que ninguém executa não é pré-condição, é suposição.
 #
-# As credenciais vêm do ambiente (secrets do GitHub), nunca do arquivo.
+# A conta vem por PARAMETRO (runFlow env), nao fixa. O fluxo 01 EXCLUI a conta
+# que usa — se todos logassem com a principal, 01 rodaria primeiro, apagaria a
+# conta, e 02/03 falhariam por falta de usuario. E exatamente para isso que a
+# conta descartavel existe.
 appId: com.lumenchristi.lumenplus
 ---
 - launchApp:
@@ -26,11 +29,11 @@ appId: com.lumenchristi.lumenplus
 
 - tapOn:
     id: "login-email"
-- inputText: ${E2E_EMAIL}
+- inputText: ${LOGIN_EMAIL}
 
 - tapOn:
     id: "login-password"
-- inputText: ${E2E_SENHA}
+- inputText: ${LOGIN_SENHA}
 
 - hideKeyboard
 - tapOn: "Entrar"

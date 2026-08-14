@@ -418,6 +418,8 @@ jobs:
           FLOW: ${{ inputs.flow }}
           E2E_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
           E2E_SENHA: ${{ secrets.E2E_USER_PASSWORD }}
+          E2E_DESC_EMAIL: ${{ secrets.E2E_THROWAWAY_EMAIL }}
+          E2E_DESC_SENHA: ${{ secrets.E2E_THROWAWAY_PASSWORD }}
 
       - name: Publicar diagnóstico
         if: always()

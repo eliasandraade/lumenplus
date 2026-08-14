@@ -10,7 +10,12 @@ appId: com.lumenchristi.lumenplus
 # Autentica antes de tudo. Sem isto o app fica na tela de login e todo
 # seletor falha com 'Element not found' — foi exatamente o que os tres
 # fluxos fizeram na primeira execucao real.
-- runFlow: 00-login.yaml
+- runFlow:
+    file: 00-login.yaml
+    env:
+      # conta principal
+      LOGIN_EMAIL: ${E2E_EMAIL}
+      LOGIN_SENHA: ${E2E_SENHA}
 
 - tapOn: "Canais"
 - tapOn:

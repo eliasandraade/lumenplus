@@ -26,6 +26,8 @@ set -uo pipefail
 : "${APP_ID:?APP_ID nao definido}"
 : "${E2E_EMAIL:?E2E_EMAIL nao definido}"
 : "${E2E_SENHA:?E2E_SENHA nao definido}"
+: "${E2E_DESC_EMAIL:?E2E_DESC_EMAIL nao definido}"
+: "${E2E_DESC_SENHA:?E2E_DESC_SENHA nao definido}"
 
 # Caminho ABSOLUTO, nao relativo. A primeira versao usava `diagnostico/` e o
 # artefato subiu vazio: o script roda com CWD proprio dentro da action, e o
@@ -52,6 +54,17 @@ if [ "${estado}" != "device" ] || [ "${booted}" != "1" ]; then
 fi
 
 adb shell input keyevent 82 || true
+
+# Suprime dialogos de erro/ANR do SISTEMA.
+#
+# Uma execucao falhou com "Pixel Launcher isn't responding" cobrindo a tela: um
+# ANR do launcher do Android, nao do nosso app, que rouba o foco e intercepta
+# toques. O Maestro entao reprova uma tela que esta correta atras do dialogo.
+#
+# Isto NAO esconde falha nossa: a deteccao de crash do app usa `pidof`, nao a
+# presenca de dialogo. So remove ruido de um emulador sob pressao de recursos.
+adb shell settings put global hide_error_dialogs 1 || true
+
 echo "API: $(adb shell getprop ro.build.version.sdk | tr -d '\r')"
 echo "::endgroup::"
 
@@ -95,12 +108,14 @@ export E2E_EMAIL E2E_SENHA
 
 echo "::group::Fluxos Maestro"
 if [ -n "${FLOW:-}" ]; then
-  maestro test -e "E2E_EMAIL=${E2E_EMAIL}" -e "E2E_SENHA=${E2E_SENHA}" "e2e/maestro-flows/${FLOW}"
+  maestro test -e "E2E_EMAIL=${E2E_EMAIL}" -e "E2E_SENHA=${E2E_SENHA}" -e "E2E_DESC_EMAIL=${E2E_DESC_EMAIL}" -e "E2E_DESC_SENHA=${E2E_DESC_SENHA}" "e2e/maestro-flows/${FLOW}"
 else
   # 00-login.yaml e subfluxo: entra via runFlow, nao no glob.
   maestro test \
     -e "E2E_EMAIL=${E2E_EMAIL}" \
     -e "E2E_SENHA=${E2E_SENHA}" \
+    -e "E2E_DESC_EMAIL=${E2E_DESC_EMAIL}" \
+    -e "E2E_DESC_SENHA=${E2E_DESC_SENHA}" \
     e2e/maestro-flows/01-excluir-conta.yaml \
     e2e/maestro-flows/02-denunciar-conteudo.yaml \
     e2e/maestro-flows/03-bloquear-usuario.yaml

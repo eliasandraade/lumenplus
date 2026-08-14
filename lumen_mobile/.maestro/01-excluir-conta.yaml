@@ -11,7 +11,12 @@ appId: com.lumenchristi.lumenplus
 # Autentica antes de tudo. Sem isto o app fica na tela de login e todo
 # seletor falha com 'Element not found' — foi exatamente o que os tres
 # fluxos fizeram na primeira execucao real.
-- runFlow: 00-login.yaml
+- runFlow:
+    file: 00-login.yaml
+    env:
+      # conta DESCARTAVEL: este fluxo a exclui
+      LOGIN_EMAIL: ${E2E_DESC_EMAIL}
+      LOGIN_SENHA: ${E2E_DESC_SENHA}
 
 # A entrada precisa estar VISÍVEL no perfil, não escondida em submenu — a
 # rejeição mais comum na 5.1.1(v) é a opção existir mas ser difícil de achar.
