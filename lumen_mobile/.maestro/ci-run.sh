@@ -95,10 +95,12 @@ export E2E_EMAIL E2E_SENHA
 
 echo "::group::Fluxos Maestro"
 if [ -n "${FLOW:-}" ]; then
-  maestro test "e2e/maestro-flows/${FLOW}"
+  maestro test -e "E2E_EMAIL=${E2E_EMAIL}" -e "E2E_SENHA=${E2E_SENHA}" "e2e/maestro-flows/${FLOW}"
 else
   # 00-login.yaml e subfluxo: entra via runFlow, nao no glob.
   maestro test \
+    -e "E2E_EMAIL=${E2E_EMAIL}" \
+    -e "E2E_SENHA=${E2E_SENHA}" \
     e2e/maestro-flows/01-excluir-conta.yaml \
     e2e/maestro-flows/02-denunciar-conteudo.yaml \
     e2e/maestro-flows/03-bloquear-usuario.yaml
