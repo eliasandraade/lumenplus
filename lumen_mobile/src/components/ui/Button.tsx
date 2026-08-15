@@ -29,6 +29,16 @@ interface ButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   icon?: React.ReactNode;
+  /**
+   * Âncora para testes E2E.
+   *
+   * A interface era fechada e sem spread, então `testID` passado por quem usa
+   * o componente era SILENCIOSAMENTE descartado. No Maestro isso apareceu como
+   * um bloco condicional inteiro sendo pulado — a condição `visible: id` dava
+   * falso para um botão que estava na tela, e nenhum passo dentro do bloco
+   * chegava a rodar. Prop descartada em silêncio é pior que erro de tipo.
+   */
+  testID?: string;
 }
 
 export function Button({
@@ -42,6 +52,7 @@ export function Button({
   style,
   textStyle,
   icon,
+  testID,
 }: ButtonProps) {
   const { t } = useTheme();
   const isDisabled = disabled || loading;
@@ -90,6 +101,7 @@ export function Button({
   return (
     <Animated.View style={[animatedStyle, fullWidth && { width: '100%' }, style]}>
       <Pressable
+        testID={testID}
         onPress={onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
