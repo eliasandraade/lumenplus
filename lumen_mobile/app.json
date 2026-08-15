@@ -97,7 +97,10 @@
     },
     "extra": {
       "supportContactEmail": "applumenplus@gmail.com",
-      "moderationContactEmail": "applumenplus@gmail.com"
+      "moderationContactEmail": "applumenplus@gmail.com",
+      "eas": {
+        "projectId": "eb8e8307-c095-4b02-a3bf-9cb10a60be65"
+      }
     }
   }
 }
