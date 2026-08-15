@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Lumen+",
-    "slug": "lumen-plus",
+    "slug": "lumenplus",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -101,6 +101,7 @@
       "eas": {
         "projectId": "eb8e8307-c095-4b02-a3bf-9cb10a60be65"
       }
-    }
+    },
+    "owner": "obra-lumen-de-evangelizacao"
   }
 }

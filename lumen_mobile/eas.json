@@ -51,20 +51,5 @@
         "buildType": "app-bundle"
       }
     }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "//": "PENDENTE HUMANO: preencher appleId, ascAppId e appleTeamId (App Store Connect). Preferir App Store Connect API Key (.p8) via EXPO_APPLE_API_KEY_* em vez de senha.",
-        "appleId": "",
-        "ascAppId": "",
-        "appleTeamId": ""
-      },
-      "android": {
-        "//": "PENDENTE HUMANO: gerar service account JSON no Google Play Console (permissao de release) e apontar o caminho AQUI. NUNCA versionar o arquivo — mantenha-o fora do repo (o .gitignore ja bloqueia *.json de credencial).",
-        "serviceAccountKeyPath": "",
-        "track": "internal"
-      }
-    }
   }
 }
