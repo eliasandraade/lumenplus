@@ -158,6 +158,7 @@ export default function TermsScreen() {
           </Text>
         )}
         <Button
+          testID="accept-continue"
           title="Aceitar e Continuar"
           onPress={handleAccept}
           loading={isSaving}
