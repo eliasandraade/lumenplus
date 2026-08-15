@@ -104,6 +104,18 @@ appId: com.lumenchristi.lumenplus
           centerElement: true
       - tapOn:
           id: "consent-terms"
+
+      # A segunda checkbox precisa da própria rolagem. O rótulo dela tem três
+      # linhas de texto (LGPD), então mesmo estando logo abaixo da primeira ela
+      # pode ficar fora da viewport depois do toque — foi o que produziu
+      # "Element not found: consent-privacy" numa execução em que a primeira
+      # havia sido marcada com sucesso.
+      - scrollUntilVisible:
+          element:
+            id: "consent-privacy"
+          direction: DOWN
+          timeout: 30000
+          centerElement: true
       - tapOn:
           id: "consent-privacy"
 
