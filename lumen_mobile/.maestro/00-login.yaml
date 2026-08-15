@@ -54,20 +54,28 @@ appId: com.lumenchristi.lumenplus
     when:
       visible: "Aceitar e Continuar"
     commands:
-      # O botao NAO habilita de cara. A tela diz "Leia e confirme os documentos
-      # acima para continuar" — e preciso abrir cada documento antes. Eu tocava
-      # direto no botao desabilitado, e o fluxo ficava parado na mesma tela.
+      # DUAS checkboxes, não toques nos títulos.
       #
-      # Isso e comportamento correto do produto: consentimento LGPD nao pode ser
-      # dado sem o documento ter sido apresentado. O teste e que estava errado.
-      - tapOn: "Termos de Uso"
-      - tapOn:
-          text: "Fechar|Voltar|OK|Entendi"
-          optional: true
-      - tapOn: "Política de Privacidade"
-      - tapOn:
-          text: "Fechar|Voltar|OK|Entendi"
-          optional: true
+      # `app/(onboarding)/terms.tsx` gate o botão com
+      #   canAccept = termsAccepted && privacyAccepted
+      # e os documentos ficam INLINE na tela — por isso tocar no título "Termos
+      # de Uso" não fazia nada, e o fluxo ficava parado sem erro aparente.
+      #
+      # Consentimento granular por documento é exigência do art. 8 da LGPD, não
+      # capricho de UI. O teste tem de exercitar os dois separadamente.
+      - scrollUntilVisible:
+          element:
+            text: "Li e aceito os Termos de Uso"
+          direction: DOWN
+          timeout: 20000
+      - tapOn: "Li e aceito os Termos de Uso"
+      - tapOn: "Li e aceito a Política de Privacidade.*"
+
+      - scrollUntilVisible:
+          element:
+            text: "Aceitar e Continuar"
+          direction: DOWN
+          timeout: 20000
       - tapOn: "Aceitar e Continuar"
 
 - extendedWaitUntil:
