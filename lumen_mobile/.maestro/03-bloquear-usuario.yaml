@@ -17,7 +17,7 @@ appId: com.lumenchristi.lumenplus
       LOGIN_EMAIL: ${E2E_EMAIL}
       LOGIN_SENHA: ${E2E_SENHA}
 
-- tapOn: "Canais"
+- tapOn: "Comunidade"
 - tapOn:
     index: 0
     text: ".*"
@@ -52,7 +52,7 @@ appId: com.lumenchristi.lumenplus
 
 # Desbloquear restaura a visibilidade.
 - tapOn: "Desbloquear"
-- tapOn: "Canais"
+- tapOn: "Comunidade"
 - tapOn:
     index: 0
     text: ".*"

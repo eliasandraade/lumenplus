@@ -54,5 +54,5 @@ appId: com.lumenchristi.lumenplus
 # staging, que pode estar frio. Falhar aqui por impaciência produziria um
 # diagnóstico enganoso — pareceria credencial inválida.
 - extendedWaitUntil:
-    visible: "Canais"
+    visible: "Início"
     timeout: 45000

@@ -64,5 +64,5 @@ appId: com.lumenchristi.lumenplus
 
 # Chegou à home: o aceite foi persistido e o gate liberou a navegação.
 - extendedWaitUntil:
-    visible: "Canais"
+    visible: "Início"
     timeout: 45000
