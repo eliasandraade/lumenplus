@@ -88,18 +88,20 @@ appId: com.lumenchristi.lumenplus
       # fica fora da viewport, e o seletor por texto não alcançava de forma
       # confiável. Foi a mesma disciplina que já vale no resto do app — eu é
       # que não a apliquei aqui de primeira.
-      # Direção UP, não DOWN.
+      # A busca na hierarquia capturada mostrou o modelo real desta tela:
+      # `accept-continue` aparece, `consent-terms` NÃO. O botão está num rodapé
+      # FIXO (sempre visível, fora do ScrollView) e as checkboxes ficam dentro
+      # da rolagem, depois de dois documentos completos.
       #
-      # Entramos neste bloco porque `accept-continue` estava visível — ou seja,
-      # a tela já está no FIM. No layout de terms.tsx as checkboxes ficam ACIMA
-      # do botão (linhas 115/121 contra 161), então rolar para baixo se afasta
-      # delas. Foi o que produziu "No visible element found: id: consent-terms"
-      # numa tela onde o elemento existe.
+      # Consequência: entramos no bloco de imediato, com a lista ainda no topo.
+      # É preciso rolar para BAIXO, e bastante — daí o timeout maior e
+      # centerElement, para o toque não cair na borda da viewport.
       - scrollUntilVisible:
           element:
             id: "consent-terms"
-          direction: UP
-          timeout: 20000
+          direction: DOWN
+          timeout: 45000
+          centerElement: true
       - tapOn:
           id: "consent-terms"
       - tapOn:
