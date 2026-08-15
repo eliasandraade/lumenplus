@@ -1,29 +1,26 @@
-# Subfluxo de login — pré-requisito dos três fluxos de loja.
+# Subfluxo de login — pré-requisito dos fluxos de loja.
 #
-# POR QUE ISTO EXISTE
-# Os fluxos 01, 02 e 03 foram escritos assumindo "usuário autenticado" como
-# pré-condição declarada em comentário. Na primeira execução real os três
-# falharam com "Element not found" — o app abre no login, e nada autenticava.
-# Pré-condição que ninguém executa não é pré-condição, é suposição.
+# A conta vem por PARÂMETRO (runFlow env). O fluxo 01 EXCLUI a conta que usa;
+# se todos logassem com a principal, ele apagaria a conta e os demais falhariam
+# por usuário inexistente.
 #
-# A conta vem por PARAMETRO (runFlow env), nao fixa. O fluxo 01 EXCLUI a conta
-# que usa — se todos logassem com a principal, 01 rodaria primeiro, apagaria a
-# conta, e 02/03 falhariam por falta de usuario. E exatamente para isso que a
-# conta descartavel existe.
+# O ACEITE LEGAL NÃO É NAVEGADO AQUI, e isso é decisão explícita.
+# `ci-provision.sh` pré-grava o consentimento via POST /legal/accept para as
+# contas que não exercitam esse gate. Quem cobre a tela de verdade é o fluxo
+# dedicado `04-aceite-legal.yaml`, com a conta descartável.
+#
+# Motivo: a tela traz dois documentos completos inline, e ensinar o teste a
+# rolar até as checkboxes produziu falha NÃO-DETERMINÍSTICA — o mesmo passo
+# passava numa execução e falhava na seguinte. Colocar a conta no estado certo
+# antes de começar é mais confiável do que navegar a mesma tela três vezes, e
+# não perde cobertura: o gate continua sendo exercitado, uma vez, no 04.
 appId: com.lumenchristi.lumenplus
 ---
 - launchApp:
     clearState: true
 
-# `clearState: true` garante ponto de partida idêntico a cada execução. Sem
-# isso, um fluxo anterior deixaria sessão aberta e o próximo pareceria passar
-# por motivo errado — ou falharia por estado sujo.
-# Âncora por testID, não pelo texto "E-mail".
-#
-# Depois que removi o rótulo duplicado da tela, "E-mail" passou a existir só
-# como placeholder — e placeholder não conta como texto visível para o
-# Maestro. A asserção falhava numa tela que estava perfeitamente correta.
-# testID não depende de copy nem de como o RN expõe o placeholder.
+# Âncora por testID, não pelo texto "E-mail": o rótulo foi removido da tela e
+# "E-mail" só existe como placeholder, que não conta como texto visível.
 - assertVisible:
     id: "login-email"
 
@@ -38,95 +35,24 @@ appId: com.lumenchristi.lumenplus
 - hideKeyboard
 - tapOn: "Entrar"
 
-# Espera a transição ANTES de avaliar o condicional dos termos.
+# Onboarding de documentos — o app pede CPF e RG logo após o login.
 #
-# Sem isto, a condição era avaliada no instante seguinte ao toque em "Entrar",
-# com o login ainda em voo: a tela de termos não existia, a condição dava
-# falso, e o bloco inteiro era PULADO (visto como `runFlowCommand SKIPPED` no
-# commands.json). Só depois o app renderizava os termos — e o assert de
-# "Canais" falhava numa tela que o teste deveria ter tratado.
+# Usamos o próprio botão "Preencher mais tarde" que a tela oferece: é o caminho
+# real de quem adia, não exige inventar CPF sintético com dígito válido, e não
+# insere documento fictício no banco de staging.
 #
-# `optional: true` porque este passo é só sincronização: se a conta já aceitou
-# antes, a tela não aparece e seguimos direto para a home.
+# `optional` porque a tela só aparece enquanto o cadastro estiver incompleto.
 - extendedWaitUntil:
-    visible:
-      id: "accept-continue"
+    visible: "Preencher mais tarde"
     timeout: 40000
+    optional: true
+- tapOn:
+    text: "Preencher mais tarde"
     optional: true
 
 # Espera generosa: o primeiro login faz round-trip ao Firebase e ao backend de
 # staging, que pode estar frio. Falhar aqui por impaciência produziria um
 # diagnóstico enganoso — pareceria credencial inválida.
-# Aceite dos documentos legais — portão de primeiro acesso.
-#
-# Descoberto pela hierarquia de tela do artefato: depois de autenticar, o app
-# exige aceitar Termos de Uso e Política de Privacidade antes de liberar a
-# navegação. Não é bug, é requisito de produto (e de LGPD).
-#
-# CONDICIONAL de propósito: com `clearState: true` a tela aparece toda vez,
-# mas se um dia o estado for preservado ela não aparece, e um `tapOn` fixo
-# quebraria o fluxo. `when: visible` mantém o subfluxo idempotente.
-# Condicional: a conta principal ja aceitou numa execucao anterior e o
-# consentimento PERSISTE no backend (user_consents), entao a tela so aparece
-# para conta nova. Foi o que derrubou 02 e 03 na ultima rodada.
-- runFlow:
-    when:
-      visible:
-        id: "accept-continue"
-    commands:
-      # DUAS checkboxes, não toques nos títulos.
-      #
-      # `app/(onboarding)/terms.tsx` gate o botão com
-      #   canAccept = termsAccepted && privacyAccepted
-      # e os documentos ficam INLINE na tela — por isso tocar no título "Termos
-      # de Uso" não fazia nada, e o fluxo ficava parado sem erro aparente.
-      #
-      # Consentimento granular por documento é exigência do art. 8 da LGPD, não
-      # capricho de UI. O teste tem de exercitar os dois separadamente.
-      # Âncoras por testID. Tocar pelo texto do rótulo não marcava as
-      # checkboxes: a tela tem dois documentos inline, o card de confirmação
-      # fica fora da viewport, e o seletor por texto não alcançava de forma
-      # confiável. Foi a mesma disciplina que já vale no resto do app — eu é
-      # que não a apliquei aqui de primeira.
-      # A busca na hierarquia capturada mostrou o modelo real desta tela:
-      # `accept-continue` aparece, `consent-terms` NÃO. O botão está num rodapé
-      # FIXO (sempre visível, fora do ScrollView) e as checkboxes ficam dentro
-      # da rolagem, depois de dois documentos completos.
-      #
-      # Consequência: entramos no bloco de imediato, com a lista ainda no topo.
-      # É preciso rolar para BAIXO, e bastante — daí o timeout maior e
-      # centerElement, para o toque não cair na borda da viewport.
-      - scrollUntilVisible:
-          element:
-            id: "consent-terms"
-          direction: DOWN
-          timeout: 45000
-          centerElement: true
-      - tapOn:
-          id: "consent-terms"
-
-      # A segunda checkbox precisa da própria rolagem. O rótulo dela tem três
-      # linhas de texto (LGPD), então mesmo estando logo abaixo da primeira ela
-      # pode ficar fora da viewport depois do toque — foi o que produziu
-      # "Element not found: consent-privacy" numa execução em que a primeira
-      # havia sido marcada com sucesso.
-      - scrollUntilVisible:
-          element:
-            id: "consent-privacy"
-          direction: DOWN
-          timeout: 30000
-          centerElement: true
-      - tapOn:
-          id: "consent-privacy"
-
-      - scrollUntilVisible:
-          element:
-            id: "accept-continue"
-          direction: DOWN
-          timeout: 20000
-      - tapOn:
-          id: "accept-continue"
-
 - extendedWaitUntil:
     visible: "Canais"
     timeout: 45000

@@ -110,20 +110,69 @@ provisionar() {
 
   # Perfil mínimo no backend. Sem ele o app abre na tela de onboarding em vez
   # do feed, e todo fluxo que dependa de canal falha por motivo errado.
+  # Nao existe endpoint especial de provisionamento, nem precisa: o backend
+  # AUTO-CRIA user + profile + identity no primeiro request autenticado
+  # (app/api/deps.py). Qualquer chamada autenticada serve.
+  #
+  # Esta chamada tambem e o teste de isolamento mais importante do pipeline: se
+  # o backend de staging validar tokens contra outro projeto Firebase, aqui
+  # volta 401 e descobrimos agora, nao no meio dos fluxos.
   local http
-  http=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${E2E_API_URL%/}/auth/ensure-e2e-profile" \
-    -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' \
-    --data '{"source":"e2e-ci"}' 2>/dev/null)
+  http=$(curl -sS -o /dev/null -w '%{http_code}' "${E2E_API_URL%/}/profile/me" \
+    -H "Authorization: Bearer ${token}" 2>/dev/null)
 
   case "$http" in
-    200|201|204|409) echo "  ${rotulo}: perfil no backend OK (HTTP ${http})" ;;
-    404)
-      # Endpoint ainda nao existe no backend de staging. Nao e fatal para o
-      # login, mas os fluxos que dependem de canal vao falhar — melhor dizer.
-      echo "::warning::${rotulo}: endpoint de perfil ausente (HTTP 404); fluxos de canal podem falhar"
+    200|201|204)
+      echo "  ${rotulo}: backend aceitou o token (HTTP ${http})"
       ;;
-    *) echo "::warning::${rotulo}: perfil no backend respondeu HTTP ${http}" ;;
+    401|403)
+      echo "::error::${rotulo}: backend RECUSOU o token (HTTP ${http})."
+      echo "  Causa provavel: FIREBASE_PROJECT_ID do backend de staging aponta"
+      echo "  para outro projeto. aud e iss saem dessa unica variavel."
+      return 1
+      ;;
+    *) echo "::warning::${rotulo}: backend respondeu HTTP ${http}" ;;
   esac
+
+  # ── Pre-aceite legal ──────────────────────────────────────────────────────
+  # Decisao de projeto: pre-gravar o consentimento APENAS nas contas que nao
+  # exercitam esse gate. O fluxo 04-aceite-legal percorre a tela de verdade com
+  # a conta descartavel, entao ela fica de fora aqui.
+  #
+  # Motivo: a tela tem dois documentos completos inline, e ensinar o teste a
+  # rolar ate as checkboxes produziu falha NAO-DETERMINISTICA — o mesmo passo
+  # passava numa execucao e falhava na seguinte. Colocar a conta no estado
+  # certo antes de comecar e mais confiavel que navegar a tela tres vezes.
+  if [ "$rotulo" = "descartavel" ]; then
+    echo "  ${rotulo}: aceite NAO pre-gravado — 04-aceite-legal exercita a tela"
+    return 0
+  fi
+
+  local corpo_aceite
+  corpo_aceite=$(curl -sS "${E2E_API_URL%/}/legal/latest" \
+    -H "Authorization: Bearer ${token}" 2>/dev/null | python3 -c '
+import sys, json
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    raise SystemExit
+t = ((d.get("terms") or {}).get("version")) or ""
+p = ((d.get("privacy") or {}).get("version")) or ""
+if t and p:
+    print(json.dumps({"terms_version": t, "privacy_version": p,
+                      "analytics_opt_in": False, "push_opt_in": False}))
+')
+
+  if [ -z "$corpo_aceite" ]; then
+    echo "::warning::${rotulo}: nao li /legal/latest; a tela de aceite vai aparecer"
+    return 0
+  fi
+
+  local ac
+  ac=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "${E2E_API_URL%/}/legal/accept" \
+    -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' \
+    --data "$corpo_aceite" 2>/dev/null)
+  echo "  ${rotulo}: aceite legal pre-gravado (HTTP ${ac})"
   return 0
 }
 

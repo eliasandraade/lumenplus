@@ -1,0 +1,68 @@
+# Aceite de Termos de Uso e Política de Privacidade — gate de primeiro acesso.
+#
+# POR QUE ESTE FLUXO EXISTE SEPARADO
+# Os outros três recebem o consentimento pré-gravado pelo `ci-provision.sh`,
+# porque navegar esta tela em cada um deles produziu falha não-determinística:
+# ela traz dois documentos completos inline, e a rolagem até as checkboxes
+# passava numa execução e falhava na seguinte.
+#
+# Mas pular a tela em TODOS os fluxos deixaria de exercitar um requisito de
+# loja (Apple 1.2, para UGC) e da LGPD. Este fluxo cobre o gate uma vez, com a
+# conta descartável — a única que o `ci-provision.sh` deixa sem pré-aceite.
+#
+# PRECISA RODAR ANTES DO 01: o 01 exclui a conta descartável. A ordem está
+# explícita na invocação do `ci-run.sh`, não no nome do arquivo.
+appId: com.lumenchristi.lumenplus
+---
+- launchApp:
+    clearState: true
+
+- assertVisible:
+    id: "login-email"
+- tapOn:
+    id: "login-email"
+- inputText: ${E2E_DESC_EMAIL}
+- tapOn:
+    id: "login-password"
+- inputText: ${E2E_DESC_SENHA}
+- hideKeyboard
+- tapOn: "Entrar"
+
+# A tela DEVE aparecer para esta conta. Se não aparecer, o pré-aceite vazou
+# para a descartável e o gate deixou de ser testado — falhar aqui é correto.
+- extendedWaitUntil:
+    visible:
+      id: "accept-continue"
+    timeout: 45000
+
+- assertVisible: "Termos de Uso"
+- assertVisible: "Política de Privacidade"
+
+# O botão começa DESABILITADO: `canAccept = termsAccepted && privacyAccepted`
+# em app/(onboarding)/terms.tsx. Consentimento granular por documento é
+# exigência do art. 8 da LGPD, e é isso que este fluxo prova.
+- scrollUntilVisible:
+    element:
+      id: "consent-terms"
+    direction: DOWN
+    timeout: 45000
+    centerElement: true
+- tapOn:
+    id: "consent-terms"
+
+- scrollUntilVisible:
+    element:
+      id: "consent-privacy"
+    direction: DOWN
+    timeout: 30000
+    centerElement: true
+- tapOn:
+    id: "consent-privacy"
+
+- tapOn:
+    id: "accept-continue"
+
+# Chegou à home: o aceite foi persistido e o gate liberou a navegação.
+- extendedWaitUntil:
+    visible: "Canais"
+    timeout: 45000

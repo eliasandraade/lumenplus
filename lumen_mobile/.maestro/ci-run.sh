@@ -110,12 +110,15 @@ echo "::group::Fluxos Maestro"
 if [ -n "${FLOW:-}" ]; then
   maestro test -e "E2E_EMAIL=${E2E_EMAIL}" -e "E2E_SENHA=${E2E_SENHA}" -e "E2E_DESC_EMAIL=${E2E_DESC_EMAIL}" -e "E2E_DESC_SENHA=${E2E_DESC_SENHA}" "e2e/maestro-flows/${FLOW}"
 else
-  # 00-login.yaml e subfluxo: entra via runFlow, nao no glob.
+  # Ordem IMPORTA: 04 roda antes do 01, porque o 01 exclui a conta descartavel
+  # que o 04 usa para exercitar o gate legal. 00-login.yaml e subfluxo — entra
+  # via runFlow, nunca direto.
   maestro test \
     -e "E2E_EMAIL=${E2E_EMAIL}" \
     -e "E2E_SENHA=${E2E_SENHA}" \
     -e "E2E_DESC_EMAIL=${E2E_DESC_EMAIL}" \
     -e "E2E_DESC_SENHA=${E2E_DESC_SENHA}" \
+    e2e/maestro-flows/04-aceite-legal.yaml \
     e2e/maestro-flows/01-excluir-conta.yaml \
     e2e/maestro-flows/02-denunciar-conteudo.yaml \
     e2e/maestro-flows/03-bloquear-usuario.yaml
