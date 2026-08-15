@@ -50,9 +50,13 @@ appId: com.lumenchristi.lumenplus
 # CONDICIONAL de propósito: com `clearState: true` a tela aparece toda vez,
 # mas se um dia o estado for preservado ela não aparece, e um `tapOn` fixo
 # quebraria o fluxo. `when: visible` mantém o subfluxo idempotente.
+# Condicional: a conta principal ja aceitou numa execucao anterior e o
+# consentimento PERSISTE no backend (user_consents), entao a tela so aparece
+# para conta nova. Foi o que derrubou 02 e 03 na ultima rodada.
 - runFlow:
     when:
-      visible: "Aceitar e Continuar"
+      visible:
+        id: "accept-continue"
     commands:
       # DUAS checkboxes, não toques nos títulos.
       #
@@ -63,20 +67,28 @@ appId: com.lumenchristi.lumenplus
       #
       # Consentimento granular por documento é exigência do art. 8 da LGPD, não
       # capricho de UI. O teste tem de exercitar os dois separadamente.
+      # Âncoras por testID. Tocar pelo texto do rótulo não marcava as
+      # checkboxes: a tela tem dois documentos inline, o card de confirmação
+      # fica fora da viewport, e o seletor por texto não alcançava de forma
+      # confiável. Foi a mesma disciplina que já vale no resto do app — eu é
+      # que não a apliquei aqui de primeira.
       - scrollUntilVisible:
           element:
-            text: "Li e aceito os Termos de Uso"
+            id: "consent-terms"
           direction: DOWN
           timeout: 20000
-      - tapOn: "Li e aceito os Termos de Uso"
-      - tapOn: "Li e aceito a Política de Privacidade.*"
+      - tapOn:
+          id: "consent-terms"
+      - tapOn:
+          id: "consent-privacy"
 
       - scrollUntilVisible:
           element:
-            text: "Aceitar e Continuar"
+            id: "accept-continue"
           direction: DOWN
           timeout: 20000
-      - tapOn: "Aceitar e Continuar"
+      - tapOn:
+          id: "accept-continue"
 
 - extendedWaitUntil:
     visible: "Canais"

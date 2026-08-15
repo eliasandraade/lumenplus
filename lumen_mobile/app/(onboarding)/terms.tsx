@@ -20,10 +20,13 @@ import { useTheme } from '@/theme';
 import type { SemanticTokens } from '@/theme';
 import { showConfirm } from '@/utils/alerts';
 
-function Checkbox({ checked, onPress, label }: { checked: boolean; onPress: () => void; label: string }) {
+// testID repassado ao Pressable: o E2E precisa de ancora estavel. Tocar pelo
+// texto do rotulo falhava — o card fica fora da viewport e o seletor por texto
+// nao alcanca de forma confiavel numa tela com dois documentos inline.
+function Checkbox({ checked, onPress, label, testID }: { checked: boolean; onPress: () => void; label: string; testID?: string }) {
   const { t } = useTheme();
   return (
-    <Pressable onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked }}
+    <Pressable testID={testID} onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked }}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 }}>
       <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2,
         borderColor: checked ? t.brand.primary : t.border.default,
@@ -109,11 +112,13 @@ export default function TermsScreen() {
         <Card style={styles.card}>
           <Text style={styles.consentTitle}>Confirmação de leitura</Text>
           <Checkbox
+            testID="consent-terms"
             checked={termsAccepted}
             onPress={() => setTermsAccepted(v => !v)}
             label="Li e aceito os Termos de Uso"
           />
           <Checkbox
+            testID="consent-privacy"
             checked={privacyAccepted}
             onPress={() => setPrivacyAccepted(v => !v)}
             label="Li e aceito a Política de Privacidade e o tratamento dos meus dados pessoais conforme a LGPD"
