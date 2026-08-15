@@ -38,6 +38,22 @@ appId: com.lumenchristi.lumenplus
 - hideKeyboard
 - tapOn: "Entrar"
 
+# Espera a transição ANTES de avaliar o condicional dos termos.
+#
+# Sem isto, a condição era avaliada no instante seguinte ao toque em "Entrar",
+# com o login ainda em voo: a tela de termos não existia, a condição dava
+# falso, e o bloco inteiro era PULADO (visto como `runFlowCommand SKIPPED` no
+# commands.json). Só depois o app renderizava os termos — e o assert de
+# "Canais" falhava numa tela que o teste deveria ter tratado.
+#
+# `optional: true` porque este passo é só sincronização: se a conta já aceitou
+# antes, a tela não aparece e seguimos direto para a home.
+- extendedWaitUntil:
+    visible:
+      id: "accept-continue"
+    timeout: 40000
+    optional: true
+
 # Espera generosa: o primeiro login faz round-trip ao Firebase e ao backend de
 # staging, que pode estar frio. Falhar aqui por impaciência produziria um
 # diagnóstico enganoso — pareceria credencial inválida.
