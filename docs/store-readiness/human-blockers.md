@@ -193,3 +193,41 @@ Matriz completa: [`account-deletion-data-map.md`](account-deletion-data-map.md).
 | Sem `PrivacyInfo.xcprivacy` | declarado via `ios.privacyManifests` (falta o CI validar o gerado) |
 | Exclusão de conta deixava telefone, e-mail e push para trás | **corrigido**, com teste que percorre a matriz de dados |
 | Sem aceite de diretrizes antes de publicar (Apple 1.2) | **implementado**, versionado, com 428 e re-aceite automático |
+
+---
+
+## DECISÕES TOMADAS — 2026-08-15
+
+Registrado a partir de confirmação direta da coordenação.
+
+| # | Decisão | Efeito |
+|---|---|---|
+| **D1** | **Play App Signing** — o Google guarda a chave | Elimina o risco de perder o keystore e nunca mais poder atualizar o app. A *upload key* é recuperável. Nada a fazer no código: o mecanismo fail-closed já está pronto e testado |
+| **D2** | Domínio de produção | **ainda pendente** — "vou configurar em breve" |
+| **D3** | Contato de suporte **e** de moderação: `applumenplus@gmail.com` | Já gravado em `app.json` → `expo.extra`. O app lê via `src/config/contacts.ts` |
+| **D4** | **Declarar tudo o que se coleta**, incluindo crença religiosa e saúde | É a leitura correta. As fichas de App Privacy e Data Safety em [`store-privacy-declarations.md`](store-privacy-declarations.md) já estão preenchidas nessa premissa e podem ser usadas como estão |
+
+### Sobre D3 — uma observação que não é técnica
+
+O mesmo endereço atende suporte e denúncia de conteúdo. Funciona para as
+lojas, mas vale registrar: a Apple espera que denúncia de conteúdo censurável
+tenha **resposta em prazo razoável**. Um endereço sem dono definido tende a
+acumular. Não é bloqueio de publicação — é risco operacional depois dela.
+
+### Sobre D4 — o que ainda cabe decidir depois
+
+Declarar tudo é a decisão certa e destrava a submissão. As duas sugestões de
+**minimização** seguem valendo como melhoria futura, não como pendência:
+
+- mover **saúde** (restrição alimentar, plano) para a inscrição do retiro, em
+  vez do cadastro geral;
+- reavaliar o **RG**, já que o CPF identifica e dois documentos para a mesma
+  finalidade é coleta excedente.
+
+Ambas reduziriam a superfície sensível sem perder função.
+
+### O que resta
+
+Apenas **D2 (domínio)**. Ele sozinho destrava: URL pública de exclusão de conta
+(exigida pelo Data Safety), URL da Política de Privacidade, Android App Links e
+iOS Universal Links.

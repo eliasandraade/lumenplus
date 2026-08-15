@@ -94,6 +94,10 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "supportContactEmail": "applumenplus@gmail.com",
+      "moderationContactEmail": "applumenplus@gmail.com"
     }
   }
 }
