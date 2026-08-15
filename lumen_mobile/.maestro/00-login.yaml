@@ -46,9 +46,23 @@ appId: com.lumenchristi.lumenplus
     visible: "Preencher mais tarde"
     timeout: 40000
     optional: true
-- tapOn:
-    text: "Preencher mais tarde"
-    optional: true
+
+# O `optional: true` saiu daqui de proposito.
+#
+# Com ele, um toque que nao encontra o alvo é PULADO em silencio, e a falha so
+# aparece 3 passos adiante, no assert da home — longe da causa. Foi exatamente
+# esse padrao que me fez perseguir sintoma em vez de causa varias vezes nesta
+# sequencia. Se a tela apareceu e o toque nao funciona, quero saber AQUI.
+#
+# O bloco inteiro continua condicional: se a tela nao aparecer (cadastro ja
+# completo), o `when` abaixo nao dispara e seguimos direto.
+- runFlow:
+    when:
+      visible: "Preencher mais tarde"
+    commands:
+      - tapOn: "Preencher mais tarde"
+      - waitForAnimationToEnd:
+          timeout: 5000
 
 # Espera generosa: o primeiro login faz round-trip ao Firebase e ao backend de
 # staging, que pode estar frio. Falhar aqui por impaciência produziria um
