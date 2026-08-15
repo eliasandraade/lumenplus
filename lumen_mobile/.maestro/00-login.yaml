@@ -54,6 +54,20 @@ appId: com.lumenchristi.lumenplus
     when:
       visible: "Aceitar e Continuar"
     commands:
+      # O botao NAO habilita de cara. A tela diz "Leia e confirme os documentos
+      # acima para continuar" — e preciso abrir cada documento antes. Eu tocava
+      # direto no botao desabilitado, e o fluxo ficava parado na mesma tela.
+      #
+      # Isso e comportamento correto do produto: consentimento LGPD nao pode ser
+      # dado sem o documento ter sido apresentado. O teste e que estava errado.
+      - tapOn: "Termos de Uso"
+      - tapOn:
+          text: "Fechar|Voltar|OK|Entendi"
+          optional: true
+      - tapOn: "Política de Privacidade"
+      - tapOn:
+          text: "Fechar|Voltar|OK|Entendi"
+          optional: true
       - tapOn: "Aceitar e Continuar"
 
 - extendedWaitUntil:
