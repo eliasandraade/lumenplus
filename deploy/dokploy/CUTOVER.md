@@ -8,6 +8,28 @@ domínio não resolve, então não é curinga).
 
 ---
 
+## Antes de tudo: os nomes mudam depois da adoção
+
+Este runbook usa `lumenplus-postgres-1` e a rede `lumenplus_internal`, que são
+os nomes da stack **manual**. Depois que o Dokploy adotar a stack
+(`ADOCAO-DOKPLOY.md`), ele passa a rodar o projeto com o `appName` que gera —
+como fez com `precatrios-1mrted` — e os nomes viram `<appName>-postgres-1` e
+`<appName>_internal`.
+
+Descobrir os nomes reais antes de executar qualquer passo:
+
+```bash
+ssh contabo-andrade '
+  docker ps --filter volume=lumenplus_postgres_data --format "container: {{.Names}}"
+  docker ps --filter volume=lumenplus_postgres_data --format "{{.Names}}" \
+    | xargs -r -n1 docker inspect --format "rede: {{range \$k,\$v := .NetworkSettings.Networks}}{{\$k}} {{end}}"
+'
+```
+
+O que **não** muda é o volume: `lumenplus_postgres_data`, `external: true`.
+
+---
+
 ## Por que a ordem importa
 
 Duas restrições descobertas em ensaio, não deduzidas:
