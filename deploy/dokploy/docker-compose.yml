@@ -38,7 +38,14 @@ services:
       # Locale e encoding fixados para que o restore não divirja da origem.
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
-      - lumen_pgdata:/var/lib/postgresql/data
+      # ATENÇÃO ao ponto de montagem: a partir do PostgreSQL 18 as imagens
+      # oficiais guardam os dados em subdiretório por versão maior
+      # (/var/lib/postgresql/18/docker), para permitir `pg_upgrade --link`
+      # sem cruzar fronteira de mount. Montar em /var/lib/postgresql/data —
+      # o caminho correto até a 17 — faz a imagem ABORTAR na inicialização
+      # com "unused mount/volume". Verificado na VPS: o container saiu com
+      # código 1 antes desta correção.
+      - lumen_pgdata:/var/lib/postgresql
     # SEM `ports:` — de propósito. O banco só é alcançável pela rede interna.
     # Publicar 5432 no host exporia o Postgres à internet pelo IP da VPS.
     networks:
