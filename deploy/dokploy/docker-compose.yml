@@ -2,36 +2,34 @@
 # Lumen+ — pilha de PRODUÇÃO para Dokploy/Traefik na VPS Contabo
 # =============================================================================
 #
+# ARQUITETURA FINAL
+#   lumenplus.andradesystems.com.br      -> frontend  (Expo Web estático, nginx)
+#   api.lumenplus.andradesystems.com.br  -> API       (FastAPI)
+#   PostgreSQL                           -> só na rede interna
+#
 # CONVENÇÕES COPIADAS DO STACK QUE JÁ FUNCIONA NESTA VPS
 # (/etc/dokploy/compose/precatrios-1mrted/code/docker-compose.yml), e não
-# inventadas. Isso importa em três pontos onde o palpite estaria errado:
+# inventadas. Três pontos onde o palpite estaria errado:
 #
 #   1. `mem_limit` / `cpus`, NÃO `deploy.resources.limits`. O Dokploy sobe
 #      estes projetos com `docker compose`, não como serviço swarm — e fora do
-#      swarm a chave `deploy:` é silenciosamente IGNORADA. Os limites não
-#      valeriam nada.
-#   2. Volume `external: true` com `name:` explícito. Assim o volume sobrevive
-#      a qualquer `compose down`, inclusive `-v`.
-#   3. Dois routers no Traefik: o `websecure` com TLS e um `web` que só
-#      redireciona para HTTPS. O redirecionamento não é automático.
+#      swarm a chave `deploy:` é silenciosamente IGNORADA.
+#   2. Volume `external: true` com `name:` explícito, para sobreviver a
+#      qualquer `compose down`, inclusive `-v`.
+#   3. Dois routers no Traefik por hostname: o `websecure` com TLS e um `web`
+#      que só redireciona. O redirecionamento não é automático.
 #
-# PARIDADE COM A PRODUÇÃO RAILWAY — nada de modernização junto do cutover:
-#   - Python permanece 3.11 (o que roda hoje). O projeto DECLARA 3.12 em
-#     pyproject.toml e no mypy; divergência registrada, não corrigida aqui.
-#   - Driver psycopg v3 (3.2.3), que é o que a produção usa de fato: não há
-#     `import psycopg2` nem URL `postgresql+psycopg2://` no código, e
-#     settings.py converte postgresql:// → postgresql+psycopg://.
-#   - `start.sh` SEM `--proxy-headers`. Não é esquecimento: o app resolve o IP
-#     do cliente sozinho lendo X-Forwarded-For com trusted_proxy_hops
-#     (default 1), e o Traefik acrescenta 1 hop, igual à Railway.
+# PARIDADE COM A PRODUÇÃO ANTERIOR — nada de modernização junto do cutover:
+#   - Python permanece 3.11. O projeto DECLARA 3.12 em pyproject.toml e no
+#     mypy; divergência registrada, não corrigida aqui.
+#   - Driver psycopg v3 (3.2.3), que é o que roda de fato.
+#   - `start.sh` SEM `--proxy-headers`: o app resolve o IP do cliente sozinho
+#     via X-Forwarded-For com trusted_proxy_hops (default 1), e o Traefik
+#     acrescenta 1 hop.
 #
-# SEM REDIS, por decisão. Consequência registrada: o rate limit usa o fallback
-# em memória, que é por processo em vez de compartilhado. Com uma réplica o
-# efeito é equivalente. Verificado em ensaio: o log registra
-# `redis_unavailable → fallback: in-memory` e a API segue respondendo.
-#
-# SEM VOLUME DE APLICAÇÃO, por constatação: o backend não grava em disco. A
-# única rota de upload lê em memória com teto de 8 MB e envia ao Cloudinary.
+# SEM REDIS, por decisão: o rate limit usa o fallback em memória, por processo.
+# SEM VOLUME DE APLICAÇÃO: o backend não grava em disco; uploads vão ao
+# Cloudinary.
 
 name: lumenplus
 
@@ -50,12 +48,11 @@ services:
       - .env
     volumes:
       # A partir do PostgreSQL 18 as imagens oficiais guardam os dados em
-      # subdiretório por versão maior (/var/lib/postgresql/18/docker), para
-      # permitir `pg_upgrade --link` sem cruzar fronteira de mount. Montar em
-      # /var/lib/postgresql/data — correto até a 17 — faz a imagem ABORTAR com
-      # "unused mount/volume". Verificado nesta VPS: exit 1 antes da correção.
+      # subdiretório por versão maior (/var/lib/postgresql/18/docker). Montar
+      # em /var/lib/postgresql/data — correto até a 17 — faz a imagem ABORTAR
+      # com "unused mount/volume". Verificado nesta VPS: exit 1.
       - postgres_data:/var/lib/postgresql
-    # SEM `ports:` — de propósito. O banco só existe na rede interna.
+    # SEM `ports:` — o banco só existe na rede interna.
     networks:
       - internal
     healthcheck:
@@ -66,8 +63,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    # Medido no ensaio: 50 MiB com o banco real (12 MB, 623 linhas). O teto de
-    # 1g cobre shared_buffers padrão e crescimento, sem superdimensionar.
     mem_limit: 1g
     cpus: 1
     logging: *padrao-log
@@ -80,46 +75,31 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    # Bind SOMENTE em localhost, para smoke test por SSH. Não expõe a API à
-    # internet: quem serve o público é o Traefik, pela dokploy-network.
-    # 8080 já é do Precatórios.
+    # Bind só em localhost, para smoke test por SSH.
     ports:
       - 127.0.0.1:8081:8000
     networks:
-      # `internal` fala com o Postgres; `dokploy-network` é o que o Traefik
-      # enxerga. O Postgres NÃO está em dokploy-network, então não existe
-      # caminho do roteador até o banco.
       - internal
       - dokploy-network
     labels:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
-      - traefik.http.services.lumenplus.loadbalancer.server.port=8000
-      # DOIS hostnames servidos pela MESMA instância — não há segunda API nem
-      # segundo banco. `api.lumenplus...` é o nome definitivo do backend;
-      # `lumenplus...` continua respondendo porque o frontend publicado ainda
-      # aponta para lá durante a transição. Remover o segundo antes de o
-      # frontend migrar derrubaria o que já está no ar.
-      #
-      # O Traefik emite um certificado por Host da regra, então o Let's Encrypt
-      # precisa que AMBOS resolvam para esta VPS antes do deploy — senão o
-      # desafio HTTP-01 do que faltar falha e fica em retry.
-      - traefik.http.routers.lumenplus.rule=Host(`lumenplus.andradesystems.com.br`) || Host(`api.lumenplus.andradesystems.com.br`)
-      - traefik.http.routers.lumenplus.entrypoints=websecure
-      - traefik.http.routers.lumenplus.tls=true
-      - traefik.http.routers.lumenplus.tls.certresolver=letsencrypt
-      - traefik.http.routers.lumenplus-insecure.rule=Host(`lumenplus.andradesystems.com.br`) || Host(`api.lumenplus.andradesystems.com.br`)
-      - traefik.http.routers.lumenplus-insecure.entrypoints=web
-      - traefik.http.routers.lumenplus-insecure.middlewares=lumenplus-https
+      - traefik.http.services.lumenplus-api.loadbalancer.server.port=8000
+      # SOMENTE o hostname de API. O `lumenplus.andradesystems.com.br` saiu
+      # daqui e foi para o frontend — as duas mudanças estão neste mesmo
+      # arquivo, então acontecem no mesmo deploy.
+      - traefik.http.routers.lumenplus-api.rule=Host(`api.lumenplus.andradesystems.com.br`)
+      - traefik.http.routers.lumenplus-api.entrypoints=websecure
+      - traefik.http.routers.lumenplus-api.tls=true
+      - traefik.http.routers.lumenplus-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.lumenplus-api-insecure.rule=Host(`api.lumenplus.andradesystems.com.br`)
+      - traefik.http.routers.lumenplus-api-insecure.entrypoints=web
+      - traefik.http.routers.lumenplus-api-insecure.middlewares=lumenplus-https
       - traefik.http.middlewares.lumenplus-https.redirectscheme.scheme=https
     healthcheck:
-      # /health/live é LIVENESS: não toca no banco. É o sinal certo para
-      # decidir reinício. /health/ready faria uma oscilação do banco derrubar
-      # o container em vez de apenas tirá-lo de tráfego.
-      #
-      # Usa python, não curl: a imagem é python:3.11-slim e não traz curl nem
-      # wget. Instalar um só para o healthcheck mudaria a imagem de produção —
-      # exatamente o que este cutover evita.
+      # /health/live é LIVENESS: não toca no banco. /health/ready faria uma
+      # oscilação do banco derrubar o container em vez de tirá-lo de tráfego.
+      # Usa python porque a imagem é python:3.11-slim e não traz curl.
       test:
         - CMD-SHELL
         - python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health/live',timeout=5).status==200 else 1)"
@@ -127,10 +107,47 @@ services:
       timeout: 10s
       retries: 4
       start_period: 60s
-    # Medido no ensaio: 120 MiB em repouso, 0,29% de CPU. O teto de 512m dá
-    # folga de 4x para o pool (5+10 conexões) e o scheduler, sem desperdício.
     mem_limit: 512m
     cpus: 1.5
+    logging: *padrao-log
+
+  frontend:
+    image: lumenplus-web:current
+    restart: unless-stopped
+    # SEM env_file: o bundle é estático e já foi construído com a URL da API
+    # embutida. Dar a este container as variáveis do backend só aumentaria a
+    # superfície — ele não tem o que fazer com elas.
+    ports:
+      - 127.0.0.1:8082:80
+    networks:
+      # Só na dokploy-network. NÃO entra na `internal`: o frontend é estático
+      # e nunca fala com o banco — quem fala com a API é o navegador do
+      # usuário, por HTTPS, de fora.
+      - dokploy-network
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.services.lumenplus-web.loadbalancer.server.port=80
+      - traefik.http.routers.lumenplus-web.rule=Host(`lumenplus.andradesystems.com.br`)
+      - traefik.http.routers.lumenplus-web.entrypoints=websecure
+      - traefik.http.routers.lumenplus-web.tls=true
+      - traefik.http.routers.lumenplus-web.tls.certresolver=letsencrypt
+      - traefik.http.routers.lumenplus-web-insecure.rule=Host(`lumenplus.andradesystems.com.br`)
+      - traefik.http.routers.lumenplus-web-insecure.entrypoints=web
+      - traefik.http.routers.lumenplus-web-insecure.middlewares=lumenplus-https
+    healthcheck:
+      # Endpoint próprio do nginx, fora do fallback de SPA: um 200 seco, sem
+      # HTML. Se usasse `/`, o fallback devolveria index.html para qualquer
+      # coisa e o healthcheck nunca detectaria arquivo faltando.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/nginx-health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # Medido no ensaio: 7,3 MiB servindo o bundle. 128m é 17x o observado e
+    # ainda assim modesto — nginx estático não cresce com tráfego.
+    mem_limit: 128m
+    cpus: 0.5
     logging: *padrao-log
 
 networks:
