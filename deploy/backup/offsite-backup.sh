@@ -1,31 +1,50 @@
 #!/usr/bin/env bash
 # Backup OFF-SITE do Lumen+ -> Google Drive via rclone (remote crypt proprio).
-# Cifrado em TRANSITO (HTTPS do rclone) e em REPOUSO (rclone crypt).
+# Cifrado em TRANSITO (HTTPS do rclone) e em REPOUSO (rclone crypt), com nomes
+# de arquivo cifrados.
 #
-# ISOLAMENTO DO PrecGS — a razao de existir um crypt separado
-# ------------------------------------------------------------
-# O script do Portal de Precatorios termina com:
-#     rclone delete "gdrive-crypt:" --min-age 30d
-# e `rclone delete` e RECURSIVO. Se os backups do Lumen+ vivessem num
-# subdiretorio de `gdrive-crypt:` (que aponta para gdrive:precatorios-backups),
-# a retencao do PrecGS os apagaria junto, em silencio. Por isso este script usa
-# um remote proprio, com raiz propria, e RECUSA rodar contra qualquer outro.
+# LAYOUT NO REMOTE
+#   gdrive-lumen-crypt:daily/                     <- este script; retencao 30d
+#   gdrive-lumen-crypt:archive/cutover-2026-09-06/ <- artefatos historicos da
+#                                                     migracao; SEM retencao
+#
+# ISOLAMENTO — duas separacoes, por motivos diferentes
+# ---------------------------------------------------
+# 1. Do PrecGS: o script do Portal termina com
+#        rclone delete "gdrive-crypt:" --min-age 30d
+#    e `rclone delete` e RECURSIVO. Backups do Lumen+ dentro daquele crypt
+#    seriam apagados pela retencao do Portal, em silencio. Dai o crypt proprio.
+#
+# 2. Do proprio archive/: a retencao aqui atua SO em daily/. Rodar
+#        rclone delete "gdrive-lumen-crypt:" --min-age 30d
+#    na RAIZ apagaria tambem o archive/ — que existe justamente para nunca
+#    expirar. Por isso o alvo da poda e uma variavel separada, e ha uma guarda
+#    que recusa podar qualquer caminho que nao termine em `/daily/`.
 set -euo pipefail
 
-REMOTE="gdrive-lumen-crypt:"      # crypt -> gdrive:lumenplus-backups
+REMOTE="gdrive-lumen-crypt:"
+DAILY="${REMOTE}daily/"
 DIR=/srv/andrade/lumenplus/backups
 RET_DIAS=30
 LOG="[offsite-lumen]"
 
-# ── Portao duro de destino ───────────────────────────────────────────────────
-# Nao e paranoia: um typo aqui mandaria dumps do Lumen+ para dentro do espaco
-# do PrecGS, e a retencao de la os apagaria.
-if [ "$REMOTE" != "gdrive-lumen-crypt:" ]; then
-  echo "$LOG destino invalido: $REMOTE" >&2; exit 1
-fi
+# ── Portao 1: destino correto ────────────────────────────────────────────────
 case "$REMOTE" in
   *precatorios*|gdrive-crypt:*) echo "$LOG RECUSADO: destino do PrecGS" >&2; exit 1 ;;
 esac
+[ "$REMOTE" = "gdrive-lumen-crypt:" ] || { echo "$LOG destino invalido: $REMOTE" >&2; exit 1; }
+
+# ── Portao 2: a poda so pode mirar daily/ ────────────────────────────────────
+# Verificado ANTES de qualquer trabalho: se a variavel for editada por engano,
+# o script para aqui, e nao depois de ja ter enviado.
+#
+# A comparacao e por IGUALDADE exata, nao por glob. A primeira versao usava
+# `case "$DAILY" in */daily/)`, que NAO casa com "gdrive-lumen-crypt:daily/":
+# o separador antes de `daily` e dois-pontos, nao barra. O guard recusava o
+# proprio alvo correto — falha fechada, mas falha.
+if [ "$DAILY" != "${REMOTE}daily/" ] || [ "$DAILY" = "$REMOTE" ]; then
+  echo "$LOG RECUSADO: alvo de retencao '$DAILY' nao e '${REMOTE}daily/'" >&2; exit 1
+fi
 
 command -v rclone >/dev/null || { echo "$LOG rclone ausente" >&2; exit 1; }
 rclone listremotes 2>/dev/null | grep -qx "$REMOTE" || {
@@ -41,13 +60,10 @@ fi
 NOME=$(basename "$LATEST")
 
 # ── Revalida ANTES de enviar ─────────────────────────────────────────────────
-# O backup.sh ja validou na criacao, mas o arquivo pode ter sido corrompido
-# depois (disco, copia interrompida). Enviar um dump ilegivel e pior do que
-# nao enviar: cria a impressao de que existe backup.
+# O backup.sh ja validou na criacao, mas o arquivo pode ter corrompido depois.
+# Enviar dump ilegivel e pior que nao enviar: cria a impressao de que ha backup.
 CONT=$(docker ps --filter "volume=lumenplus_postgres_data" --format "{{.Names}}" | head -1)
-if [ -z "$CONT" ]; then
-  echo "$LOG nenhum container Postgres em execucao para validar o dump" >&2; exit 1
-fi
+[ -n "$CONT" ] || { echo "$LOG nenhum Postgres em execucao para validar" >&2; exit 1; }
 docker cp "$LATEST" "$CONT:/tmp/offsite_check.dump" >/dev/null
 if ! docker exec "$CONT" pg_restore --list /tmp/offsite_check.dump >/dev/null 2>&1; then
   docker exec "$CONT" rm -f /tmp/offsite_check.dump || true
@@ -59,24 +75,21 @@ echo "$LOG $NOME validado ($TABELAS tabelas)"
 
 SHA_LOCAL=$(sha256sum "$LATEST" | cut -d" " -f1)
 
-# ── Upload ───────────────────────────────────────────────────────────────────
-echo "$LOG upload $NOME -> $REMOTE (cifrado)"
-rclone copy "$LATEST" "$REMOTE" --no-traverse
+# ── Upload para daily/ ───────────────────────────────────────────────────────
+echo "$LOG upload $NOME -> $DAILY (cifrado)"
+rclone copy "$LATEST" "$DAILY" --no-traverse
 
-# ── Confere que chegou ───────────────────────────────────────────────────────
-if ! rclone lsf "$REMOTE" 2>/dev/null | grep -qx "$NOME"; then
-  echo "$LOG FALHA: $NOME nao aparece na listagem remota" >&2; exit 1
+if ! rclone lsf "$DAILY" 2>/dev/null | grep -qx "$NOME"; then
+  echo "$LOG FALHA: $NOME nao aparece em $DAILY" >&2; exit 1
 fi
 
-# ── Round-trip: baixa e compara sha256 ───────────────────────────────────────
-# Listar nao prova integridade. Só o re-download com sha256 igual prova que o
+# ── Round-trip: baixa de daily/ e compara sha256 ─────────────────────────────
+# Listar nao prova integridade. So o re-download com sha256 igual prova que o
 # que esta la e restauravel.
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-rclone copy "${REMOTE}${NOME}" "$TMP" --no-traverse
-if [ ! -s "$TMP/$NOME" ]; then
-  echo "$LOG FALHA: re-download vazio" >&2; exit 1
-fi
+rclone copy "${DAILY}${NOME}" "$TMP" --no-traverse
+[ -s "$TMP/$NOME" ] || { echo "$LOG FALHA: re-download vazio" >&2; exit 1; }
 SHA_REMOTO=$(sha256sum "$TMP/$NOME" | cut -d" " -f1)
 if [ "$SHA_LOCAL" != "$SHA_REMOTO" ]; then
   echo "$LOG FALHA: sha256 divergente (local=$SHA_LOCAL remoto=$SHA_REMOTO)" >&2; exit 1
@@ -84,18 +97,18 @@ fi
 echo "$LOG integridade confirmada (sha256 $SHA_LOCAL)"
 rm -rf "$TMP"; trap - EXIT
 
-# ── Retencao ─────────────────────────────────────────────────────────────────
-# So chega aqui se o upload E o round-trip passaram — as duas linhas acima
-# saem com exit!=0 em qualquer falha. A contagem abaixo e a ultima trava:
-# nunca podar quando ha um unico arquivo remoto, para nao existir janela em
-# que o off-site fique vazio.
-REMOTOS=$(rclone lsf "$REMOTE" 2>/dev/null | grep -c "^lumenplus_.*\.dump$" || true)
+# ── Retencao — EXCLUSIVAMENTE em daily/ ──────────────────────────────────────
+# So chega aqui se upload e round-trip passaram (as etapas acima saem com
+# exit!=0 em falha). A contagem e a ultima trava: nunca podar com uma copia so,
+# para nao existir janela com o off-site vazio.
+REMOTOS=$(rclone lsf "$DAILY" 2>/dev/null | grep -c "^lumenplus_.*\.dump$" || true)
 if [ "${REMOTOS:-0}" -lt 2 ]; then
-  echo "$LOG retencao PULADA: apenas ${REMOTOS:-0} copia(s) remota(s)"
+  echo "$LOG retencao PULADA: apenas ${REMOTOS:-0} copia(s) em daily/"
 else
-  echo "$LOG retencao: remove copias remotas com mais de ${RET_DIAS}d"
-  rclone delete "$REMOTE" --min-age "${RET_DIAS}d" --include "lumenplus_*.dump" || true
+  echo "$LOG retencao em $DAILY (>${RET_DIAS}d) — archive/ nao e tocado"
+  rclone delete "$DAILY" --min-age "${RET_DIAS}d" --include "lumenplus_*.dump" || true
 fi
 
-echo "$LOG copias off-site agora: $(rclone lsf "$REMOTE" 2>/dev/null | grep -c '^lumenplus_.*\.dump$' || echo 0)"
+echo "$LOG daily/: $(rclone lsf "$DAILY" 2>/dev/null | grep -c '^lumenplus_.*\.dump$' || echo 0) copia(s)"
+echo "$LOG archive/: $(rclone lsf "${REMOTE}archive/" --recursive 2>/dev/null | wc -l) arquivo(s) preservado(s)"
 echo "$LOG OK"
