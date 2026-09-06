@@ -95,11 +95,20 @@ services:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
       - traefik.http.services.lumenplus.loadbalancer.server.port=8000
-      - traefik.http.routers.lumenplus.rule=Host(`lumenplus.andradesystems.com.br`)
+      # DOIS hostnames servidos pela MESMA instância — não há segunda API nem
+      # segundo banco. `api.lumenplus...` é o nome definitivo do backend;
+      # `lumenplus...` continua respondendo porque o frontend publicado ainda
+      # aponta para lá durante a transição. Remover o segundo antes de o
+      # frontend migrar derrubaria o que já está no ar.
+      #
+      # O Traefik emite um certificado por Host da regra, então o Let's Encrypt
+      # precisa que AMBOS resolvam para esta VPS antes do deploy — senão o
+      # desafio HTTP-01 do que faltar falha e fica em retry.
+      - traefik.http.routers.lumenplus.rule=Host(`lumenplus.andradesystems.com.br`) || Host(`api.lumenplus.andradesystems.com.br`)
       - traefik.http.routers.lumenplus.entrypoints=websecure
       - traefik.http.routers.lumenplus.tls=true
       - traefik.http.routers.lumenplus.tls.certresolver=letsencrypt
-      - traefik.http.routers.lumenplus-insecure.rule=Host(`lumenplus.andradesystems.com.br`)
+      - traefik.http.routers.lumenplus-insecure.rule=Host(`lumenplus.andradesystems.com.br`) || Host(`api.lumenplus.andradesystems.com.br`)
       - traefik.http.routers.lumenplus-insecure.entrypoints=web
       - traefik.http.routers.lumenplus-insecure.middlewares=lumenplus-https
       - traefik.http.middlewares.lumenplus-https.redirectscheme.scheme=https
