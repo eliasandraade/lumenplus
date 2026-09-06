@@ -54,21 +54,6 @@ class DocumentsResponse(BaseSchema):
     rg: str = Field(..., description="RG descriptografado")
 
 
-class AssignGlobalRoleRequest(BaseSchema):
-    """Request para atribuir role global (dev only)."""
-
-    user_id: UUID
-    role_code: str = Field(..., pattern="^(DEV|COUNCIL_GENERAL|SECRETARY|COMMS)$")
-
-
-class AssignGlobalRoleResponse(BaseSchema):
-    """Response após atribuir role."""
-
-    message: str
-    user_id: UUID
-    role_code: str
-
-
 class SeedResponse(BaseSchema):
     """Response do seed de dados."""
 
