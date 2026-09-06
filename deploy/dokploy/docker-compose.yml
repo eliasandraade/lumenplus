@@ -1,0 +1,161 @@
+# =============================================================================
+# Lumen+ — pilha de PRODUÇÃO para Dokploy/Traefik na VPS Contabo
+# =============================================================================
+#
+# PRINCÍPIO DESTE ARQUIVO: PARIDADE COM A PRODUÇÃO RAILWAY ATUAL.
+# Nada de modernização junto do cutover. Especificamente:
+#
+#   - Python permanece 3.11 (o que roda hoje). O projeto DECLARA 3.12 em
+#     pyproject.toml e mypy — divergência registrada, NÃO corrigida aqui.
+#   - O driver é psycopg v3, que é o que a produção usa de fato: não há
+#     nenhum `import psycopg2` nem nenhuma URL `postgresql+psycopg2://` no
+#     código, e `settings.py` converte `postgresql://` → `postgresql+psycopg://`.
+#   - `start.sh` NÃO recebe `--proxy-headers`. Não é esquecimento: o app
+#     resolve o IP do cliente sozinho, lendo X-Forwarded-For com
+#     `trusted_proxy_hops` (default 1). Traefik acrescenta exatamente 1 hop,
+#     igual à Railway. Acrescentar a flag mudaria comportamento sem necessidade.
+#
+# NÃO HÁ REDIS AQUI, por decisão. Consequência real, registrada: o rate limit
+# cai no fallback em memória (`rate_limit.py`), que é POR PROCESSO em vez de
+# compartilhado. Com uma réplica o efeito é equivalente; ao escalar para duas
+# ou mais, cada uma passa a contar seu próprio limite. A produção Railway hoje
+# TEM Redis; o staging roda sem ele. Reverter é acrescentar o serviço e a
+# variável REDIS_URL.
+#
+# NÃO HÁ VOLUME DE APLICAÇÃO, por constatação: o backend não grava nada em
+# disco. A única rota de upload (comprovante de retiro) lê em memória com teto
+# de 8 MB e envia direto ao Cloudinary.
+
+services:
+
+  postgres:
+    image: postgres:18.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Locale e encoding fixados para que o restore não divirja da origem.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - lumen_pgdata:/var/lib/postgresql/data
+    # SEM `ports:` — de propósito. O banco só é alcançável pela rede interna.
+    # Publicar 5432 no host exporia o Postgres à internet pelo IP da VPS.
+    networks:
+      - lumen_interna
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  api:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # Banco — host interno do compose, nunca endereço público.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+
+      ENVIRONMENT: ${ENVIRONMENT}
+      AUTH_MODE: ${AUTH_MODE}
+      SECRET_KEY: ${SECRET_KEY}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      HMAC_PEPPER: ${HMAC_PEPPER}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE}
+      DATABASE_MAX_OVERFLOW: ${DATABASE_MAX_OVERFLOW}
+
+      ENABLE_DEV_ENDPOINTS: ${ENABLE_DEV_ENDPOINTS}
+      DEBUG_VERIFICATION_CODE: ${DEBUG_VERIFICATION_CODE}
+
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_EMAIL: ${VAPID_EMAIL}
+
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL}
+      SENDGRID_FROM_NAME: ${SENDGRID_FROM_NAME}
+
+      PORT: "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      # `lumen_interna` fala com o Postgres; `dokploy-network` é o que o
+      # Traefik enxerga. O Postgres NÃO está em dokploy-network, então não
+      # existe caminho do roteador até o banco.
+      - lumen_interna
+      - dokploy-network
+    healthcheck:
+      # /health/live é LIVENESS: não toca no banco. É o sinal certo para
+      # decidir reinício. Usar /health/ready aqui faria uma oscilação do
+      # banco derrubar o container em vez de apenas tirá-lo de tráfego.
+      #
+      # O healthcheck usa python, não curl: a imagem é python:3.11-slim e não
+      # traz curl nem wget. Instalar um só para o healthcheck mudaria a imagem
+      # de produção — exatamente o que este cutover evita.
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import sys, urllib.request
+          try:
+              sys.exit(0 if urllib.request.urlopen(
+                  "http://127.0.0.1:8000/health/live", timeout=5).status == 200 else 1)
+          except Exception:
+              sys.exit(1)
+      interval: 15s
+      timeout: 8s
+      retries: 4
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          memory: 256M
+    labels:
+      # Roteamento do Traefik. O host fica FORA deste arquivo, em
+      # LUMEN_API_HOST, porque o domínio ainda não foi decidido.
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.lumen-api.rule=Host(`${LUMEN_API_HOST}`)
+      - traefik.http.routers.lumen-api.entrypoints=websecure
+      - traefik.http.routers.lumen-api.tls.certresolver=letsencrypt
+      - traefik.http.services.lumen-api.loadbalancer.server.port=8000
+
+volumes:
+  lumen_pgdata:
+    # Externo de propósito: um `docker compose down -v` não pode apagar o
+    # banco. Precisa ser criado uma vez, fora do compose:
+    #   docker volume create lumen_pgdata
+    external: true
+
+networks:
+  lumen_interna:
+    driver: bridge
+  dokploy-network:
+    external: true
