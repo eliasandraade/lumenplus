@@ -348,6 +348,22 @@ async def get_org_unit(
             status_code=404, detail={"error": "not_found", "message": "Unidade não encontrada"}
         )
 
+    if unit.visibility == Visibility.RESTRICTED:
+        global_roles = get_user_global_roles(db, user.id)
+        if not any(r in global_roles for r in ["DEV", "ADMIN", "SECRETARY"]):
+            membership = db.execute(
+                sa_select(OrgMembership.org_unit_id).where(
+                    OrgMembership.user_id == user.id,
+                    OrgMembership.org_unit_id == org_unit_id,
+                    OrgMembership.status == MembershipStatus.ACTIVE,
+                )
+            ).first()
+            if membership is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail={"error": "not_found", "message": "Unidade não encontrada"},
+                )
+
     return OrgUnitOut(
         id=unit.id,
         type=unit.type.value,
