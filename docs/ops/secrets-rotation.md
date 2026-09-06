@@ -154,7 +154,7 @@ curl https://backend-production-6efc.up.railway.app/push/vapid-public-key
 ```
 
 **Rollback:** Restaurar par anterior no Railway. Subscriptions antigas voltam a funcionar (se existentes).  
-**Nota:** Se VAPID ainda não estava ativo (caso atual), não há subscriptions para invalidar.
+**Nota:** VAPID está ativo em **staging e produção** (verificado 2026-07-16). Rotacionar invalida as subscriptions existentes — avisar usuários antes.
 
 ---
 

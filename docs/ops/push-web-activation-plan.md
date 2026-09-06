@@ -1,7 +1,8 @@
 # PROD-01 — Plano de Ativação de Push Web
 
 **Data:** 2026-06-14  
-**Status:** Pronto para ativação — apenas VAPID keys faltando  
+**Atualizado:** 2026-06-15  
+**Status:** ✅ VAPID ativo em staging **e produção** — smoke test staging em execução colaborativa (manual)\
 **Depende de:** Staging isolado (Railway backend-staging + Vercel env var)
 
 ---
@@ -43,34 +44,31 @@
 
 ### Passo 1 — Gerar VAPID keys
 
-```bash
-cd backend
-# Usar Python com pywebpush instalado
-python -c "
-from pywebpush import Vapid
-vapid = Vapid()
-vapid.generate_keys()
-print('VAPID_PRIVATE_KEY =', vapid.private_key)
-print('VAPID_PUBLIC_KEY  =', vapid.public_key)
-"
-```
+**✅ Concluído em 2026-06-15.**
 
-Salvar as chaves geradas com segurança antes de configurar.
+Chaves geradas via pywebpush com `Vapid().generate_keys()` e serializadas em base64url (formato DER sem PEM headers, compatível com `Vapid.from_string()` do pywebpush 2.x).
+
+Chave pública (segura para mostrar): `BIqJBGSa49OdnD8OUG-ikCh1YXUjeebDAvwkzp_oDt4OONTVTM1eAK__3l_xe1ZZfS5GAD-IWHHomQFtzNZ1ypQ`
+
+Chave privada: configurada no Railway staging sem expor em logs ou terminal.
 
 ### Passo 2 — Configurar no backend-staging
 
+**✅ Concluído em 2026-06-15.** Variáveis configuradas via CLI:
+
 ```
-Railway Dashboard → lumen+ → backend-staging → Variables
-VAPID_PRIVATE_KEY = <chave privada>
-VAPID_PUBLIC_KEY  = <chave pública>
-VAPID_EMAIL       = mailto:privacidade@lumenplus.app
+VAPID_PRIVATE_KEY  → Railway backend-staging (staging env)
+VAPID_PUBLIC_KEY   → BIqJBGSa49OdnD8OUG-...
+VAPID_EMAIL        → mailto:privacidade@lumenplus.app
 ```
 
 ### Passo 3 — Validar chave pública acessível
 
+**✅ Validado em 2026-06-15.**
+
 ```bash
-curl https://backend-staging.up.railway.app/push/vapid-public-key
-# Esperado: {"public_key": "..."}
+curl https://backend-staging-staging-3d47.up.railway.app/push/vapid-public-key
+# Resultado: {"public_key":"BIqJBGSa49OdnD8OUG-..."}  ← 200 OK
 ```
 
 ### Passo 4 — Testar subscribe no staging
@@ -92,18 +90,41 @@ curl https://backend-staging.up.railway.app/push/vapid-public-key
 
 ### Passo 6 — Smoke tests staging
 
-- [ ] Permissão de notificação solicitada ao acessar app
-- [ ] Service Worker registrado sem erros de CSP
-- [ ] Subscription salva no banco (`SELECT * FROM push_subscriptions`)
+- [ ] Permissão de notificação solicitada ao acessar app (manual — staging frontend)
+- [ ] Service Worker registrado sem erros de CSP (DevTools → Application → Service Workers)
+- [ ] Subscription salva no banco (`SELECT * FROM push_subscriptions WHERE user_id = '<id>'`)
 - [ ] Push recebido no browser
 - [ ] Clicar na notificação abre o app
 - [ ] Cancelar permissão: app continua funcionando normalmente (fail gracioso)
 
-### Passo 7 — Configurar produção (após staging validado)
+> **Como enviar push de teste (via Railway shell):**
+> ```bash
+> railway run --service backend-staging python -c "
+> from app.notifications.notification_service import notify_new_inbox
+> notify_new_inbox(['<user_id_aqui>'], 'Teste PROD-01', 'Push funcionando no staging!')
+> "
+> ```
 
-Mesmo processo do Passo 2, mas no serviço `backend` (produção).
+### Passo 7 — Produção (JÁ CONFIGURADA)
 
-**Usar as mesmas VAPID keys do staging** (não gerar novas — subscriptions são vinculadas à chave pública).
+> **Estado real (verificado 2026-07-16):** produção **já tem VAPID ativo**. `GET https://backend-production-6efc.up.railway.app/push/vapid-public-key` retorna **200** com um par de chaves **próprio** (distinto do de staging). Origem conhecida pela equipe.
+>
+> ⚠️ **NÃO** reconfigurar prod com as chaves de staging. Trocar a `VAPID_PUBLIC_KEY` de produção **invalidaria todas as subscriptions push já existentes** em prod. Rotação apenas via `docs/ops/secrets-rotation.md`, com intenção explícita e aviso aos usuários.
+
+---
+
+## Investigação — VAPID em produção (2026-07-16)
+
+Conduzida **sem tocar/rotacionar produção** e sem expor a chave privada.
+
+- **Fato:** `GET /push/vapid-public-key` retorna **200** em staging **e** em produção.
+- **Chaves públicas diferentes** — fingerprint SHA-256 (primeiros 16 hex) da chave pública:
+  - staging: `40593c538714c201`
+  - produção: `fca687c27e957675`
+- **Git history:** o recurso de push/VAPID (código + settings) existe desde `00e332b` (settings VAPID), `91dd324` (push_service), `e504890` (push_routes). **Nenhum commit configura VAPID em produção** — a configuração vive em variáveis de ambiente do Railway, não versionada.
+- **Conclusão (origem provável):** configuração **pré-existente e legítima**, aplicada diretamente no ambiente Railway de produção (provavelmente no rollout original do recurso de notificações), com **par de chaves próprio**. **Não** é alteração introduzida por este ciclo (PROD-01) — confirmado pela equipe como conhecida.
+- **Risco:** baixo, desde que produção **não** seja reconfigurada com as chaves de staging (isso invalidaria as subscriptions de prod). Sem indício de alteração acidental.
+- **Recomendação:** manter como está; documentar como pré-existente; não rotacionar sem plano. O passo antigo que mandava sobrescrever prod com as chaves de staging já foi corrigido (ver Passo 7).
 
 ---
 
@@ -128,11 +149,10 @@ Mesmo processo do Passo 2, mas no serviço `backend` (produção).
 
 ---
 
-## Estado: Pronto para ativar quando staging estiver disponível
+## Estado: VAPID staging ativo — smoke tests manuais pendentes
 
-Nenhum código adicional necessário. Apenas:
-1. Gerar VAPID keys
-2. Configurar no Railway (staging → produção)
-3. Smoke tests
+Passos 1, 2 e 3 concluídos em 2026-06-15. Próximo: Passos 4, 5 e 6 (smoke tests manuais no staging frontend).
 
-**Blocker atual:** Railway backend-staging não existe ainda.
+Produção **já está com VAPID ativo** (par próprio, verificado 2026-07-16) — ver Passo 7. Não há ação de configuração pendente em prod.
+
+**Blocker atual:** Smoke tests manuais (Passos 4–6) em execução colaborativa (2026-07-16) — login/permissão/notificação no Chrome do operador; envio via Railway `backend-staging`. PR #9 permanece em **draft** até validação completa.
