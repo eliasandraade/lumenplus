@@ -244,6 +244,16 @@ PRIVACY_V1_3 = (
     .replace("privacidade@obralumen.org.br", "oeliasandraade@gmail.com")
 )
 
+# v1.4 (PRIVACY) — Encarregado (DPO) atualizado: Felipe Rocha Pinheiro Bastos,
+# canal institucional lgpd@lumenserfeliz.org (substitui o contato do DPO anterior).
+# Aprovada pelo Encarregado em 2026-07-16 (LGPD-02/LGPD-06). Apenas troca de
+# nome/canal do Encarregado — nenhuma outra cláusula alterada.
+PRIVACY_V1_4 = (
+    PRIVACY_V1_3.replace("Versão 1.3", "Versão 1.4")
+    .replace("Elias Sales de Freitas", "Felipe Rocha Pinheiro Bastos")
+    .replace("oeliasandraade@gmail.com", "lgpd@lumenserfeliz.org")
+)
+
 # v1.3 — atualiza email de contato: juridico@obralumen.org.br → comunicacao@lumenserfeliz.org
 TERMS_V1_3 = TERMS_V1_2.replace("Versão 1.2", "Versão 1.3").replace(
     "juridico@obralumen.org.br",
